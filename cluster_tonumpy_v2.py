@@ -91,7 +91,8 @@ def in_window(seed_ieta, seed_iphi, seed_iz, ieta, iphi, iz):
     else:
         return False,(-1,-1)
 
-def fill_window_cluster(window, clhits_ieta, clhits_iphi, clhits_iz, clhits_energy, rechit_energy, match_calo,fill_mask=False):
+def fill_window_cluster(window, clhits_ieta, clhits_iphi, clhits_iz, clhits_energy, 
+                        rechit_energy, match_calo,fill_mask=False):
     is_in = False
     mask = []
     for ieta, iphi, iz, cl_energy,rec_energy in zip(clhits_ieta, clhits_iphi, clhits_iz, clhits_energy, rechit_energy):
@@ -130,7 +131,6 @@ def cluster_in_window(window, clhits_ieta, clhits_iphi, clhits_iz, clhits_energy
 totevents = 0
  
 energies_maps = []
-energies_maps_nocalo = []
 metadata = []
 clusters_masks = []
 
@@ -212,6 +212,10 @@ for iev, event in enumerate(tree):
         # If is not already in some window 
         if not is_in_window: 
             caloseed = pfcluster_calo_map[icl]
+            if caloseed == -1:
+                nocalowN+=1
+                # Not creating too many windows of noise
+                if nocalowN> nocalowNmax: continue
             # Let's create  new window:
             new_window = {
                 "seed": (cl_ieta, cl_iphi, cl_iz),
@@ -223,13 +227,10 @@ for iev, event in enumerate(tree):
                     "seed_phi": cl_phi, 
                     "seed_iz": cl_iz,
                     "en_seed": pfCluster_energy[icl],
-                    "en_true": calo_simenergy[caloseed]
+                    "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
+                    "is_calo": caloseed != -1
                 }
             }
-            if new_window["calo"]==-1:
-                nocalowN+=1
-                # Not creating too many windows of noise
-                if nocalowN> nocalowNmax: continue
             # Update index only if we save it
             windows_index += 1
             new_window["metadata"]["index"] = windows_index
@@ -246,6 +247,7 @@ for iev, event in enumerate(tree):
                     "en_cluster": pfCluster_energy[icl],
                     "is_seed": True,
                     "mask": mask, 
+                    "in_scluster":  pfcluster_calo_map[icl] == new_window["calo"]
                 })
 
            
@@ -275,6 +277,7 @@ for iev, event in enumerate(tree):
                     "en_cluster": pfCluster_energy[icl_noseed],
                     "is_seed": False,
                     "mask": mask, 
+                    "in_scluster":  pfcluster_calo_map[icl_noseed] == window["calo"]
                 })
 
 
@@ -290,18 +293,15 @@ for iev, event in enumerate(tree):
         fill_window_hits(window, rechits_noPF_ieta,rechits_noPF_iphi,
                     rechits_noPF_iz,rechits_noPF_energy, levels=[0,1])
 
-        # Save simhit of the calo corresponding to the seed
-        fill_window_hits(window, simhit_ieta[window["calo"]], simhit_iphi[window["calo"]],
-                                 simhit_iz[window["calo"]], simhit_energy[window["calo"]], levels=[4])
-
-        ########Calculate metadata 
-        
         calo_seed = window["calo"]
         # Check the type of events
         # - Number of pfcluster associated, 
         # - deltaR of the farthest cluster
         # - Energy of the pfclusters
         if calo_seed != -1:
+            # Save simhit of the calo corresponding to the seed
+            fill_window_hits(window, simhit_ieta[calo_seed], simhit_iphi[calo_seed],
+                                 simhit_iz[calo_seed], simhit_energy[calo_seed], levels=[4])
             # Get number of associated clusters
             assoc_clusters =  calo_pfcluster_map[calo_seed]
             max_en_pfcluster = max([pfCluster_energy[i] for i in assoc_clusters])
@@ -311,24 +311,18 @@ for iev, event in enumerate(tree):
             window["metadata"]["max_en_cluster"] = max_en_pfcluster
             window["metadata"]["max_dr_cluster"] = max_dr
 
-        if calo_seed != -1:
-            energies_maps.append(window["energy_map"])
-            metadata.append(window["metadata"])
-        else:
-            energies_maps_nocalo.append(window["energy_map"])
-
+        
+        energies_maps.append(window["energy_map"])
+        metadata.append(window["metadata"])
 
         
 results = np.array(energies_maps)
-results_nocalo = np.array(energies_maps_nocalo)
-
 meta= pd.DataFrame(metadata)
 
 #results_nocalo = np.array(energies_maps_nocalo)
 np.save("data_calo.npy", results)
-np.save("data_nocalo.npy", results_nocalo)
 
-meta.to_csv("output.csv", index=False)
+meta.to_csv("metadata_windows.csv", index=False)
 #np.save("data_nocalo.npy", results_nocalo)
 
 pickle.dump(clusters_masks, open("clusters_masks.pkl", "wb"))
