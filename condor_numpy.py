@@ -31,7 +31,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_v2.py
+transfer_input_files    = cluster_tonumpy_simple.py
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -56,11 +56,10 @@ xrdcp --nopbar -f root://eos{eosinstance}.cern.ch/${INPUTFILE} input.root;
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_v2.py -i input.root --weta ${WETA} --wphi ${WPHI} --maxnocalow ${MAXNOCALO};
+python cluster_tonumpy_simple.py -i input.root -o output.pkl --weta ${WETA} --wphi ${WPHI} --maxnocalow ${MAXNOCALO};
 
 echo -e "Copying result to: $OUTPUTDIR";
-xrdcp -f --nopbar  data_calo.root root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/data_calo_${JOBID}.root;
-xrdcp -f --nopbar  data_nocalo.root root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/data_nocalo_${JOBID}.root;
+xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
 
 echo -e "DONE";
 '''
