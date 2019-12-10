@@ -248,7 +248,7 @@ for iev, event in enumerate(tree):
             # Save also seed cluster for cluster_masks
             clusters_event.append({
                     "window_index": new_window["metadata"]["index"],
-                    "cluster_deta": cl_eta - new_window["metadata"]["seed_eta"],
+                    "cluster_deta": abs(cl_eta) - abs(new_window["metadata"]["seed_eta"]),
                     "cluster_dphi": DeltaPhi(cl_phi, new_window["metadata"]["seed_phi"]), 
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl],
