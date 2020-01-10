@@ -32,7 +32,7 @@ parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barr
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 args = parser.parse_args()
 
-if ";" in args.inputfile: 
+if "#_#" in args.inputfile: 
     inputfiles = args.inputfile.split(";")
 else:
     inputfiles = args.inputfile

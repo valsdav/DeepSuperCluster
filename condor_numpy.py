@@ -85,7 +85,7 @@ for ifile in inputfiles:
         jobid +=1
         #join input files by ;
         arguments.append("{} {} {} {} {} {} {} {}".format(
-                jobid,";".join(files_groups), args.outputdir, 
+                jobid,"#_#".join(files_groups), args.outputdir, 
                 *args.weta, *args.wphi, args.maxnocalow))
         files_groups = []
         ifile_group = 0
