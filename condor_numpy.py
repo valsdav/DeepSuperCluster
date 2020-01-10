@@ -30,7 +30,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_simple.py
+transfer_input_files    = cluster_tonumpy_simple.py, windows_creator.py
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -80,8 +80,8 @@ for ifile in inputfiles:
     jobid +=1
     inputfile = args.inputdir + "/" + ifile
 
-    arguments.append("{} {} {} {} {} {}".format(
-            jobid,inputfile, args.outputdir, args.weta, args.wphi, args.maxnocalow))
+    arguments.append("{} {} {} {} {} {} {} {}".format(
+            jobid,inputfile, args.outputdir, *args.weta, *args.wphi, args.maxnocalow))
 
 print("Njobs: ", len(arguments))
     
