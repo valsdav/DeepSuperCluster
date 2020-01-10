@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 
 #parser.add_argument("-f", "--files", type=str, help="input file", required=True)
 parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True)
+parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per numpy file", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
@@ -76,12 +77,20 @@ if not os.path.exists(args.outputdir):
 inputfiles = [ f for f in os.listdir(args.inputdir)]
 
 jobid = 0
+ifile_group = 0
+files_groups = []
 for ifile in inputfiles:
-    jobid +=1
-    inputfile = args.inputdir + "/" + ifile
-
-    arguments.append("{} {} {} {} {} {} {} {}".format(
-            jobid,inputfile, args.outputdir, *args.weta, *args.wphi, args.maxnocalow))
+    if ifile_group < args.nfile_group: 
+        files_groups.append(args.inputdir + "/" + ifile)
+        ifile_group+=1
+    else:
+        jobid +=1
+        #join input files by ;
+        arguments.append("{} {} {} {} {} {} {} {}".format(
+                jobid,";".join(files_groups), args.outputdir, 
+                *args.weta, *args.wphi, args.maxnocalow))
+        files_groups = []
+        ifile_group = 0
 
 print("Njobs: ", len(arguments))
     

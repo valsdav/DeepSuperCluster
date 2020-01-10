@@ -32,45 +32,43 @@ parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barr
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 args = parser.parse_args()
 
+if ";" in args.inputfile: 
+    inputfiles = args.inputfile.split(";")
+else:
+    inputfiles = args.inputfile
+
+# if args.nevents and len(args.nevents) >= 1:
+#     nevent = args.nevents[0]
+#     if len(args.nevents) == 2:
+#         nevent2 = args.nevents[1]
+#     else:
+#         nevent2 = nevent+1
+#     tree = islice(tree, nevent, nevent2)
+
+
 debug = args.debug
 nocalowNmax = args.maxnocalow
 
-f = R.TFile(args.inputfile);
-tree = f.Get("recosimdumper/caloTree")
-
-pbar = tqdm(total=tree.GetEntries())
-
-
-if args.nevents and len(args.nevents) >= 1:
-    nevent = args.nevents[0]
-    if len(args.nevents) == 2:
-        nevent2 = args.nevents[1]
-    else:
-        nevent2 = nevent+1
-    tree = islice(tree, nevent, nevent2)
-
-
-
-# maximum baffo
-# Dictionary for iz
-window_eta = { 0: args.weta[0], 1: args.weta[1], -1: args.weta[1] }
-window_phi = { 0: args.wphi[0], 1: args.wphi[1], -1: args.wphi[1] }
-
-totevents = 0
- 
 energies_maps = []
 metadata = []
 clusters_masks = []
 
-for iev, event in enumerate(tree):
-    totevents+=1
-    pbar.update()
-    print ('---', iev)
-    # if iev % 10 == 0: print(".",end="")
-    windows_event, clusters_event = windows_creator.get_windows(event, 
-                                window_eta, window_phi, args.maxnocalow, args.assoc_strategy, args.debug )
+for inputfile in inputfiles:
+    f = R.TFile(inputfile);
+    tree = f.Get("recosimdumper/caloTree")
 
-    clusters_masks += clusters_event
+    # maximum baffo
+    # Dictionary for iz
+    window_eta = { 0: args.weta[0], 1: args.weta[1], -1: args.weta[1] }
+    window_phi = { 0: args.wphi[0], 1: args.wphi[1], -1: args.wphi[1] }
+
+
+    for iev, event in enumerate(tree):
+        # if iev % 10 == 0: print(".",end="")
+        windows_event, clusters_event = windows_creator.get_windows(event, 
+                                    window_eta, window_phi, args.maxnocalow, args.assoc_strategy, args.debug )
+
+        clusters_masks += clusters_event
         
 # results = np.array(energies_maps)
 # meta= pd.DataFrame(metadata)
