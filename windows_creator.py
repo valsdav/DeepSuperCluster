@@ -1,4 +1,7 @@
 from math import pi, sqrt, cosh
+import random
+import string
+from operator import itemgetter, attrgetter
 
 '''
 This script extracts the windows and associated clusters from events
@@ -34,65 +37,69 @@ def iphi_distance(iphiseed, iphi, iz):
     else :
         return iphi - iphiseed
 
+
+
 def ieta_distance(ietaseed, ieta, iz):
     if iz == 0:
         return transform_ieta(ieta) - transform_ieta(ietaseed)
     else:
         return ieta-ietaseed
 
-
 # Check if a xtal is in the window
-def in_window(seed_ieta, seed_iphi, seed_iz, ieta, iphi, iz, window_ieta, window_iphi):
+def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi):
     if seed_iz != iz: return False, (-1,-1)
-    ietaw = ieta_distance(seed_ieta,ieta,iz)
-    iphiw = iphi_distance(seed_iphi,iphi,iz)
-    if abs(ietaw) <= window_ieta and abs(iphiw) <= window_iphi: 
-        return True, (ietaw, iphiw)
+    deltaeta = abs(seed_eta - eta)
+    deltaphi = abs(DeltaPhi(seed_phi, phi))
+    if deltaeta <= window_eta and deltaphi <= window_phi: 
+        return True, (deltaeta, deltaphi)
     else:
         return False,(-1,-1)
 
 # Check if cluster has an hit in the window
-def cluster_in_window(window, clhits_ieta, clhits_iphi, clhits_iz):
-    for ieta, iphi, iz in zip(clhits_ieta, clhits_iphi, clhits_iz):
-        hit_in_wind, (ietaw, iphiw) = in_window(window["seed"][0],window["seed"][1],window["seed"][2],ieta, iphi, iz)
-        #print((ieta,iphi,iz), (window["seed"][0],window["seed"][1],window["seed"][2]), ietaw, iphiw)
+def cluster_in_window(window, clhits_eta, clhits_phi, clhits_iz):
+    for eta, phi, iz in zip(clhits_eta, clhits_phi, clhits_iz):
+        hit_in_wind, (etaw, phiw) = in_window(window["seed"][0],window["seed"][1],window["seed"][2],eta, phi, iz)
+        #print((eta,phi,iz), (window["seed"][0],window["seed"][1],window["seed"][2]), etaw, phiw)
         if hit_in_wind:
             return True
     return False
 
 
-def get_windows(event, window_ieta, window_iphi):
+def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="sim_fraction_min1", debug=False):
     # Branches
     pfCluster_energy = event.pfCluster_energy
-    pfCluster_ieta = event.pfCluster_ieta
-    pfCluster_iphi = event.pfCluster_iphi
     pfCluster_eta = event.pfCluster_eta
     pfCluster_phi = event.pfCluster_phi
     pfCluster_iz = event.pfCluster_iz
+    calo_simenergy = event.caloParticle_simEnergy
+    calo_simeta = event.caloParticle_simEta
+    calo_simphi = event.caloParticle_simPhi
 
-    pfcluster_calo_map = event.pfCluster_sim_fraction_min1_MatchedIndex
-    calo_pfcluster_map = event.caloParticle_pfCluster_sim_fraction_min1_MatchedIndex
+    # Load associations from dumper
+    pfcluster_calo_map = getattr(event, "pfCluster_{}_MatchedIndex".format(assoc_strategy))
+    calo_pfcluster_map = getattr(event, "caloParticle_pfCluster_{}_MatchedIndex".format(assoc_strategy))
    
     # map of windows, key=pfCluster seed index
-    windows_list = {}
-    window_index = -1
+    windows_map = {}
+    clusters_event = []
     nonseed_clusters = []
+    nocalowN = 0
+
     # 1) Look for highest energy cluster
     clenergies_ordered = sorted([ (ic , en) for ic, en in enumerate(pfCluster_energy)], 
                                                     key=itemgetter(1), reverse=True)
 
     # Now iterate over clusters in order of energies
     for iw, (icl, clenergy) in enumerate(clenergies_ordered):
-        cl_ieta = pfCluster_ieta[icl]
-        cl_iphi = pfCluster_iphi[icl]
         cl_iz = pfCluster_iz[icl]
         cl_eta = pfCluster_eta[icl]
         cl_phi = pfCluster_phi[icl]
 
         is_in_window = False
         # Check if it is already in one windows
-        for window in windows_list:
-            is_in_window, (ietaw, iphiw) = in_window(*window["seed"], cl_ieta, cl_iphi, cl_iz) 
+        for window in windows_map.values():
+            is_in_window, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz, 
+                                                        window_eta[cl_iz], window_phi[cl_iz]) 
             if is_in_window:
                 nonseed_clusters.append(icl)
                 break
@@ -106,7 +113,7 @@ def get_windows(event, window_ieta, window_iphi):
                 if nocalowN> nocalowNmax: continue
             # Let's create  new window:
             new_window = {
-                "seed": (cl_ieta, cl_iphi, cl_iz),
+                "seed": (cl_eta, cl_phi, cl_iz),
                 "calo" : caloseed,
                 "metadata": {
                     "seed_eta": cl_eta,
@@ -115,19 +122,19 @@ def get_windows(event, window_ieta, window_iphi):
                     "en_seed": pfCluster_energy[icl],
                     "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
                     "is_calo": caloseed != -1
-                }, 
-                "clusters": []
+                }
             }
             
             # Create a unique index
-            window_index += 1
+            windex = "".join([ random.choice(string.ascii_lowercase) for _ in range(8)])
             new_window["metadata"]["index"] = windex
             # Save the window
-            windows_list.append(new_window)
+            windows_map[windex] = new_window
             # isin, mask = fill_window_cluster(new_window, clxtals_ieta, clxtals_iphi, clxtals_iz, 
             #                     clxtals_energy, clxtals_rechitEnergy, pfcluster_calo_map[icl], fill_mask=True)
             # Save also seed cluster for cluster_masks
-            new_window["clusters"].append({
+            clusters_event.append({
+                    "window_index": new_window["metadata"]["index"],
                     "cluster_deta": 0.,
                     "cluster_dphi": 0., 
                     "cluster_iz" : cl_iz,
@@ -136,21 +143,22 @@ def get_windows(event, window_ieta, window_iphi):
                     "in_scluster":  pfcluster_calo_map[icl] == new_window["calo"],
                 })
 
+
            
     # Now that all the seeds are inside let's add the non seed
     for icl_noseed in nonseed_clusters:
-        cl_ieta = pfCluster_ieta[icl_noseed]
-        cl_iphi = pfCluster_iphi[icl_noseed]
         cl_iz = pfCluster_iz[icl_noseed]
         cl_eta = pfCluster_eta[icl_noseed]
         cl_phi = pfCluster_phi[icl_noseed]
 
         # Fill all the windows
-        for window in windows_list:
-            isin, (ietaw, iphiw) = in_window(*window["seed"], cl_ieta, cl_iphi, cl_iz)
+        for window in windows_map.values():
+            isin, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz,
+                                            window_eta[cl_iz], window_phi[cl_iz])
             if isin:
-                cevent = {
-                    "cluster_dphi": DeltaPhi(cl_phi, window["metadata"]["seed_phi"]), 
+                cevent = {  
+                    "window_index": window["metadata"]["index"],
+                    "cluster_dphi": phiw,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl_noseed],
                     "is_seed": False,
@@ -161,7 +169,30 @@ def get_windows(event, window_ieta, window_iphi):
                 else:
                     cevent["cluster_deta"] = window["metadata"]["seed_eta"] - cl_eta
                 
-                window["clusters"].append(cevent)
+                clusters_event.append(cevent)
 
+    ###############################
+    #### Some metadata
+    
+    for window in windows_map.values():
+        calo_seed = window["calo"]
+        # Check the type of events
+        # - Number of pfcluster associated, 
+        # - deltaR of the farthest cluster
+        # - Energy of the pfclusters
+        if calo_seed != -1:
+            # Get number of associated clusters
+            assoc_clusters =  calo_pfcluster_map[calo_seed]
+            max_en_pfcluster = max([pfCluster_energy[i] for i in assoc_clusters])
+            max_dr = max( [ DeltaR(calo_simphi[calo_seed], calo_simeta[calo_seed], 
+                            pfCluster_phi[i], pfCluster_eta[i]) for i in assoc_clusters])
+            window["metadata"]["nclusters"] = len(assoc_clusters)
+            window["metadata"]["max_en_cluster"] = max_en_pfcluster
+            window["metadata"]["max_dr_cluster"] = max_dr
 
-    return windows_list
+    
+    # Save metadata in the cluster items
+    for clw in clusters_event:
+        clw.update(windows_map[clw["window_index"]]["metadata"])
+
+    return windows_map, clusters_event

@@ -18,10 +18,9 @@ parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
-parser.add_argument("--weta", type=int,  help="Window eta width", default=10)
-parser.add_argument("--wphi", type=int,  help="Window phi width", default=20)
+parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (barrel,endcap)", default=[0.3,0.3])
+parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barrel, endcap)", default=[0.7,0.7])
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
-
 parser.add_argument("--redo", action="store_true", default=False, help="Redo all files")
 args = parser.parse_args()
 
@@ -35,28 +34,32 @@ transfer_input_files    = cluster_tonumpy_simple.py
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
+
++AccountingGroup = "group_u_CMS.CAF.COMM"
 '''
 
 condor = condor.replace("{queue}", args.queue)
 
 script = '''#!/bin/sh -e
 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_95apython3/x86_64-centos7-gcc7-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.sh
 
 JOBID=$1;  
 INPUTFILE=$2;
 OUTPUTDIR=$3;
-WETA=$4;
-WPHI=$5;
-MAXNOCALO=$6;
-
+WETA_EB=$4;
+WETA_EE=$5;
+WPHI_EB=$6;
+WPHI_EE=$7;
+MAXNOCALO=$8;
 
 echo -e ">>> copy";
 xrdcp --nopbar -f root://eos{eosinstance}.cern.ch/${INPUTFILE} input.root;
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_simple.py -i input.root -o output.pkl --weta ${WETA} --wphi ${WPHI} --maxnocalow ${MAXNOCALO};
+python cluster_tonumpy_simple.py -i input.root -o output.pkl --weta ${WETA_EB} ${WETA_EE}\
+                     --wphi ${WPHI_EB} ${WPHI_EE} --maxnocalow ${MAXNOCALO};
 
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
