@@ -54,12 +54,10 @@ WPHI_EB=$6;
 WPHI_EE=$7;
 MAXNOCALO=$8;
 
-echo -e ">>> copy";
-xrdcp --nopbar -f root://eos{eosinstance}.cern.ch/${INPUTFILE} input.root;
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_simple.py -i input.root -o output.pkl --weta ${WETA_EB} ${WETA_EE}\
+python cluster_tonumpy_simple.py -i ${INPUTFILE} -o output.pkl --weta ${WETA_EB} ${WETA_EE}\
                      --wphi ${WPHI_EB} ${WPHI_EE} --maxnocalow ${MAXNOCALO};
 
 echo -e "Copying result to: $OUTPUTDIR";
