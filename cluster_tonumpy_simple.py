@@ -33,7 +33,7 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 args = parser.parse_args()
 
 if "#_#" in args.inputfile: 
-    inputfiles = args.inputfile.split(";")
+    inputfiles = args.inputfile.split("#_#")
 else:
     inputfiles = args.inputfile
 
@@ -48,6 +48,10 @@ else:
 
 debug = args.debug
 nocalowNmax = args.maxnocalow
+# maximum baffo
+# Dictionary for iz
+window_eta = { 0: args.weta[0], 1: args.weta[1], -1: args.weta[1] }
+window_phi = { 0: args.wphi[0], 1: args.wphi[1], -1: args.wphi[1] }
 
 energies_maps = []
 metadata = []
@@ -57,18 +61,14 @@ for inputfile in inputfiles:
     f = R.TFile(inputfile);
     tree = f.Get("recosimdumper/caloTree")
 
-    # maximum baffo
-    # Dictionary for iz
-    window_eta = { 0: args.weta[0], 1: args.weta[1], -1: args.weta[1] }
-    window_phi = { 0: args.wphi[0], 1: args.wphi[1], -1: args.wphi[1] }
-
-
     for iev, event in enumerate(tree):
         # if iev % 10 == 0: print(".",end="")
         windows_event, clusters_event = windows_creator.get_windows(event, 
-                                    window_eta, window_phi, args.maxnocalow, args.assoc_strategy, args.debug )
-
+                                    window_eta, window_phi, args.maxnocalow, 
+                                    args.assoc_strategy, args.debug )
         clusters_masks += clusters_event
+    
+    f.Close()
         
 # results = np.array(energies_maps)
 # meta= pd.DataFrame(metadata)
@@ -83,5 +83,4 @@ for inputfile in inputfiles:
 
 df_cl = pd.DataFrame(clusters_masks) 
 
-print(df_cl)
 pickle.dump(df_cl, open(args.outputfile, "wb"))
