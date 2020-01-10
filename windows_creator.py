@@ -48,10 +48,10 @@ def ieta_distance(ietaseed, ieta, iz):
 # Check if a xtal is in the window
 def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi):
     if seed_iz != iz: return False, (-1,-1)
-    deltaeta = abs(seed_eta - eta)
-    deltaphi = abs(DeltaPhi(seed_phi, phi))
-    if deltaeta <= window_eta and deltaphi <= window_phi: 
-        return True, (deltaeta, deltaphi)
+    etaw = seed_eta - eta
+    phiw = DeltaPhi(seed_phi, phi)
+    if abs(etaw) <= window_eta and abs(phiw) <= window_phi: 
+        return True, (etaw, phiw)
     else:
         return False,(-1,-1)
 
