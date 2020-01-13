@@ -2,7 +2,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
-parser.add_argument("-o","--outputfile", type=str, help="outputfile", required=True)
+parser.add_argument("-o","--outputdir", type=str, help="outputdir", required=True)
+parser.add_argument("-n","--name", type=str, help="name", required=True)
 args = parser.parse_args()
 
 from keras import backend as K
@@ -52,6 +53,6 @@ frozen_graph = freeze_session(K.get_session(),
                               output_names=[out.op.name for out in model.outputs])
 
 # Save to ./model/tf_model.pb
-tf.train.write_graph(frozen_graph, "model", args.outputfile, as_text=False)
+tf.train.write_graph(frozen_graph, args.outputdir, args.name, as_text=False)
 
 print("done")
