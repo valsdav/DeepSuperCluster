@@ -35,7 +35,7 @@ args = parser.parse_args()
 if "#_#" in args.inputfile: 
     inputfiles = args.inputfile.split("#_#")
 else:
-    inputfiles = args.inputfile
+    inputfiles = [args.inputfile]
 
 # if args.nevents and len(args.nevents) >= 1:
 #     nevent = args.nevents[0]
@@ -61,26 +61,20 @@ for inputfile in inputfiles:
     f = R.TFile(inputfile);
     tree = f.Get("recosimdumper/caloTree")
 
+    print ("Starting")
     for iev, event in enumerate(tree):
-        # if iev % 10 == 0: print(".",end="")
+        if iev % 10 == 0: print(".",end="")
         windows_event, clusters_event = windows_creator.get_windows(event, 
                                     window_eta, window_phi, args.maxnocalow, 
                                     args.assoc_strategy, args.debug )
         clusters_masks += clusters_event
+        print(clusters_event)
     
     f.Close()
         
-# results = np.array(energies_maps)
-# meta= pd.DataFrame(metadata)
-
-#results_nocalo = np.array(energies_maps_nocalo)
-#np.save("data_calo.npy", results)
-
-#meta.to_csv("metadata_windows.csv", index=False)
-#np.save("data_nocalo.npy", results_nocalo)
-
-#pickle.dump(clusters_masks, open("clusters_masks.pkl", "wb"))
 
 df_cl = pd.DataFrame(clusters_masks) 
+
+df_cl.head()
 
 pickle.dump(df_cl, open(args.outputfile, "wb"))

@@ -74,6 +74,12 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
     calo_simenergy = event.caloParticle_simEnergy
     calo_simeta = event.caloParticle_simEta
     calo_simphi = event.caloParticle_simPhi
+    pfcl_f5_r9 = event.pfCluster_full5x5_r9
+    pfcl_f5_sigmaIetaIeta = event.pfCluster_full5x5_sigmaIetaIeta
+    pfcl_f5_sigmaIetaIphi = event.pfCluster_full5x5_sigmaIetaIphi
+    pfcl_f5_sigmaIphiIphi = event.pfCluster_full5x5_sigmaIphiIphi
+    pfcl_swissCross = event.pfCluster_swissCross
+    pfcl_nxtals = event.pfCluster_nXtals
 
     # Load associations from dumper
     pfcluster_calo_map = getattr(event, "pfCluster_{}_MatchedIndex".format(assoc_strategy))
@@ -141,6 +147,13 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
                     "en_cluster": pfCluster_energy[icl],
                     "is_seed": True,
                     "in_scluster":  pfcluster_calo_map[icl] == new_window["calo"],
+                    # Shower shape variables
+                    "f5_r9": pfcl_f5_r9[icl],
+                    "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
+                    "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
+                    "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
+                    "swissCross" : pfcl_swissCross[icl],
+                    "nxtals" : pfcl_nxtals[icl]
                 })
 
 
@@ -162,7 +175,14 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl_noseed],
                     "is_seed": False,
-                    "in_scluster":  pfcluster_calo_map[icl_noseed] == window["calo"]
+                    "in_scluster":  pfcluster_calo_map[icl_noseed] == window["calo"],
+                    # Shower shape variables
+                    "f5_r9": pfcl_f5_r9[icl_noseed],
+                    "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
+                    "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
+                    "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
+                    "swissCross" : pfcl_swissCross[icl_noseed],
+                    "nxtals" : pfcl_nxtals[icl_noseed]
                 }
                 if window["metadata"]["seed_eta"] > 0:
                     cevent["cluster_deta"] = cl_eta - window["metadata"]["seed_eta"]
