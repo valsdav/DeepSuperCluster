@@ -15,8 +15,11 @@ mpl.rcParams["image.origin"] = 'lower'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m","--model", type=str, help="model file", required=True)
+parser.add_argument("-s","--scaler", type=str, help="scaler file", required=True)
 parser.add_argument("--eta", type=float, nargs="+", help="Eta bins", required=True)
 parser.add_argument("--en", type=float, nargs="+", help="ET bins", required = True)
+parser.add_argument("--deta", type=float, help="DeltaEta radius", required=True)
+parser.add_argument("--dphi", type=float, help="DeltaPhi radius", required = True)
 parser.add_argument("-t","--thresholds", type=float, nargs="+", help="Threshold", required = True)
 parser.add_argument("-o","--outputdir", type=str, help="outputdir", required=True)
 parser.add_argument("-r","--roc", action="store_true",  help="Compute ROC", default=False)
@@ -29,22 +32,47 @@ if not os.path.exists(args.outputdir):
     os.makedirs(args.outputdir)
 
 
-scaler = pickle.load(open("../models/scaler.pkl", "rb"))
+scaler = pickle.load(open(args.scaler, "rb"))
 
 model = load_model(args.model)
 
-
+include_seed = False
 datas_val = []
 
-for i in range(60, 127):
-    f = f"/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/numpy_v3/clusters_data_{i}.pkl"
+for i in range(35, 49):
+    f = f"/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/electrons/numpy_v1/clusters_data_{i}.pkl"
     if not os.path.exists(f):
         print("file not found: ", f)
         continue
     d = pickle.load(open(f, "rb"))
-    datas_val.append(d[(d.is_calo) & (d.is_seed == False)])
-        
-data_val  = pd.concat(datas_val, ignore_index=True)
+    #Seed included
+    if include_seed:
+        datas_val.append(d[(d.is_calo) ])
+        # Seed not included
+    else:
+        datas_val.append(d[(d.is_calo) & (d.is_seed==False)])
+    
+data_ele = pd.concat(datas_val, ignore_index=True)
+data_ele["particle"] = "electron"
+
+datas_val = []
+for i in range(60, 92):
+    f = f"/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/gammas/numpy_v1/clusters_data_{i}.pkl"
+    if not os.path.exists(f):
+        print("file not found: ", f)
+        continue
+    d = pickle.load(open(f, "rb"))
+    #Seed included
+    if include_seed:
+        datas_val.append(d[(d.is_calo) ])
+        # Seed not included
+    else:
+        datas_val.append(d[(d.is_calo) & (d.is_seed==False)])
+    
+data_gamma = pd.concat(datas_val, ignore_index=True)
+data_gamma["particle"] = "gamma"
+
+data_val = pd.concat([data_gamma.iloc[0:len(data_ele)], data_ele], ignore_index=True)
 
 cols = ["seed_eta", "seed_phi", "seed_iz","cluster_deta", "cluster_dphi", "en_seed", "en_cluster"]
 
@@ -91,6 +119,9 @@ plt.yscale("log")
 plt.legend()
 plt.savefig(f"{args.outputdir}/scores_norm.png")
 
+#######################################################################################
+
+
 def plot_confusion(threshold, eta_bins, et_bins, axlim=(0.6, 0.2)):
     eta_min, eta_max = eta_bins
     et_min, et_max = et_bins
@@ -118,16 +149,17 @@ def plot_confusion(threshold, eta_bins, et_bins, axlim=(0.6, 0.2)):
     
     #size = max([ data_out_0.size / 80**2, data_out_1.size / 80**2,data_in_0.size / 80**2, data_in_1.size / 80**2])
     
+    
     h, *_, h11 = ax4.hist2d(data_in_1.cluster_dphi, data_in_1.cluster_deta,   
-                    bins=(nbins,nbins), range=((-0.6,0.6),(-0.2,0.2)), cmap="plasma", norm=colors.LogNorm())
+                    bins=(nbins,nbins), range=((-axlim[0], axlim[0]),(-axlim[1], axlim[1])), cmap="plasma", norm=colors.LogNorm())
     
     size = np.max(h)
     *_, h00= ax1.hist2d(data_out_0.cluster_dphi, data_out_0.cluster_deta,
-                     bins=(nbins,nbins), range=((-0.6,0.6),(-0.2,0.2)), vmax=size, cmap="plasma", norm=colors.LogNorm())
+                     bins=(nbins,nbins), range=((-axlim[0], axlim[0]),(-axlim[1], axlim[1])), vmax=size, cmap="plasma", norm=colors.LogNorm())
     *_, h01 = ax2.hist2d(data_out_1.cluster_dphi, data_out_1.cluster_deta,  
-                     bins=(nbins,nbins), range=((-0.6,0.6),(-0.2,0.2)), vmax=size,cmap="plasma", norm=colors.LogNorm())
+                     bins=(nbins,nbins), range=((-axlim[0], axlim[0]),(-axlim[1], axlim[1])), vmax=size,cmap="plasma", norm=colors.LogNorm())
     *_, h10 = ax3.hist2d(data_in_0.cluster_dphi, data_in_0.cluster_deta,  
-                    bins=(nbins,nbins), range=((-0.6,0.6),(-0.2,0.2)), vmax=size,cmap="plasma", norm=colors.LogNorm())
+                    bins=(nbins,nbins), range=((-axlim[0], axlim[0]),(-axlim[1], axlim[1])), vmax=size,cmap="plasma", norm=colors.LogNorm())
     
     #fig.colorbar(h00, ax=ax[0][0])
     divider1 = make_axes_locatable(ax1)
@@ -174,7 +206,8 @@ def plot_confusion(threshold, eta_bins, et_bins, axlim=(0.6, 0.2)):
     fig.text(0.02, 0.93, f"${eta_min} < |\eta| < {eta_max}$,  ${et_min:.0f} < E_{{T}}< {et_max:.0f}$ GeV", va="center", ha="left")
 
     fig.savefig(f"{args.outputdir}/confmatrix__thre_{threshold}_eta_{eta_min}_{eta_max}_et_{et_min}_{et_max}.png")
-
+    
+    plt.close(fig)
 
 
 for tr in args.thresholds:
@@ -186,4 +219,4 @@ for tr in args.thresholds:
             enmin = args.en[ien]
             enmax = args.en[ien+1]
             print(f">> Eta: {etamin} - {etamax} | Energy:  {enmin} - {enmax}")
-            plot_confusion(tr, (etamin, etamax), (enmin, enmax))
+            plot_confusion(tr, (etamin, etamax), (enmin, enmax), axlim=(args.dphi, args.deta))
