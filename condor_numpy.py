@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True)
 parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per numpy file", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
+parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction_min1")
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
 parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (barrel,endcap)", default=[0.3,0.3])
@@ -53,12 +54,13 @@ WETA_EE=$5;
 WPHI_EB=$6;
 WPHI_EE=$7;
 MAXNOCALO=$8;
+ASSOC=$9;
 
 
 echo -e "Running numpy dumper.."
 
 python cluster_tonumpy_simple.py -i ${INPUTFILE} -o output.pkl --weta ${WETA_EB} ${WETA_EE}\
-                     --wphi ${WPHI_EB} ${WPHI_EE} --maxnocalow ${MAXNOCALO};
+                     --wphi ${WPHI_EB} ${WPHI_EE} --maxnocalow ${MAXNOCALO} --assoc-strategy ${ASSOC};
 
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
@@ -86,7 +88,7 @@ for ifile in inputfiles:
         #join input files by ;
         arguments.append("{} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir, 
-                *args.weta, *args.wphi, args.maxnocalow))
+                *args.weta, *args.wphi, args.maxnocalow, args.assoc_strategy))
         files_groups = []
         ifile_group = 0
 

@@ -38,7 +38,6 @@ def iphi_distance(iphiseed, iphi, iz):
         return iphi - iphiseed
 
 
-
 def ieta_distance(ietaseed, ieta, iz):
     if iz == 0:
         return transform_ieta(ieta) - transform_ieta(ietaseed)
