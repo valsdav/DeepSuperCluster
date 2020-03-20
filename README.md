@@ -14,3 +14,7 @@ The script **cluster_tonumpy_v2.py** prepares information for machine learning t
 * Metadata are saved for each window and for each cluster. A map of energies is created for each window. 
 
 * Windows are created either if the seed corresponds to a calopartible or not
+
+# Models
+
+All the trained models can be found in the models folder. Each subfolder has a README with the model configuration. 
