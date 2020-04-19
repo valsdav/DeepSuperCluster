@@ -154,7 +154,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl],
                     "is_seed": True,
-                    "in_scluster":  new_window["calo"] =! -1,
+                    "in_scluster":  new_window["calo"] != -1,
                     # Shower shape variables
                     "f5_r9": pfcl_f5_r9[icl],
                     "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
