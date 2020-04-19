@@ -92,6 +92,7 @@ ifile_group = 0
 files_groups = []
 for ifile in range(nfiles_training):
     if ifile_group < args.nfile_group: 
+        if (template_inputfile.format(ifile+1) not in inputfiles): continue
         files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile+1))
         ifile_group+=1
     else:
@@ -108,12 +109,13 @@ files_groups = []
 
 for ifile in range(nfiles_testing):
     if ifile_group < args.nfile_group: 
+        if (template_inputfile.format(nfiles_training+ifile+1) not in inputfiles): continue
         files_groups.append(args.inputdir + "/" + template_inputfile.format(nfiles_training + ifile+1))
         ifile_group+=1
     else:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {} {} {} {}".format(
+        arguments.append("{} {} {} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/testing", 
                 *args.weta, *args.wphi, args.maxnocalow, args.assoc_strategy, args.min_et_seed))
         files_groups = []
