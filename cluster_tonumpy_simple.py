@@ -30,6 +30,7 @@ parser.add_argument("-d","--debug", action="store_true",  help="debug", default=
 parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (barrel,endcap)", default=[0.3,0.3])
 parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barrel, endcap)", default=[0.7,0.7])
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
+parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 args = parser.parse_args()
 
 if "#_#" in args.inputfile: 
@@ -66,7 +67,7 @@ for inputfile in inputfiles:
         if iev % 10 == 0: print(".",end="")
         windows_event, clusters_event = windows_creator.get_windows(event, 
                                     window_eta, window_phi, args.maxnocalow, 
-                                    args.assoc_strategy, args.debug )
+                                    args.assoc_strategy, args.min_et_seed, args.debug )
         clusters_masks += clusters_event
         print(clusters_event)
     

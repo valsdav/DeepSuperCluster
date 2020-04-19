@@ -64,7 +64,8 @@ def cluster_in_window(window, clhits_eta, clhits_phi, clhits_iz):
     return False
 
 
-def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="sim_fraction_min1", debug=False):
+def get_windows(event, window_eta, window_phi, nocalowNmax=0, 
+                assoc_strategy="sim_fraction_min1", min_et_seed=1, debug=False):
     # Branches
     pfCluster_energy = event.pfCluster_energy
     pfCluster_eta = event.pfCluster_eta
@@ -100,6 +101,9 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
         cl_eta = pfCluster_eta[icl]
         cl_phi = pfCluster_phi[icl]
 
+        cl_et = clenergy / cosh(cl_eta)
+        if cl_et < min_et_seed: continue
+
         is_in_window = False
         # Check if it is already in one windows
         for window in windows_map.values():
@@ -126,6 +130,11 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
                     "seed_iz": cl_iz,
                     "en_seed": pfCluster_energy[icl],
                     "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
+                    "f5_r9d": pfcl_f5_r9[icl],
+                    "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
+                    "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
+                    "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
+                    "seed_swissCross" : pfcl_swissCross[icl],
                     "is_calo": caloseed != -1
                 }
             }
