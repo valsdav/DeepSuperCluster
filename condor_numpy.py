@@ -84,7 +84,7 @@ inputfiles = [ f for f in os.listdir(args.inputdir)]
 ninputfiles = len(inputfiles)
 template_inputfile = "cluster_job{}_step2_output.root"
 
-nfiles_testing = int( inputfiles * args.test_fraction)
+nfiles_testing = int( ninputfiles * args.test_fraction)
 nfiles_training = ninputfiles - nfiles_testing
 
 jobid = 0

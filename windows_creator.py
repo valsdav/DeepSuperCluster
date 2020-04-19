@@ -135,7 +135,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "seed_swissCross" : pfcl_swissCross[icl],
-                    "is_calo": caloseed != -1
+                    "is_calo_matched": caloseed != -1
                 }
             }
             
@@ -154,7 +154,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl],
                     "is_seed": True,
-                    "in_scluster":  pfcluster_calo_map[icl] == new_window["calo"],
+                    "in_scluster":  new_window["calo"] =! -1,
                     # Shower shape variables
                     "f5_r9": pfcl_f5_r9[icl],
                     "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
@@ -177,13 +177,20 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
             isin, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz,
                                             window_eta[cl_iz], window_phi[cl_iz])
             if isin:
+
+                # If the window is not associated to a calo then in_scluster is always false for the cluster
+                if window["calo"] ==-1 :   
+                    in_scluster = False
+                else: 
+                    in_scluster = pfcluster_calo_map[icl_noseed] == window["calo"]
+
                 cevent = {  
                     "window_index": window["metadata"]["index"],
                     "cluster_dphi": phiw,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl_noseed],
                     "is_seed": False,
-                    "in_scluster":  pfcluster_calo_map[icl_noseed] == window["calo"],
+                    "in_scluster": in_scluster,
                     # Shower shape variables
                     "f5_r9": pfcl_f5_r9[icl_noseed],
                     "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
