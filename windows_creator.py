@@ -129,7 +129,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "seed_phi": cl_phi, 
                     "seed_iz": cl_iz,
                     "en_seed": pfCluster_energy[icl],
-                    "et_seed": pfCluster_energy[icl] / cosh(cl_eta)
+                    "et_seed": pfCluster_energy[icl] / cosh(cl_eta),
                     "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
                     "et_true": calo_simenergy[caloseed]/cosh(calo_simeta) if caloseed!=-1 else 0, 
                     "seed_f5_r9d": pfcl_f5_r9[icl],
