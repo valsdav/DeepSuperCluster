@@ -69,7 +69,7 @@ for inputfile in inputfiles:
                                     window_eta, window_phi, args.maxnocalow, 
                                     args.assoc_strategy, args.min_et_seed, args.debug )
         clusters_masks += clusters_event
-        print(clusters_event)
+        #print(clusters_event)
     
     f.Close()
         

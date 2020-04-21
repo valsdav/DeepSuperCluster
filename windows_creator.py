@@ -137,6 +137,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "seed_swissCross" : pfcl_swissCross[icl],
+                    "seed_nxtals" : pfcl_nxtals[icl],
                     "is_calo_matched": caloseed != -1,
                     
                 }
@@ -160,12 +161,12 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "is_seed": True,
                     "in_scluster":  new_window["calo"] != -1,
                     # Shower shape variables
-                    "f5_r9": pfcl_f5_r9[icl],
-                    "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
-                    "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
-                    "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
-                    "swissCross" : pfcl_swissCross[icl],
-                    "nxtals" : pfcl_nxtals[icl]
+                    "cl_f5_r9": pfcl_f5_r9[icl],
+                    "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
+                    "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
+                    "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
+                    "cl_swissCross" : pfcl_swissCross[icl],
+                    "cl_nxtals" : pfcl_nxtals[icl]
                 })
 
 
@@ -197,12 +198,12 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "is_seed": False,
                     "in_scluster": in_scluster,
                     # Shower shape variables
-                    "f5_r9": pfcl_f5_r9[icl_noseed],
-                    "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
-                    "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
-                    "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
-                    "swissCross" : pfcl_swissCross[icl_noseed],
-                    "nxtals" : pfcl_nxtals[icl_noseed]
+                    "cl_f5_r9": pfcl_f5_r9[icl_noseed],
+                    "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
+                    "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
+                    "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
+                    "cl_swissCross" : pfcl_swissCross[icl_noseed],
+                    "cl_nxtals" : pfcl_nxtals[icl_noseed]
                 }
                 if window["metadata"]["seed_eta"] > 0:
                     cevent["cluster_deta"] = cl_eta - window["metadata"]["seed_eta"]

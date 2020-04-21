@@ -116,8 +116,16 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
                 "seed_phi": cl_phi, 
                 "seed_iz": cl_iz,
                 "en_seed": pfCluster_energy[icl],
+                "et_seed": pfCluster_energy[icl] / cosh(cl_eta),
                 "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
-                "is_calo": caloseed != -1
+                "et_true": calo_simenergy[caloseed]/cosh(calo_simeta[caloseed]) if caloseed!=-1 else 0, 
+                "seed_f5_r9d": pfcl_f5_r9[icl],
+                "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
+                "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
+                "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
+                "seed_swissCross" : pfcl_swissCross[icl],
+                "seed_nxtals" : pfcl_nxtals[icl],
+                "is_calo_matched": caloseed != -1,
             }
         }
         
@@ -136,16 +144,16 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
                 "cluster_iz" : cl_iz,
                 "en_cluster": pfCluster_energy[icl],
                 "is_seed": True,
-                "in_scluster":  pfcluster_calo_map[icl] == new_window["calo"],
+                "in_scluster":  new_window["calo"] != -1,
                 # Save the information that is in the mustache selection
                 "in_mustache": True,
                 # Shower shape variables
-                "f5_r9": pfcl_f5_r9[icl],
-                "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
-                "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
-                "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
-                "swissCross" : pfcl_swissCross[icl],
-                "nxtals" : pfcl_nxtals[icl]
+                "cl_f5_r9": pfcl_f5_r9[icl],
+                "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
+                "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
+                "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
+                "cl_swissCross" : pfcl_swissCross[icl],
+                "cl_nxtals" : pfcl_nxtals[icl]
             })
 
 
@@ -163,22 +171,30 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0, assoc_strategy="si
             isin, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz,
                                             window_eta[cl_iz], window_phi[cl_iz])
             if isin:
+
+                 # If the window is not associated to a calo then in_scluster is always false for the cluster
+                if window["calo"] ==-1 :   
+                    in_scluster = False
+                else: 
+                    in_scluster = pfcluster_calo_map[icl_noseed] == window["calo"]
+
                 cevent = {  
-                    "window_index": window["metadata"]["index"],
+                   "window_index": window["metadata"]["index"],
                     "cluster_dphi": phiw,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl_noseed],
+                    "et_cluster": pfCluster_energy[icl_noseed] / cosh(cl_eta),
                     "is_seed": False,
-                    "in_scluster":  pfcluster_calo_map[icl_noseed] == window["calo"],
+                    "in_scluster": in_scluster,
                     # Now check if the cluster is selected by mustache
                     "in_mustache" : icl_noseed in pfcl_in_mustache[window["mustache_index"]],
                     # Shower shape variables
-                    "f5_r9": pfcl_f5_r9[icl_noseed],
-                    "f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
-                    "f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
-                    "f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
-                    "swissCross" : pfcl_swissCross[icl_noseed],
-                    "nxtals" : pfcl_nxtals[icl_noseed],
+                    "cl_f5_r9": pfcl_f5_r9[icl_noseed],
+                    "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
+                    "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
+                    "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
+                    "cl_swissCross" : pfcl_swissCross[icl_noseed],
+                    "cl_nxtals" : pfcl_nxtals[icl_noseed]
                 }
                 if window["metadata"]["seed_eta"] > 0:
                     cevent["cluster_deta"] = cl_eta - window["metadata"]["seed_eta"]
