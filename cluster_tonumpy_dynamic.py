@@ -16,7 +16,7 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-import windows_creator_dynamic
+import windows_creator_dynamic as windows_creator
 '''
 This script analyse the overlapping of two caloparticles
 '''
