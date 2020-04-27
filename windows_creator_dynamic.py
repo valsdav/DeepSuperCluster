@@ -54,7 +54,7 @@ def dynamic_window(eta):
         return deta, dphi 
     elif abs(eta) >= 2.25:
         deta = 0.2
-        xc = 2.25
+        x = 2.25
         dphi =  0.2197*(x**2) - 1.342*x + 2.195
         return deta, dphi 
 

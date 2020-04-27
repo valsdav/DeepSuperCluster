@@ -62,9 +62,9 @@ ET_SEED=${10};
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_simple.py -i ${INPUTFILE} -o output.pkl --weta ${WETA_EB} ${WETA_EE}\
-                     --wphi ${WPHI_EB} ${WPHI_EE} --maxnocalow ${MAXNOCALO} --assoc-strategy ${ASSOC} \
-                         --min-et-seed ${ET_SEED};
+python cluster_tonumpy_dynamic.py -i ${INPUTFILE} -o output.pkl \
+            --maxnocalow ${MAXNOCALO} --assoc-strategy ${ASSOC} \
+            --min-et-seed ${ET_SEED};
 
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
@@ -78,7 +78,7 @@ arguments= []
 if not os.path.exists(args.outputdir):
     os.makedirs(args.outputdir)
     os.makedirs(args.outputdir +"/training")
-    os.makedirs(args.outputdir +"/validation")
+    os.makedirs(args.outputdir +"/testing")
 
 inputfiles = [ f for f in os.listdir(args.inputdir)]
 ninputfiles = len(inputfiles)
