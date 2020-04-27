@@ -44,6 +44,21 @@ def ieta_distance(ietaseed, ieta, iz):
     else:
         return ieta-ietaseed
 
+def dynamic_window(eta):
+    if abs(eta)< 1.479:
+        return 0.2, 0.6  
+    elif abs(eta) >= 1.479 and abs(eta)< 2.25:
+        deta = 0.2
+        x = abs(eta)
+        dphi =   0.2197*(x**2) - 1.342*x + 2.195
+        return deta, dphi 
+    elif abs(eta) >= 2.25:
+        deta = 0.2
+        xc = 2.25
+        dphi =  0.2197*(x**2) - 1.342*x + 2.195
+        return deta, dphi 
+
+
 # Check if a xtal is in the window
 def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi):
     if seed_iz != iz: return False, (-1,-1)
@@ -55,13 +70,13 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi)
         return False,(-1,-1)
 
 # Check if cluster has an hit in the window
-def cluster_in_window(window, clhits_eta, clhits_phi, clhits_iz):
-    for eta, phi, iz in zip(clhits_eta, clhits_phi, clhits_iz):
-        hit_in_wind, (etaw, phiw) = in_window(window["seed"][0],window["seed"][1],window["seed"][2],eta, phi, iz)
-        #print((eta,phi,iz), (window["seed"][0],window["seed"][1],window["seed"][2]), etaw, phiw)
-        if hit_in_wind:
-            return True
-    return False
+# def cluster_in_window(window, clhits_eta, clhits_phi, clhits_iz):
+#     for eta, phi, iz in zip(clhits_eta, clhits_phi, clhits_iz):
+#         hit_in_wind, (etaw, phiw) = in_window(window["seed"][0],window["seed"][1],window["seed"][2],eta, phi, iz)
+#         #print((eta,phi,iz), (window["seed"][0],window["seed"][1],window["seed"][2]), etaw, phiw)
+#         if hit_in_wind:
+#             return True
+#     return False
 
 
 def get_windows(event, window_eta, window_phi, nocalowNmax=0, 
@@ -84,6 +99,10 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
     # Load associations from dumper
     pfcluster_calo_map = getattr(event, "pfCluster_{}_MatchedIndex".format(assoc_strategy))
     calo_pfcluster_map = getattr(event, "caloParticle_pfCluster_{}_MatchedIndex".format(assoc_strategy))
+    
+    #Mustache info
+    mustacheseed_pfcls = event.superCluster_seedIndex
+    pfcl_in_mustache = event.superCluster_pfClustersIndex
    
     # map of windows, key=pfCluster seed index
     windows_map = {}
@@ -108,7 +127,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
         # Check if it is already in one windows
         for window in windows_map.values():
             is_in_window, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz, 
-                                                        window_eta[cl_iz], window_phi[cl_iz]) 
+                                                 *dynamic_window(window["seed"][0])) 
             if is_in_window:
                 nonseed_clusters.append(icl)
                 break
@@ -120,6 +139,11 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                 nocalowN+=1
                 # Not creating too many windows of noise
                 if nocalowN> nocalowNmax: continue
+            # Check if it is a mustache seed
+            if icl in mustacheseed_pfcls:
+                mustache_seed_index = mustacheseed_pfcls.index(icl)
+            else:
+                mustache_seed_index = -1
             # Let's create  new window:
             new_window = {
                 "seed": (cl_eta, cl_phi, cl_iz),
@@ -139,7 +163,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "seed_swissCross" : pfcl_swissCross[icl],
                     "seed_nxtals" : pfcl_nxtals[icl],
                     "is_calo_matched": caloseed != -1,
-                    
+                    "mustache_seed_index": mustache_seed_index,
                 }
             }
             
@@ -160,13 +184,14 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "et_cluster": pfCluster_energy[icl] / cosh(cl_eta),
                     "is_seed": True,
                     "in_scluster":  new_window["calo"] != -1,
+                    "in_mustache" :  window["metadata"]["mustache_seed_index"] != -1,
                     # Shower shape variables
                     "cl_f5_r9": pfcl_f5_r9[icl],
                     "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
                     "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "cl_swissCross" : pfcl_swissCross[icl],
-                    "cl_nxtals" : pfcl_nxtals[icl]
+                    "cl_nxtals" : pfcl_nxtals[icl],
                 })
 
 
@@ -180,7 +205,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
         # Fill all the windows
         for window in windows_map.values():
             isin, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz,
-                                            window_eta[cl_iz], window_phi[cl_iz])
+                                             *dynamic_window(window["seed"][0]))
             if isin:
 
                 # If the window is not associated to a calo then in_scluster is always false for the cluster
@@ -188,6 +213,11 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     in_scluster = False
                 else: 
                     in_scluster = pfcluster_calo_map[icl_noseed] == window["calo"]
+
+                if window["metadata"]["mustache_seed_index"] != -1:
+                    in_mustache = icl_noseed in pfcl_in_mustache[window["metadata"]["mustache_seed_index"]]
+                else:
+                    in_mustache = False
 
                 cevent = {  
                     "window_index": window["metadata"]["index"],
@@ -197,6 +227,7 @@ def get_windows(event, window_eta, window_phi, nocalowNmax=0,
                     "et_cluster": pfCluster_energy[icl_noseed] / cosh(cl_eta),
                     "is_seed": False,
                     "in_scluster": in_scluster,
+                    "in_mustache" : in_mustache,
                     # Shower shape variables
                     "cl_f5_r9": pfcl_f5_r9[icl_noseed],
                     "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
