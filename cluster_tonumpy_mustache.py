@@ -16,7 +16,7 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-import windows_creator_mustache
+import windows_creator_mustache as windows_creator
 '''
 This script analyse the overlapping of two caloparticles
 '''
@@ -61,6 +61,7 @@ for inputfile in inputfiles:
     f = R.TFile(inputfile);
     tree = f.Get("recosimdumper/caloTree")
 
+ciao
     print ("Starting")
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
