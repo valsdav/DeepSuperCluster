@@ -46,14 +46,14 @@ def ieta_distance(ietaseed, ieta, iz):
 
 def dynamic_window(eta):
     if abs(eta)< 1.479:
-        return 0.1, 0.3  # 0.2 deta and 0.6 dphi total
+        return 0.2, 0.6  
     elif abs(eta) >= 1.479 and abs(eta)< 2.25:
-        deta = 0.1
+        deta = 0.2
         x = abs(eta)
         dphi =   0.2197*(x**2) - 1.342*x + 2.195
         return deta, dphi 
     elif abs(eta) >= 2.25:
-        deta = 0.1
+        deta = 0.2
         xc = 2.25
         dphi =  0.2197*(x**2) - 1.342*x + 2.195
         return deta, dphi 
