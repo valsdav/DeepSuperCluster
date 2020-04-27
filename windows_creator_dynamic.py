@@ -79,8 +79,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi)
 #     return False
 
 
-def get_windows(event, window_eta, window_phi, nocalowNmax=0, 
-                assoc_strategy="sim_fraction_min1", min_et_seed=1, debug=False):
+def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et_seed=1, debug=False):
     # Branches
     pfCluster_energy = event.pfCluster_energy
     pfCluster_eta = event.pfCluster_eta

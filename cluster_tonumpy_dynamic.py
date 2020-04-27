@@ -47,10 +47,6 @@ else:
 
 debug = args.debug
 nocalowNmax = args.maxnocalow
-# maximum baffo
-# Dictionary for iz
-window_eta = { 0: args.weta[0], 1: args.weta[1], -1: args.weta[1] }
-window_phi = { 0: args.wphi[0], 1: args.wphi[1], -1: args.wphi[1] }
 
 energies_maps = []
 metadata = []
@@ -63,8 +59,7 @@ for inputfile in inputfiles:
     print ("Starting")
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
-        windows_event, clusters_event = windows_creator.get_windows(event, 
-                                    window_eta, window_phi, args.maxnocalow, 
+        windows_event, clusters_event = windows_creator.get_windows(event, args.maxnocalow, 
                                     args.assoc_strategy, args.min_et_seed, args.debug )
         clusters_masks += clusters_event
         #print(clusters_event)
