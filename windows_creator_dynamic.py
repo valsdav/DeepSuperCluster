@@ -183,7 +183,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "et_cluster": pfCluster_energy[icl] / cosh(cl_eta),
                     "is_seed": True,
                     "in_scluster":  new_window["calo"] != -1,
-                    "in_mustache" :  window["metadata"]["mustache_seed_index"] != -1,
+                    "in_mustache" :  new_window["metadata"]["mustache_seed_index"] != -1,
                     # Shower shape variables
                     "cl_f5_r9": pfcl_f5_r9[icl],
                     "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
@@ -192,6 +192,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "cl_swissCross" : pfcl_swissCross[icl],
                     "cl_nxtals" : pfcl_nxtals[icl],
                 })
+
 
 
            
