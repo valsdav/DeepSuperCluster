@@ -98,9 +98,9 @@ for ifile in range(nfiles_training):
     else:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {} {} {} {} {}".format(
+        arguments.append("{} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/training", 
-                *args.weta, *args.wphi, args.maxnocalow, args.assoc_strategy, args.min_et_seed))
+                args.maxnocalow, args.assoc_strategy, args.min_et_seed))
         files_groups = []
         ifile_group = 0
 
@@ -115,9 +115,9 @@ for ifile in range(nfiles_testing):
     else:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {} {} {} {} {}".format(
+        arguments.append("{} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/testing", 
-                *args.weta, *args.wphi, args.maxnocalow, args.assoc_strategy, args.min_et_seed))
+                args.maxnocalow, args.assoc_strategy, args.min_et_seed))
         files_groups = []
         ifile_group = 0
 
