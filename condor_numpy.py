@@ -34,7 +34,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_simple.py, windows_creator.py
+transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -51,13 +51,9 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.
 JOBID=$1;  
 INPUTFILE=$2;
 OUTPUTDIR=$3;
-WETA_EB=$4;
-WETA_EE=$5;
-WPHI_EB=$6;
-WPHI_EE=$7;
-MAXNOCALO=$8;
-ASSOC=$9;
-ET_SEED=${10};
+MAXNOCALO=$4;
+ASSOC=$5;
+ET_SEED=$6;
 
 
 echo -e "Running numpy dumper.."
