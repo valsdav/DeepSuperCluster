@@ -80,18 +80,26 @@ inputfiles = [ f for f in os.listdir(args.inputdir)]
 ninputfiles = len(inputfiles)
 template_inputfile = "cluster_job{}_step2_output.root"
 
+print("N input files: ", ninputfiles)
+
 nfiles_testing = int( ninputfiles * args.test_fraction)
 nfiles_training = ninputfiles - nfiles_testing
+print("N. training files {}, N. testing files {}".format(nfiles_training, nfiles_testing))
 
 jobid = 0
-ifile_group = 0
 files_groups = []
-for ifile in range(nfiles_training):
-    if ifile_group < args.nfile_group: 
-        if (template_inputfile.format(ifile+1) not in inputfiles): continue
-        files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile+1))
-        ifile_group+=1
-    else:
+ifile_used = 0
+ifile_curr = 0
+
+while ifile_used < nfiles_training:
+    while (template_inputfile.format(ifile_curr) not in inputfiles): 
+        ifile_curr +=1
+    
+    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+    ifile_used +=1 
+    ifile_curr +=1
+
+    if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
         arguments.append("{} {} {} {} {} {}".format(
@@ -100,20 +108,29 @@ for ifile in range(nfiles_training):
         files_groups = []
         ifile_group = 0
 
+print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
+
 # Join also the last group
 arguments.append("{} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/training", 
                 args.maxnocalow, args.assoc_strategy, args.min_et_seed))
 
+
+######## testing
 ifile_group = 0
 files_groups = []
+ifile_used = 0
+#ifile_curr from training cycle
 
-for ifile in range(nfiles_testing):
-    if ifile_group < args.nfile_group: 
-        if (template_inputfile.format(nfiles_training+ifile+1) not in inputfiles): continue
-        files_groups.append(args.inputdir + "/" + template_inputfile.format(nfiles_training + ifile+1))
-        ifile_group+=1
-    else:
+while ifile_used < nfiles_testing:
+    while (template_inputfile.format(ifile_curr) not in inputfiles): 
+        ifile_curr +=1
+    
+    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+    ifile_used +=1 
+    ifile_curr +=1
+
+    if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
         arguments.append("{} {} {} {} {} {}".format(
@@ -121,6 +138,8 @@ for ifile in range(nfiles_testing):
                 args.maxnocalow, args.assoc_strategy, args.min_et_seed))
         files_groups = []
         ifile_group = 0
+
+print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
 arguments.append("{} {} {} {} {} {}".format(
