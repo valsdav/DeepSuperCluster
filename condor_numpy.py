@@ -100,6 +100,11 @@ for ifile in range(nfiles_training):
         files_groups = []
         ifile_group = 0
 
+# Join also the last group
+arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", 
+                args.maxnocalow, args.assoc_strategy, args.min_et_seed))
+
 ifile_group = 0
 files_groups = []
 
@@ -116,6 +121,11 @@ for ifile in range(nfiles_testing):
                 args.maxnocalow, args.assoc_strategy, args.min_et_seed))
         files_groups = []
         ifile_group = 0
+
+#join also the last group
+arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", 
+                args.maxnocalow, args.assoc_strategy, args.min_et_seed))
 
 print("Njobs: ", len(arguments))
     
