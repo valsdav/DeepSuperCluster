@@ -109,15 +109,16 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
     # map of windows, key=pfCluster seed index
     windows_map = {}
     clusters_event = []
-    nonseed_clusters = []
+    seed_clusters = []
     nocalowN = 0
 
     # 1) Look for highest energy cluster
     clenergies_ordered = sorted([ (ic , en) for ic, en in enumerate(pfCluster_energy)], 
                                                     key=itemgetter(1), reverse=True)
 
+
     # Now iterate over clusters in order of energies
-    for iw, (icl, clenergy) in enumerate(clenergies_ordered):
+    for icl, clenergy in clenergies_ordered:
         cl_iz = pfCluster_iz[icl]
         cl_eta = pfCluster_eta[icl]
         cl_phi = pfCluster_phi[icl]
@@ -130,9 +131,6 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
         for window in windows_map.values():
             is_in_window, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz, 
                                                  *dynamic_window(window["seed"][0])) 
-            if is_in_window:
-                nonseed_clusters.append(icl)
-                break
 
         # If is not already in some window 
         if not is_in_window: 
@@ -141,6 +139,8 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                 nocalowN+=1
                 # Not creating too many windows of noise
                 if nocalowN> nocalowNmax: continue
+            # Save the cluster in the list of associated clusters
+            seed_clusters.append(icl)
             # Check if it is a mustache seed
             if icl in mustacheseed_pfcls:
                 mustache_seed_index = mustacheseed_pfcls.index(icl)
@@ -151,6 +151,8 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                 "seed": (cl_eta, cl_phi, cl_iz),
                 "calo" : caloseed,
                 "metadata": {
+                    "is_calo_matched": caloseed != -1,
+                    "mustache_seed_index": mustache_seed_index,
                     "seed_eta": cl_eta,
                     "seed_phi": cl_phi, 
                     "seed_iz": cl_iz,
@@ -164,8 +166,6 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "seed_swissCross" : pfcl_swissCross[icl],
                     "seed_nxtals" : pfcl_nxtals[icl],
-                    "is_calo_matched": caloseed != -1,
-                    "mustache_seed_index": mustache_seed_index,
                 }
             }
             
@@ -200,7 +200,10 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
 
            
     # Now that all the seeds are inside let's add the non seed
-    for icl_noseed in nonseed_clusters:
+    for icl_noseed, clenergy in clenergies_ordered:
+        # exclude seed clusters
+        if icl_noseed in seed_clusters: continue
+
         cl_iz = pfCluster_iz[icl_noseed]
         cl_eta = pfCluster_eta[icl_noseed]
         cl_phi = pfCluster_phi[icl_noseed]
@@ -216,7 +219,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     in_scluster = False
                 else: 
                     in_scluster = pfcluster_calo_map[icl_noseed] == window["calo"]
-
+                # check if the cluster is inside the same mustache
                 if window["metadata"]["mustache_seed_index"] != -1:
                     in_mustache = icl_noseed in pfcl_in_mustache[window["metadata"]["mustache_seed_index"]]
                 else:
