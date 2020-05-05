@@ -27,8 +27,9 @@ args = parser.parse_args()
 
 os.makedirs(args.outputdir,exist_ok=True)
 
-from keras.models import load_model
-model = load_model(args.model)
+from tensorflow import keras 
+
+model = keras.models.load_model(args.model)
 scaler = pickle.load(open(args.scaler, "rb"))
 
 inputdir = "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/"
@@ -47,7 +48,7 @@ i = 0
 
 for f in glob.glob(inputdir+ "electrons/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
     i+=1
-    #if i >10: break
+    if i >10: break
     d = pickle.load(open(f, "rb"))
     datas_ele.append( d[(d.is_calo_matched == True)] )
 
@@ -59,7 +60,7 @@ i = 0
 datas_gamma = []
 for f in glob.glob(inputdir+ "gammas/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
     i+=1
-    #if i >10: break
+    if i >10: break
     d = pickle.load(open(f, "rb"))
     datas_gamma.append(d[ (d.is_calo_matched == True)])
     
