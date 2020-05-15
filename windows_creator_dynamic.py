@@ -1,6 +1,7 @@
 from math import pi, sqrt, cosh
 import random
 import string
+from collections import OrderedDict
 from operator import itemgetter, attrgetter
 
 '''
@@ -23,26 +24,6 @@ def DeltaPhi(phi1, phi2):
     if dphi < -pi: dphi += 2*pi
     return dphi
 
-def transform_ieta(ieta):
-    if ieta > 0:  return ieta +84
-    elif ieta < 0: return ieta + 85
-
-def iphi_distance(iphiseed, iphi, iz):
-    if iz == 0:
-        if abs(iphiseed-iphi)<= 180: return iphi-iphiseed
-        if iphiseed < iphi:
-            return iphi-iphiseed - 360
-        else:
-            return iphi - iphiseed + 360
-    else :
-        return iphi - iphiseed
-
-
-def ieta_distance(ietaseed, ieta, iz):
-    if iz == 0:
-        return transform_ieta(ieta) - transform_ieta(ietaseed)
-    else:
-        return ieta-ietaseed
 
 def dynamic_window(eta):
     if abs(eta)< 1.479:
@@ -82,7 +63,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi)
 #     return False
 
 
-def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et_seed=1, debug=False):
+def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
     # Branches
     pfCluster_energy = event.pfCluster_energy
     pfCluster_eta = event.pfCluster_eta
@@ -95,19 +76,19 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
     pfcl_f5_sigmaIetaIeta = event.pfCluster_full5x5_sigmaIetaIeta
     pfcl_f5_sigmaIetaIphi = event.pfCluster_full5x5_sigmaIetaIphi
     pfcl_f5_sigmaIphiIphi = event.pfCluster_full5x5_sigmaIphiIphi
-    pfcl_swissCross = event.pfCluster_swissCross
+    pfcl_f5_swissCross = event.pfCluster_full5x5_swissCross
     pfcl_nxtals = event.pfCluster_nXtals
 
     # Load associations from dumper
-    pfcluster_calo_map = getattr(event, "pfCluster_{}_MatchedIndex".format(assoc_strategy))
-    calo_pfcluster_map = getattr(event, "caloParticle_pfCluster_{}_MatchedIndex".format(assoc_strategy))
+    pfcluster_calo_map = event.pfCluster_simScore_MatchedIndex
+    calo_pfcluster_map = event.caloParticle_pfCluster_simScore_MatchedIndex
     
     #Mustache info
     mustacheseed_pfcls = [s for s in event.superCluster_seedIndex]
     pfcl_in_mustache = event.superCluster_pfClustersIndex
    
     # map of windows, key=pfCluster seed index
-    windows_map = {}
+    windows_map = OrderedDict()
     clusters_event = []
     seed_clusters = []
     nocalowN = 0
@@ -119,7 +100,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
 
     # Now iterate over clusters in order of energies
     for icl, clenergy in clenergies_ordered:
-        print(icl, clenergy)
+        
         cl_eta = pfCluster_eta[icl]
         cl_phi = pfCluster_phi[icl]
         cl_iz =  pfCluster_iz[icl]
@@ -169,13 +150,13 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
                     "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
-                    "seed_swissCross" : pfcl_swissCross[icl],
+                    "seed_f5_swissCross" : pfcl_f5_swissCross[icl],
                     "seed_nxtals" : pfcl_nxtals[icl],
                 }
             }
             
             # Create a unique index
-            windex = "".join([ random.choice(string.ascii_lowercase) for _ in range(8)])
+            windex = "".join([ random.choice(string.ascii_lowercase) for _ in range(9)])
             new_window["window_index"] = windex
             # Save the window
             windows_map[windex] = new_window
@@ -197,7 +178,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
                     "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
-                    "cl_swissCross" : pfcl_swissCross[icl],
+                    "cl_f5_swissCross" : pfcl_f5_swissCross[icl],
                     "cl_nxtals" : pfcl_nxtals[icl],
                 })
 
@@ -239,7 +220,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
 
                 cevent = {  
                     "window_index": window["window_index"],
-                    "cluster_dphi": phiw,
+                    "cluster_dphi":phiw ,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_energy[icl_noseed],
                     "et_cluster": pfCluster_energy[icl_noseed] / cosh(cl_eta),
@@ -251,7 +232,7 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     "cl_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl_noseed],
                     "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
                     "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
-                    "cl_swissCross" : pfcl_swissCross[icl_noseed],
+                    "cl_f5_swissCross" : pfcl_f5_swissCross[icl_noseed],
                     "cl_nxtals" : pfcl_nxtals[icl_noseed]
                 }
                 if window["metadata"]["seed_eta"] > 0:
@@ -260,6 +241,8 @@ def get_windows(event, nocalowNmax=0, assoc_strategy="sim_fraction_min1", min_et
                     cevent["cluster_deta"] = window["metadata"]["seed_eta"] - cl_eta
                 
                 clusters_event.append(cevent)
+                # Save only 1 windows per cluster
+                break
 
 
     ###############################
