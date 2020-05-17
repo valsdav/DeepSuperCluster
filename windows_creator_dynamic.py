@@ -66,6 +66,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi)
 def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
     # Branches
     pfCluster_energy = event.pfCluster_energy
+    pfCluster_rawEnergy = event.pfCluster_rawEnergy
     pfCluster_eta = event.pfCluster_eta
     pfCluster_phi = event.pfCluster_phi
     pfCluster_iz = event.pfCluster_iz
@@ -78,6 +79,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
     pfcl_f5_sigmaIphiIphi = event.pfCluster_full5x5_sigmaIphiIphi
     pfcl_f5_swissCross = event.pfCluster_full5x5_swissCross
     pfcl_nxtals = event.pfCluster_nXtals
+    pfcl_etaWidth = event.pfCluster_etaWidth
+    pfcl_phiWidth = event.pfCluster_phiWidth
 
     # Load associations from dumper
     pfcluster_calo_map = event.pfCluster_simScore_MatchedIndex
@@ -93,20 +96,23 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
     seed_clusters = []
     nocalowN = 0
 
-    # 1) Look for highest energy cluster
-    clenergies_ordered = sorted([ (ic , en) for ic, en in enumerate(pfCluster_energy)], 
-                                                    key=itemgetter(1), reverse=True)
+    # 1) Look for highest energy cluster (corrected energy)
+    clenergies_ordered = sorted([ (ic , et) for ic, et in enumerate(
+                             map ( lambda k: k[0]/cosh(k[1]), zip( pfCluster_energy, pfCluster_eta) )
+                            )], key=itemgetter(1), reverse=True)
 
 
     # Now iterate over clusters in order of energies
-    for icl, clenergy in clenergies_ordered:
-        
+    for icl, clenergy_T in clenergies_ordered:
+        #print(icl, clenergy_T)
+
+        # No seeds with Et< 1 GeV
+        if clenergy_T < min_et_seed: continue
+
         cl_eta = pfCluster_eta[icl]
         cl_phi = pfCluster_phi[icl]
         cl_iz =  pfCluster_iz[icl]
-
-        cl_et = clenergy / cosh(cl_eta)
-        if cl_et < min_et_seed: continue
+        cl_rawenergy = pfCluster_rawEnergy[icl]
 
         is_in_window = False
         # Check if it is already in one windows
@@ -142,8 +148,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "seed_eta": cl_eta,
                     "seed_phi": cl_phi, 
                     "seed_iz": cl_iz,
-                    "en_seed": pfCluster_energy[icl],
-                    "et_seed": pfCluster_energy[icl] / cosh(cl_eta),
+                    "en_seed": pfCluster_rawEnergy[icl],
+                    "et_seed": pfCluster_rawEnergy[icl] / cosh(cl_eta),
                     "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
                     "et_true": calo_simenergy[caloseed]/cosh(calo_simeta[caloseed]) if caloseed!=-1 else 0, 
                     "seed_f5_r9": pfcl_f5_r9[icl],
@@ -151,6 +157,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "seed_f5_swissCross" : pfcl_f5_swissCross[icl],
+                    "seed_etaWidth" : pfcl_etaWidth[icl],
+                    "seed_phiWidth" : pfcl_phiWidth[icl],
                     "seed_nxtals" : pfcl_nxtals[icl],
                 }
             }
@@ -168,8 +176,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "cluster_deta": 0.,
                     "cluster_dphi": 0., 
                     "cluster_iz" : cl_iz,
-                    "en_cluster": pfCluster_energy[icl],
-                    "et_cluster": pfCluster_energy[icl] / cosh(cl_eta),
+                    "en_cluster": pfCluster_rawEnergy[icl],
+                    "et_cluster": pfCluster_rawEnergy[icl] / cosh(cl_eta),
                     "is_seed": True,
                     "in_scluster":  new_window["calo"] != -1,
                     "in_mustache" :  new_window["metadata"]["mustache_seed_index"] != -1,
@@ -179,6 +187,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                     "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                     "cl_f5_swissCross" : pfcl_f5_swissCross[icl],
+                    "cl_etaWidth" : pfcl_etaWidth[icl],
+                    "cl_phiWidth" : pfcl_phiWidth[icl],
                     "cl_nxtals" : pfcl_nxtals[icl],
                 })
 
@@ -193,13 +203,14 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
 
            
     # Now that all the seeds are inside let's add the non seed
-    for icl_noseed, clenergy in clenergies_ordered:
+    for icl_noseed, clenergy_T in clenergies_ordered:
         # exclude seed clusters
         if icl_noseed in seed_clusters: continue
 
         cl_iz = pfCluster_iz[icl_noseed]
         cl_eta = pfCluster_eta[icl_noseed]
         cl_phi = pfCluster_phi[icl_noseed]
+    
 
         # Fill all the windows
         for window in windows_map.values():
@@ -222,8 +233,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "window_index": window["window_index"],
                     "cluster_dphi":phiw ,
                     "cluster_iz" : cl_iz,
-                    "en_cluster": pfCluster_energy[icl_noseed],
-                    "et_cluster": pfCluster_energy[icl_noseed] / cosh(cl_eta),
+                    "en_cluster": pfCluster_rawEnergy[icl_noseed],
+                    "et_cluster": pfCluster_rawEnergy[icl_noseed] / cosh(cl_eta),
                     "is_seed": False,
                     "in_scluster": in_scluster,
                     "in_mustache" : in_mustache,
@@ -233,6 +244,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl_noseed],
                     "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl_noseed],
                     "cl_f5_swissCross" : pfcl_f5_swissCross[icl_noseed],
+                    "cl_etaWidth" : pfcl_etaWidth[icl_noseed],
+                    "cl_phiWidth" : pfcl_phiWidth[icl_noseed],
                     "cl_nxtals" : pfcl_nxtals[icl_noseed]
                 }
                 if window["metadata"]["seed_eta"] > 0:

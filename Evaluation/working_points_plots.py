@@ -35,12 +35,12 @@ scaler = pickle.load(open(args.scaler, "rb"))
 inputdir = "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/"
 ens = [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 dnn_thres =  np.linspace(0.3 ,1, 30)[:-1]
-
+ninputfiles = 8
 
 cols = ["seed_eta", "seed_phi", "seed_iz","en_seed","et_seed",
         "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
-       "seed_f5_r9", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi","seed_swissCross","seed_nxtals",
-        "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi","cl_swissCross", "cl_nxtals"]
+       "seed_f5_r9", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi","seed_f5_swissCross","seed_nxtals",
+        "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi","cl_f5_swissCross", "cl_nxtals"]
 
 datas_ele = []
 
@@ -48,7 +48,7 @@ i = 0
 
 for f in glob.glob(inputdir+ "electrons/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
     i+=1
-    if i >10: break
+    if i >ninputfiles: break
     d = pickle.load(open(f, "rb"))
     datas_ele.append( d[(d.is_calo_matched == True)] )
 
@@ -60,7 +60,7 @@ i = 0
 datas_gamma = []
 for f in glob.glob(inputdir+ "gammas/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
     i+=1
-    if i >10: break
+    if i >ninputfiles: break
     d = pickle.load(open(f, "rb"))
     datas_gamma.append(d[ (d.is_calo_matched == True)])
     
@@ -86,6 +86,8 @@ def bin_analysis(group):
     ratio_mean = group[(group.EoEtrue >= ratio_left) & (group.EoEtrue <= ratio_right) ].EoEtrue.mean()
     return pd.Series(  
         { 
+             "quantile_down": ratio_left,
+             "quantile_up": ratio_right,
              "EoEtrue_68scale": ratio_mean,
              "EoEtrue_68width": (abs(ratio_right-ratio_mean) + abs(ratio_left-ratio_mean))/2, 
              #"EoEtrue_68width": abs(ratio_right- ratio_left), 
@@ -107,26 +109,34 @@ for eta_interval in args.eta_intervals:
     for thr in dnn_thres:
         #print("DNN threshold: ", thr)
         g = data_val[ (data_val.y >  thr) | (data_val.is_seed==True) ].groupby("window_index", sort=False).agg(
-                                { "en_cluster": 'sum' ,
-                                "en_true": "min", 
-                                "et_seed": "first",
+                            { "en_cluster": 'sum' ,
+                               "en_true": "first", 
+                               "et_seed": "first",
+                               "mustache_seed_index" : "first"
                                 })
         g["EoEtrue"] = g["en_cluster"] / g["en_true"]
         g["en_bin"] = pd.cut(g["et_seed"], ens, labels=list(range(len(ens)-1)))
         
         scanres = g.groupby("en_bin").apply(bin_analysis)
         scanres["dnn_thre"] = thr
+        scanres["mustache_seed_index"] = g["mustache_seed_index"].iloc[0]
         results.append(scanres)
-
+   
     result = pd.concat(results)
     # index by en_bin and DNN threshold
     result.reset_index(level=0, inplace=True)
+    print(result.columns)
 
-    g = data_val[ (data_val.in_mustache==True) | (data_val.is_seed==True) ].groupby("window_index", sort=False).agg(
-                            { "en_cluster": 'sum' ,
-                                "en_true": "min", 
-                                "et_seed": "first",
-                                })
+    result_calomatched = result 
+    result_mustmatched = result[result.mustache_seed_index != -1]
+
+
+    ## Analyzine only mustache
+    g = data_val[ data_val.in_mustache==True ].groupby("window_index", sort=False).agg(
+                        { "en_cluster": 'sum' ,
+                            "en_true": "first", 
+                            "et_seed": "first",
+                        })
     #print(g)
     g["EoEtrue"] = g["en_cluster"] / g["en_true"]
     g["en_bin"] = pd.cut(g["et_seed"], ens, labels=list(range(len(ens)-1)))
@@ -137,13 +147,17 @@ for eta_interval in args.eta_intervals:
     for enbin in range(len(ens)-1):
         
         fig, [ax1,ax2] = plt.subplots(1,2, figsize=(14,5), dpi=100)
-        df = result[(result.en_bin==enbin)]
-        x = df.dnn_thre.values
+        df_calomat = result_calomatched[(result_calomatched.en_bin==enbin)]
+        #df_mustmat = result_mustmatched[(result_mustmatched.en_bin==enbin)]
+        x = df_calomat.dnn_thre.values
         
         # scale
-        y = df["EoEtrue_68scale"].values
+        y_calo = df_calomat["EoEtrue_68scale"].values
+        #y_mustmatched = df_mustmat["EoEtrue_68scale"].values
         y_must = result_must[result_must.en_bin==enbin]["EoEtrue_68scale"].iloc[0]
-        ax1.plot(x, y/y_must, "b",label="median")
+        
+        ax1.plot(x, y_calo/y_must, "b",label="median - calomatched")
+        #ax1.plot(x, y_mustmatched/y_must, "b",label="median - mustache seed matched")
         ax1.plot(x, [1.]*len(x), "g--")
         
         
@@ -153,10 +167,18 @@ for eta_interval in args.eta_intervals:
         ax1.set_title(f"E SC/Etrue scale:  Et seed [{ens[enbin]}, {ens[enbin+1]}]")
         
         ##### width
-        y = df["EoEtrue_68width"].values
-        y_must = result_must[result_must.en_bin==enbin]["EoEtrue_68width"].iloc[0]
+        y_calo = df_calomat["EoEtrue_68width"].values
+        y_calo_up = df_calomat["quantile_up"].values
+        y_calo_do = df_calomat["quantile_down"].values
+        #y_mustmatched = df_mustmat["EoEtrue_68width"].values
+        y_must = result_must[result_must.en_bin==enbin]["EoEtrue_68width"].iloc[0] 
+        y_must_up = result_must[result_must.en_bin==enbin]["quantile_up"].iloc[0]
+        y_must_do = result_must[result_must.en_bin==enbin]["quantile_down"].iloc[0]
         
-        ax2.plot(x, y/y_must,  "b", label="68% width",)
+        ax2.plot(x, y_calo/y_must,  "b", label="68% width",)
+        ax2.plot(x, y_calo_up/y_must_up,  "red", label="68% width - quantile up",)
+        ax2.plot(x, y_calo_do/y_must_do,  "orange", label="68% width - quantile down",)
+        #ax2.plot(x, y_mustmatched/y_must,  "b", label="68% width - mustache seed matched",)
         ax2.plot(x, [1.]*len(x), "g--")
         
         ax2.legend()

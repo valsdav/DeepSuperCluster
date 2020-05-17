@@ -66,7 +66,7 @@ def iphi_distance(iphiseed, iphi, iz):
     if iz == 0:
         if abs(iphiseed-iphi)<= 180: return iphi-iphiseed
         if iphiseed < iphi:
-            return iphi-iphiseed - 360
+            return iphi - iphiseed - 360
         else:
             return iphi - iphiseed + 360
     else :
