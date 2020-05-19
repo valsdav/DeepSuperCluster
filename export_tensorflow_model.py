@@ -6,16 +6,19 @@ parser.add_argument("-o","--outputdir", type=str, help="outputdir", required=Tru
 parser.add_argument("-n","--name", type=str, help="name", required=True)
 args = parser.parse_args()
 
-from keras import backend as K
-# This line must be executed before loading Keras model.
-K.set_learning_phase(0)
+# from keras import backend as K
+# # This line must be executed before loading Keras model.
+# K.set_learning_phase(0)
 
-from keras.models import load_model
-model = load_model(args.inputfile)
+
+from tensorflow import keras 
+keras.backend.set_learning_phase(0)
+K = keras.backend
+
+model = keras.models.load_model(args.inputfile)
 print("output tensors: ", model.outputs)
 print("input tensors: ", model.inputs)
 
-from keras import backend as K
 import tensorflow as tf
 
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
