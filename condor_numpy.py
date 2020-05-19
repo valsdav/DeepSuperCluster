@@ -18,7 +18,7 @@ parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True
 parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per numpy file", required=True)
 parser.add_argument("-tf", "--test-fraction", type=float, help="Fraction of files for testing", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
-#parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction_min1")
+parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", required=True)
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
 parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (barrel,endcap)", default=[0.3,0.3])
@@ -34,7 +34,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py
+transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -51,14 +51,15 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.
 JOBID=$1;  
 INPUTFILE=$2;
 OUTPUTDIR=$3;
-MAXNOCALO=$4;
-ET_SEED=$5;
+ASSOC=$4;
+MAXNOCALO=$5;
+ET_SEED=$6;
 
 
 echo -e "Running numpy dumper.."
 
 python cluster_tonumpy_dynamic.py -i ${INPUTFILE} -o output.pkl \
-            --maxnocalow ${MAXNOCALO} --min-et-seed ${ET_SEED};
+            -a ${ASSOC} --maxnocalow ${MAXNOCALO} --min-et-seed ${ET_SEED};
 
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
@@ -100,8 +101,8 @@ while ifile_used < nfiles_training:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training", 
+        arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,
                 args.maxnocalow, args.min_et_seed))
         files_groups = []
         ifile_group = 0
@@ -109,8 +110,8 @@ while ifile_used < nfiles_training:
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 # Join also the last group
-arguments.append("{} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training", 
+arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,
                 args.maxnocalow, args.min_et_seed))
 
 
@@ -131,8 +132,8 @@ while ifile_used < nfiles_testing:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", 
+        arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,
                 args.maxnocalow, args.min_et_seed))
         files_groups = []
         ifile_group = 0
@@ -140,8 +141,8 @@ while ifile_used < nfiles_testing:
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
-arguments.append("{} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", 
+arguments.append("{} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,
                 args.maxnocalow, args.min_et_seed))
 
 print("Njobs: ", len(arguments))

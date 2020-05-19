@@ -24,6 +24,7 @@ This script analyse the overlapping of two caloparticles
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputfile", type=str, help="outputfile", default="clusters_data.pkl")
+parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction_min1")
 parser.add_argument("-n","--nevents", type=int,nargs="+", help="n events iterator", required=False)
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
@@ -58,8 +59,8 @@ for inputfile in inputfiles:
     print ("Starting")
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
-        windows_event, clusters_event = windows_creator.get_windows(event, args.maxnocalow, 
-                             args.min_et_seed, args.debug )
+        windows_event, clusters_event = windows_creator.get_windows(event, args.assoc_strategy, 
+                args.maxnocalow, args.min_et_seed, args.debug )
         clusters_masks += clusters_event
         #print(clusters_event)
     
