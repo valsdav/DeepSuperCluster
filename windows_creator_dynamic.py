@@ -81,6 +81,7 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
     pfcl_nxtals = event.pfCluster_nXtals
     pfcl_etaWidth = event.pfCluster_etaWidth
     pfcl_phiWidth = event.pfCluster_phiWidth
+    pfcl_simScore = event.pfCluster_simScore
 
     # Load associations from dumper
     pfcluster_calo_map = event.pfCluster_simScore_MatchedIndex
@@ -150,6 +151,8 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "seed_iz": cl_iz,
                     "en_seed": pfCluster_rawEnergy[icl],
                     "et_seed": pfCluster_rawEnergy[icl] / cosh(cl_eta),
+                    "en_seed_calib": pfCluster_energy[icl],
+                    "et_seed_calib": pfCluster_energy[icl] / cosh(cl_eta),
                     "en_true": calo_simenergy[caloseed] if caloseed!=-1 else 0, 
                     "et_true": calo_simenergy[caloseed]/cosh(calo_simeta[caloseed]) if caloseed!=-1 else 0, 
                     "seed_f5_r9": pfcl_f5_r9[icl],
@@ -178,8 +181,11 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_rawEnergy[icl],
                     "et_cluster": pfCluster_rawEnergy[icl] / cosh(cl_eta),
+                    "en_cluster_calib": pfCluster_energy[icl],
+                    "et_cluster_calib": pfCluster_energy[icl] / cosh(cl_eta),
                     "is_seed": True,
                     "in_scluster":  new_window["calo"] != -1,
+                    "cl_simscore" : pfcl_simScore[icl][new_window["calo"]],
                     "in_mustache" :  new_window["metadata"]["mustache_seed_index"] != -1,
                     # Shower shape variables
                     "cl_f5_r9": pfcl_f5_r9[icl],
@@ -221,22 +227,27 @@ def get_windows(event, nocalowNmax=0, min_et_seed=1, debug=False):
                 # If the window is not associated to a calo then in_scluster is always false for the cluster
                 if window["calo"] ==-1 :   
                     in_scluster = False
+                    cl_simscore = -999.
                 else: 
                     in_scluster = pfcluster_calo_map[icl_noseed] == window["calo"]
+                    cl_simscore = pfcl_simScore[icl_noseed][window["calo"]]
                 # check if the cluster is inside the same mustache
                 if window["metadata"]["mustache_seed_index"] != -1:
                     in_mustache = icl_noseed in pfcl_in_mustache[window["metadata"]["mustache_seed_index"]]
                 else:
                     in_mustache = False
-
+               
                 cevent = {  
                     "window_index": window["window_index"],
                     "cluster_dphi":phiw ,
                     "cluster_iz" : cl_iz,
                     "en_cluster": pfCluster_rawEnergy[icl_noseed],
                     "et_cluster": pfCluster_rawEnergy[icl_noseed] / cosh(cl_eta),
+                    "en_cluster_calib": pfCluster_energy[icl_noseed],
+                    "et_cluster_calib": pfCluster_energy[icl_noseed] /cosh(cl_eta),
                     "is_seed": False,
                     "in_scluster": in_scluster,
+                    "cl_simscore" : cl_simscore,
                     "in_mustache" : in_mustache,
                     # Shower shape variables
                     "cl_f5_r9": pfcl_f5_r9[icl_noseed],
