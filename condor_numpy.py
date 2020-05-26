@@ -138,7 +138,7 @@ while ifile_used < nfiles_testing:
         files_groups = []
         ifile_group = 0
 
-print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
+print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
 arguments.append("{} {} {} {} {} {}".format(
