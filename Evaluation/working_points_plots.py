@@ -35,7 +35,7 @@ scaler = pickle.load(open(args.scaler, "rb"))
 inputdir = "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/"
 ens = [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 dnn_thres =  np.linspace(0.3 ,1, 30)[:-1]
-ninputfiles = 8
+ninputfiles = 6
 
 cols = ["seed_eta", "seed_phi", "seed_iz","en_seed","et_seed",
         "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
@@ -60,7 +60,7 @@ for f in glob.glob(inputdir+ "electrons/numpy_v{}/testing/clusters_data_*.pkl".f
     i+=1
     if i >ninputfiles: break
     d = pickle.load(open(f, "rb"))
-    datas_ele.append( d[(d.is_calo_matched == True)] )
+    datas_ele.append( d[(d.is_seed_calo_matched == True)] )
 
 data_ele = pd.concat(datas_ele, ignore_index=True)
 data_ele["particle"] = "electron"
@@ -72,7 +72,7 @@ for f in glob.glob(inputdir+ "gammas/numpy_v{}/testing/clusters_data_*.pkl".form
     i+=1
     if i >ninputfiles: break
     d = pickle.load(open(f, "rb"))
-    datas_gamma.append(d[ (d.is_calo_matched == True)])
+    datas_gamma.append(d[ (d.is_seed_calo_matched == True)])
     
 data_gamma = pd.concat(datas_gamma, ignore_index=True)
 data_gamma["particle"] = "gamma"
