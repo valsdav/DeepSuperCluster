@@ -34,7 +34,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py
+transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py, simScore_Minima_withHitFraction.root, Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
