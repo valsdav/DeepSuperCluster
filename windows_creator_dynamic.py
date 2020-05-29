@@ -20,8 +20,8 @@ Some constants used in the process of window creation
 SEED_MIN_FRACTION = 1e-2
 
 
-simfraction_thresholds_file = R.TFile("simScore_Minima.root")
-simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_inMustache")
+simfraction_thresholds_file = R.TFile("simScore_Minima_withHitFraction.root")
+simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_Ratio_simScore")
 
 
 def is_in_geom_mustache(seed_eta, seed_phi, cl_eta, cl_phi, cl_en ):
@@ -110,7 +110,6 @@ def get_windows(event, assoc_strategy,  nocalowNmax=0, min_et_seed=1, debug=Fals
     pfcl_etaWidth = event.pfCluster_etaWidth
     pfcl_phiWidth = event.pfCluster_phiWidth
 
-    debug=True
 
     clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
     # Get Association between pfcluster and calo
@@ -302,12 +301,12 @@ def get_windows(event, assoc_strategy,  nocalowNmax=0, min_et_seed=1, debug=Fals
                     is_calo_matched = False   
                     in_scluster = False
                 else: 
-                    # We have to check the calo_matching using mustache+simfraction threshold
+                    # We have to check the calo_matching usinv simfraction threshold
                     # Check if the cluster is associated to the same calo as the seed
                     is_calo_matched = pfcluster_calo_map[icl_noseed] == window["metadata"]["calo_seed_index"]
                     # If the cluster is associated to the same calo of the seed 
-                    # the geometrical mustache is checked and then simfraction threshold
-                    if is_calo_matched and in_geom_mustache:
+                    # the simfraction threshold by seed eta/et is used
+                    if is_calo_matched: 
                         #filter with simfraction optimized thresholds 
                         in_scluster = pass_simfraction_threshold(window["metadata"]["seed_eta"], 
                                             window["metadata"]["et_seed"], pfcluster_calo_score[icl_noseed] )

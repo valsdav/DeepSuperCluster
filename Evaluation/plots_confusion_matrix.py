@@ -5,16 +5,19 @@ import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import os 
+import os
+import glob
 import argparse
-from keras.models import load_model
+
+from tensorflow import keras 
+
 
 mpl.rcParams['figure.figsize'] = (10,8)
 mpl.rcParams["image.origin"] = 'lower'
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i","--inputdir", type=str, help="Inputdir data", required=True)
+parser.add_argument("-iv", "--input-version", type=str, help="Inputdir", required=True)
 parser.add_argument("-m","--model", type=str, help="model file", required=True)
 parser.add_argument("-s","--scaler", type=str, help="scaler file", required=True)
 parser.add_argument("--eta", type=float, nargs="+", help="Eta bins", required=True)
@@ -37,42 +40,32 @@ if not os.path.exists(args.outputdir):
 
 scaler = pickle.load(open(args.scaler, "rb"))
 
-model = load_model(args.model)
+model = keras.models.load_model(args.model)
 
-include_seed = False
-datas_val = []
+inputdir = "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/"
+ninputfiles = 6
 
 datas_ele = []
 
-for i in range(20, 25):
-    f = f"/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/electrons/numpy_v5_mustache/validation/clusters_data_{i}.pkl"
-    if not os.path.exists(f):
-        print("file not found: ", f)
-        continue
-    d = pickle.load(open(f, "rb"))
-    if include_seed:
-        datas_ele.append(d[(d.is_calo_matched) ])
-        # Seed not included
-    else:
-        datas_ele.append(d[(d.is_calo_matched) & (d.is_seed==False)])
+i = 0
 
-    
+for f in glob.glob(inputdir+ "electrons/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
+    i+=1
+    if i >ninputfiles: break
+    d = pickle.load(open(f, "rb"))
+    datas_ele.append( d[(d.is_seed_calo_matched == True)] )
+
 data_ele = pd.concat(datas_ele, ignore_index=True)
 data_ele["particle"] = "electron"
 print("N events ele: ",len(data_ele))
 
+i = 0
 datas_gamma = []
-for i in range(20, 28):
-    f = f"/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/gammas/numpy_v5_mustache/validation/clusters_data_{i}.pkl"
-    if not os.path.exists(f):
-        print("file not found: ", f)
-        continue
+for f in glob.glob(inputdir+ "gammas/numpy_v{}/testing/clusters_data_*.pkl".format(args.input_version)):
+    i+=1
+    if i >ninputfiles: break
     d = pickle.load(open(f, "rb"))
-    if include_seed:
-        datas_gamma.append(d[(d.is_calo_matched) ])
-        # Seed not included
-    else:
-        datas_gamma.append(d[(d.is_calo_matched) & (d.is_seed==False)])
+    datas_gamma.append(d[ (d.is_seed_calo_matched == True)])
     
 data_gamma = pd.concat(datas_gamma, ignore_index=True)
 data_gamma["particle"] = "gamma"
@@ -83,44 +76,12 @@ if data_ele.shape[0]> data_gamma.shape[0]:
 else:
     data_val = pd.concat([data_gamma.iloc[0:len(data_ele)], data_ele], ignore_index=True)
 
+print(f"N samples ele {data_ele.shape}")
+print(f"N samples gamma {data_gamma.shape}")
 
-# for i in range(1, args.nfiles):
-#     f = f"{args.inputdir}/electrons/numpy_v2/clusters_data_{i}.pkl"
-#     if not os.path.exists(f):
-#         print("file not found: ", f)
-#         continue
-#     d = pickle.load(open(f, "rb"))
-#     #Seed included
-#     if include_seed:
-#         datas_val.append(d[(d.is_calo) ])
-#         # Seed not included
-#     else:
-#         datas_val.append(d[(d.is_calo) & (d.is_seed==False)])
-    
-# data_ele = pd.concat(datas_val, ignore_index=True)
-# data_ele["particle"] = "electron"
 
-# datas_val = []
-# for i in range(1, args.nfiles):
-#     f = f"{args.inputdir}/gammas/numpy_v2/clusters_data_{i}.pkl"
-#     if not os.path.exists(f):
-#         print("file not found: ", f)
-#         continue
-#     d = pickle.load(open(f, "rb"))
-#     #Seed included
-#     if include_seed:
-#         datas_val.append(d[(d.is_calo) ])
-#         # Seed not included
-#     else:
-#         datas_val.append(d[(d.is_calo) & (d.is_seed==False)])
-    
-# data_gamma = pd.concat(datas_val, ignore_index=True)
-# data_gamma["particle"] = "gamma"
+data = pd.concat([data_ele, data_gamma])
 
-# if data_ele.shape[0]> data_gamma.shape[0]:
-#     data_val = pd.concat([data_gamma, data_ele.iloc[0:len(data_gamma)]], ignore_index=True)
-# else:
-    # data_val = pd.concat([data_gamma.iloc[0:len(data_ele)], data_ele], ignore_index=True)
 
 cols_list= [
     ["seed_eta", "seed_phi", "seed_iz","cluster_deta", "cluster_dphi", "en_seed", "en_cluster"],
@@ -129,7 +90,13 @@ cols_list= [
     ["seed_eta", "seed_phi", "seed_iz","en_seed","et_seed",
         "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
        "seed_f5_r9d", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi","seed_swissCross","seed_nxtals",
-        "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi","cl_swissCross", "cl_nxtals"]
+        "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi","cl_swissCross", "cl_nxtals"],
+    ["seed_eta", "seed_phi", "seed_iz","en_seed","et_seed",
+        "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
+       "seed_f5_r9", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi",
+        "seed_f5_swissCross","seed_nxtals", "seed_etaWidth", "seed_phiWidth",
+        "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi",
+        "cl_f5_swissCross", "cl_nxtals", "cl_etaWidth", "cl_phiWidth"]
 ]
 cols = cols_list[args.vars]
 

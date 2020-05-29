@@ -5,7 +5,6 @@ R.gROOT.SetBatch(True)
 
 import sys 
 import os
-from tqdm import tqdm
 from collections import defaultdict
 from itertools import islice, chain
 from numpy import mean
