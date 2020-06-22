@@ -19,6 +19,7 @@ parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per 
 parser.add_argument("-tf", "--test-fraction", type=float, help="Fraction of files for testing", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", required=True)
+parser.add_argument("--wp-file", type=str,  help="File with sim fraction thresholds")
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
 parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (barrel,endcap)", default=[0.3,0.3])
@@ -34,7 +35,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py, simScore_Minima_withHitFraction.root, Mustache.C
+transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py, {wp_file}, Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -43,6 +44,7 @@ queue arguments from arguments.txt
 '''
 
 condor = condor.replace("{queue}", args.queue)
+condor = condor.replace("{wp_file}", args.wp_file)
 
 script = '''#!/bin/sh -e
 
@@ -52,14 +54,15 @@ JOBID=$1;
 INPUTFILE=$2;
 OUTPUTDIR=$3;
 ASSOC=$4;
-MAXNOCALO=$5;
-ET_SEED=$6;
+WPFILE=$5;
+MAXNOCALO=$6;
+ET_SEED=$7;
 
 
 echo -e "Running numpy dumper.."
 
 python cluster_tonumpy_dynamic.py -i ${INPUTFILE} -o output.pkl \
-            -a ${ASSOC} --maxnocalow ${MAXNOCALO} --min-et-seed ${ET_SEED};
+            -a ${ASSOC} --wp-file ${WPFILE} --maxnocalow ${MAXNOCALO} --min-et-seed ${ET_SEED};
 
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
@@ -78,6 +81,8 @@ if not os.path.exists(args.outputdir):
 inputfiles = [ f for f in os.listdir(args.inputdir)]
 ninputfiles = len(inputfiles)
 template_inputfile = "cluster_job{}_step2_output.root"
+
+wp_file = os.path.split(args.wp_file)[1]
 
 print("N input files: ", ninputfiles)
 
@@ -101,8 +106,8 @@ while ifile_used < nfiles_training:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,
+        arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy, wp_file,
                 args.maxnocalow, args.min_et_seed))
         files_groups = []
         ifile_group = 0
@@ -110,8 +115,8 @@ while ifile_used < nfiles_training:
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 # Join also the last group
-arguments.append("{} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,
+arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,wp_file,
                 args.maxnocalow, args.min_et_seed))
 
 
@@ -132,8 +137,8 @@ while ifile_used < nfiles_testing:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,
+        arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
                 args.maxnocalow, args.min_et_seed))
         files_groups = []
         ifile_group = 0
@@ -141,8 +146,8 @@ while ifile_used < nfiles_testing:
 print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
-arguments.append("{} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,
+arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
                 args.maxnocalow, args.min_et_seed))
 
 print("Njobs: ", len(arguments))

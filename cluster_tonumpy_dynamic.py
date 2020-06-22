@@ -15,15 +15,13 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-import windows_creator_dynamic as windows_creator
-'''
-This script analyse the overlapping of two caloparticles
-'''
+from windows_creator_dynamic import WindowCreator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputfile", type=str, help="outputfile", default="clusters_data.pkl")
-parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction_min1")
+parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction")
+parser.add_argument("--wp-file", type=str,  help="File with sim fraction thresholds")
 parser.add_argument("-n","--nevents", type=int,nargs="+", help="n events iterator", required=False)
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
@@ -43,6 +41,13 @@ else:
 #         nevent2 = nevent+1
 #     tree = islice(tree, nevent, nevent2)
 
+
+simfraction_thresholds_file = R.TFile(args.wp_file)
+simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
+
+SEED_MIN_FRACTION=1e-2
+
+windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION)
 
 debug = args.debug
 nocalowNmax = args.maxnocalow
