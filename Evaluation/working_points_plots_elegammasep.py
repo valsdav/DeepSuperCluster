@@ -21,7 +21,9 @@ parser.add_argument("-iv", "--input-version", type=str, help="Inputdir", require
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-m", "--model", type=str, help="model file", required=True)
 parser.add_argument("-s", "--scaler", type=str, help="scaler", required=True)
+parser.add_argument("-d", "--det", type=str, help="ele/gamma", required=True)
 parser.add_argument("-f", "--flavour", type=str, help="ele/gamma", required=True)
+parser.add_argument("-lf", "--limit-files", type=int, help="max number of files", default=100)
 parser.add_argument("-e", "--eta-intervals", nargs="+", type=str, help="eta intervals", required=True)
 
 args = parser.parse_args()
@@ -33,12 +35,11 @@ from tensorflow import keras
 model = keras.models.load_model(args.model)
 scaler = pickle.load(open(args.scaler, "rb"))
 
-inputdir = "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/wp_comparison/"
 ens = [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 dnn_thres =  np.linspace(0.3 ,1, 30)[:-1]
 ninputfiles = 6
 
-cols = ["seed_eta","seed_phi", "seed_iz","en_seed","et_seed",
+cols = ["seed_eta","seed_iz","en_seed","et_seed",
         "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
        "seed_f5_r9", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi",
         "seed_f5_swissCross","seed_nxtals", "seed_etaWidth", "seed_phiWidth",
@@ -52,29 +53,48 @@ cols = ["seed_eta","seed_phi", "seed_iz","en_seed","et_seed",
 #         "cl_f5_r9", "cl_f5_sigmaIetaIeta","cl_f5_sigmaIetaIphi","cl_f5_sigmaIphiIphi",
 #         "cl_f5_swissCross", "cl_nxtals"]
 
+files_ele = f"/storage/ECAL/training_data/wp_comparison/electrons/numpy_wp_ele_v{args.input_version}/training/"
+files_gamma = f"/storage/ECAL/training_data/wp_comparison/gammas/numpy_wp_gamma_v{args.input_version}/training/"
+
 if args.flavour == "ele":
     datas_ele = []
-    i = 0
-    for f in glob.glob(inputdir+ "electrons/numpy_wp_ele_v{}/training/clusters_data_*.pkl".format(args.input_version)):
-        i+=1
-        if i >ninputfiles: break
-        d = pickle.load(open(f, "rb"))
-        datas_ele.append( d[(d.is_seed_calo_matched == True)] )
 
-    data = pd.concat(datas_ele, ignore_index=True)
-    data["particle"] = "electron"
-if args.flavour == "gamma":
     i = 0
-    datas_gamma = []
-    for f in glob.glob(inputdir+ "gammas/numpy_wp_gamma_v{}/training/clusters_data_*.pkl".format(args.input_version)):
-        i+=1
-        if i >ninputfiles: break
-        d = pickle.load(open(f, "rb"))
-        datas_gamma.append(d[ (d.is_seed_calo_matched == True)])
+    for f in glob.glob(files_ele+"*.pkl"):
+        if i>args.limit_files :continue
+        d = pickle.load(open(f, "rb")) 
         
-    data = pd.concat(datas_gamma, ignore_index=True)
-    data["particle"] = "gamma"
+        if args.det == "EB":
+            datas_ele.append(d[(d.is_seed_calo_matched == True) & (d.seed_iz == 0)])
+        elif args.det == "EE":
+            datas_ele.append(d[(d.is_seed_calo_matched == True) & (d.seed_iz != 0)])
+        i+=1
 
+    data_ele = pd.concat(datas_ele, ignore_index=True)
+    data_ele["particle"] = "electron"
+    print("N events ele: ",len(data_ele))
+    
+    data = data_ele
+
+elif args.flavour == "gamma":
+    datas_gamma = []
+    i = 0
+    for f in glob.glob(files_gamma+"*.pkl"):
+        if i>args.limit_files :continue
+        d = pickle.load(open(f, "rb"))  
+        
+        if args.det == "EB":
+            datas_gamma.append(d[(d.is_seed_calo_matched == True) & (d.seed_iz == 0)])
+        elif args.det == "EE":
+            datas_gamma.append(d[(d.is_seed_calo_matched == True) & (d.seed_iz != 0)])
+        i+=1
+
+    data_gamma = pd.concat(datas_gamma, ignore_index=True)
+    data_gamma["particle"] = "gamma"
+    print("N events gamma: ",len(data_gamma))
+    data = data_gamma
+
+    
 
 
 def bin_analysis(group):
