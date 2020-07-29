@@ -35,7 +35,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_dynamic.py, windows_creator_dynamic.py, calo_association.py, {wp_file}, Mustache.C
+transfer_input_files    = cluster_tonumpy_dynamic_global.py, windows_creator_dynamic_global.py, calo_association.py, {wp_file}, Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -61,11 +61,11 @@ ET_SEED=$7;
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_dynamic.py -i ${INPUTFILE} -o output.pkl \
+python cluster_tonumpy_dynamic_global.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --maxnocalow ${MAXNOCALO} --min-et-seed ${ET_SEED};
 
 echo -e "Copying result to: $OUTPUTDIR";
-xrdcp -f --nopbar  output.pkl root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.pkl;
+xrdcp -f --nopbar  output.ndjson root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.ndjson;
 
 echo -e "DONE";
 '''
