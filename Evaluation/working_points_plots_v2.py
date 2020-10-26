@@ -37,7 +37,7 @@ ens = [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 dnn_thres =  np.linspace(0.3 ,1, 30)[:-1]
 ninputfiles = 6
 
-cols = ["seed_eta", "seed_phi", "seed_iz","en_seed","et_seed",
+cols = ["seed_eta", "seed_iz","en_seed","et_seed",
         "cluster_deta", "cluster_dphi", "en_cluster", "et_cluster",
        "seed_f5_r9", "seed_f5_sigmaIetaIeta","seed_f5_sigmaIetaIphi","seed_f5_sigmaIphiIphi",
         "seed_f5_swissCross","seed_nxtals", "seed_etaWidth", "seed_phiWidth",

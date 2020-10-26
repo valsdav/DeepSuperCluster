@@ -333,7 +333,7 @@ class WindowCreator():
                         "in_geom_mustache" : in_geom_mustache,
                         # True if the seed has a calo and the cluster is associated to the same calo
                         "is_calo_matched": is_calo_matched,
-                        # in_geom_mustache & is_calo_matched & (sim fraction optimized threshold)
+                        # is_calo_matched & (sim fraction optimized threshold)
                         "in_scluster": in_scluster,
                         # True if the cluster is associated with the same (legacy) mustache as the seed
                         "in_mustache" : in_mustache,
@@ -432,7 +432,7 @@ class WindowCreator():
             "in_geom_mustache" : [],
             # True if the seed has a calo and the cluster is associated to the same calo
             "is_calo_matched": [],
-            # in_geom_mustache & is_calo_matched & (sim fraction optimized threshold)
+            # is_calo_matched & (sim fraction optimized threshold)
             "in_scluster": [],
             # True if the cluster is associated with the same (legacy) mustache as the seed
             "in_mustache" : [],
