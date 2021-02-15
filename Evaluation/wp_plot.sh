@@ -51,7 +51,7 @@
 
 
 python working_points_plots_v2.py -iv 1   \
-    -o /eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/validation_plots/deepSC_v17_joindet_v2  \
-    -m ../models/v17_joinde/model_v2.hd5 \
-    -s ../models/v17_joinde/scaler_model_v2.pkl \
-    -e  0-0.4 0.4-0.8 0.8-1.2 1.2-1.479   1.479-1.75 1.75-2 2-2.25 2.25-3 
+    -o /eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/validation_plots/deepSC_v18_bayesresult  \
+    -m ../models/v18_bayesresult/model_v1.hd5 \
+    -s ../models/v18_bayesresult/scaler_model_v1.pkl \
+    -e  0-0.4 0.4-0.8 0.8-1.2 1.2-1.479  1.479-1.75 1.75-2 2-2.25 2.25-3 
