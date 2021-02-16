@@ -15,7 +15,7 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-from windows_creator_dynamic_global import WindowCreator
+from windows_creator_dynamic_global_overlap import WindowCreator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
@@ -64,7 +64,7 @@ for inputfile in inputfiles:
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
         windows_data = windows_creator.get_windows(event, args.assoc_strategy, 
-                min_et_seed= args.min_et_seed,matchNnlocalow= True,  args.debug )
+                nocalowNmax= args.maxnocalow, min_et_seed= args.min_et_seed, debug= args.debug )
         windows_files.write("\n".join(windows_data)+"\n")        
        
     f.Close()

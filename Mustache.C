@@ -1,0 +1,151 @@
+#include "TMath.h"
+#include "TVector2.h"
+#include <cmath>
+#include <iostream>
+using namespace std;
+
+bool inMustache(const float maxEta, const float maxPhi, 
+        const float ClustE, const float ClusEta, 
+        const float ClusPhi){
+    //bool inMust=false;
+    //float eta0 = maxEta;
+    //float phi0 = maxPhi;      
+    
+    constexpr float p00 = -0.107537;
+    constexpr float p01 = 0.590969;
+    constexpr float p02 = -0.076494;
+    constexpr float p10 = -0.0268843;
+    constexpr float p11 = 0.147742;
+    constexpr float p12 = -0.0191235;
+    
+    constexpr float w00 = -0.00571429;
+    constexpr float w01 = -0.002;
+    constexpr float w10 = 0.0135714;
+    constexpr float w11 = 0.001;
+    
+    const float sineta0 = std::sin(maxEta);
+    const float eta0xsineta0 = maxEta*sineta0;
+    
+    
+    //2 parabolas (upper and lower) 
+    //of the form: y = a*x*x + b
+    
+    //b comes from a fit to the width
+    //and has a slight dependence on E on the upper edge    
+    // this only works because of fine tuning :-D
+    const float sqrt_log10_clustE = std::sqrt(std::log10(ClustE)+1.1);
+    // we need to have this in two steps, so that we don't improperly shift
+    // the lower bound!
+    float b_upper = w10*eta0xsineta0 + w11 / sqrt_log10_clustE;      
+    float b_lower = w00*eta0xsineta0 + w01 / sqrt_log10_clustE; 
+    const float midpoint =  0.5*( b_upper + b_lower );
+    b_upper -= midpoint;
+    b_lower -= midpoint;
+
+    //the curvature comes from a parabolic 
+    //fit for many slices in eta given a 
+    //slice -0.1 < log10(Et) < 0.1
+    const float curv_up=eta0xsineta0*(p00*eta0xsineta0+p01)+p02;
+    const float curv_low=eta0xsineta0*(p10*eta0xsineta0+p11)+p12;
+    
+    //solving for the curviness given the width of this particular point
+    const float a_upper=(1/(4*curv_up))-fabs(b_upper);
+    const float a_lower = (1/(4*curv_low))-fabs(b_lower);
+    
+    const double dphi=TVector2::Phi_mpi_pi(ClusPhi-maxPhi);
+    const double dphi2 = dphi*dphi;
+    // minimum offset is half a crystal width in either direction
+    // because science.
+    const float upper_cut=( std::max((1./(4.*a_upper)),0.0)*dphi2 +
+                std::max(b_upper,0.0087f) ) + 0.0087;
+    const float lower_cut=( std::max((1./(4.*a_lower)),0.0)*dphi2 + 
+                std::min(b_lower,-0.0087f) );
+    
+
+    //if(deta < upper_cut && deta > lower_cut) inMust=true;
+    
+    const float deta=(1-2*(maxEta<0))*(ClusEta-maxEta); // sign flip deta
+    return (deta < upper_cut && deta > lower_cut);
+}
+
+bool inDynamicDPhiWindow(const float seedEta, const float seedPhi,
+                const float ClustE, const float ClusEta,
+                const float ClusPhi) {
+    // from Rishi's fits 06 June 2013 in log base 10
+    constexpr double yoffsetEB = 7.151e-02;
+    constexpr double scaleEB   = 5.656e-01;
+    constexpr double xoffsetEB = 2.931e-01;
+    constexpr double widthEB   = 2.976e-01;
+
+    constexpr double yoffsetEE_0 =  5.058e-02;
+    constexpr double scaleEE_0   =  7.131e-01;
+    constexpr double xoffsetEE_0 =  1.668e-02;
+    constexpr double widthEE_0   =  4.114e-01;
+
+    constexpr double yoffsetEE_1 = -9.913e-02;
+    constexpr double scaleEE_1   =  4.404e+01;
+    constexpr double xoffsetEE_1 = -5.326e+00;
+    constexpr double widthEE_1   =  1.184e+00;
+
+    constexpr double yoffsetEE_2 = -6.346e-01;
+    constexpr double scaleEE_2   =  1.317e+01;
+    constexpr double xoffsetEE_2 = -7.037e+00;
+    constexpr double widthEE_2   =  2.836e+00;
+    
+    
+    const double absSeedEta = std::abs(seedEta);
+    const int etaBin = ( (int)(absSeedEta >= 1.479) + 
+            (int)(absSeedEta >= 1.75)  +
+            (int)(absSeedEta >= 2.0)     );
+    const double logClustEt = std::log10(ClustE/std::cosh(ClusEta));
+    const double clusDphi = std::abs(TVector2::Phi_mpi_pi(seedPhi - 
+                            ClusPhi));
+
+    double yoffset, scale, xoffset, width, saturation, cutoff, maxdphi;
+
+    switch( etaBin ) {
+    case 0: // EB
+        yoffset = yoffsetEB;
+        scale   = scaleEB;
+        xoffset = xoffsetEB;
+        width   = 1.0/widthEB;
+        saturation = 0.14;
+        cutoff     = 0.60;
+        break;
+    case 1: // 1.479 -> 1.75
+        yoffset = yoffsetEE_0;
+        scale   = scaleEE_0;
+        xoffset = xoffsetEE_0;
+        width   = 1.0/widthEE_0;
+        saturation = 0.14;
+        cutoff     = 0.55;
+        break;
+    case 2: // 1.75 -> 2.0
+        yoffset = yoffsetEE_1;
+        scale   = scaleEE_1;
+        xoffset = xoffsetEE_1;
+        width   = 1.0/widthEE_1;
+        saturation = 0.12;
+        cutoff     = 0.45;
+        break;
+    case 3: // 2.0 and up
+        yoffset = yoffsetEE_2;
+        scale   = scaleEE_2;
+        xoffset = xoffsetEE_2;
+        width   = 1.0/widthEE_2;
+        saturation = 0.12;
+        cutoff     = 0.30;
+        break;
+    default:
+        
+        std::cout << "Calculated invalid eta bin = " << etaBin 
+        << " in \"inDynamicDPhiWindow\"" << std::endl;
+        }
+    
+    maxdphi = yoffset+scale/(1+std::exp((logClustEt-xoffset)*width));
+    maxdphi = std::min(maxdphi,cutoff);
+    maxdphi = std::max(maxdphi,saturation);
+    
+    return clusDphi < maxdphi;
+}
+
