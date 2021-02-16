@@ -2,7 +2,7 @@ from collections import defaultdict
 from operator import itemgetter
 
 
-def get_calo_association(clusters_scores, clusters_eta, debug=False):
+def get_calo_association(clusters_scores, clusters_eta, sort_calo_cl=False, debug=False):
     '''
     pfCluster_scores is a list. For each pfCluster, there is a list of scores for each calo. 
     Each cluster is associated with the calo with the highest score. 
@@ -24,21 +24,24 @@ def get_calo_association(clusters_scores, clusters_eta, debug=False):
             # save for the calocluster in the caloparticle if it is the one with more fraction
             # This is necessary in case one caloparticle is linked with more than one cluster
             calo_cluster_assoc_map[caloids[0][0]].append(clid)
-            if debug:  calo_cluster_assoc_scores[caloids[0][0]].append((clid, caloids[0][1]))
+            if sort_calo_cl:  calo_cluster_assoc_scores[caloids[0][0]].append((clid, caloids[0][1]))
         else:
             # Save -1 index for caloparticle absent
             cluster_calo_assoc[clid] = -1
             cluster_calo_assoc_score[clid] = -1
         
     # Now sort the clusters associated to a caloparticle with the fraction 
-    if debug:
+    if sort_calo_cl:
         sorted_calo_cluster_assoc = {}
         for caloid, clinfo in calo_cluster_assoc_scores.items():
             sorted_calo_cluster_assoc[caloid] = sorted(clinfo, key=itemgetter(1), reverse=True)
-    
-        for calo, cls in sorted_calo_cluster_assoc.items():
-            print("Calo: ", calo)
-            for cl in cls:
-                print("\tCluster: {} , fraction: {}".format(cl[0], cl[1]))
 
-    return cluster_calo_assoc, cluster_calo_assoc_score, calo_cluster_assoc_map
+        if debug:
+            for calo, cls in sorted_calo_cluster_assoc.items():
+                print("Calo: ", calo)
+                for cl in cls:
+                    print("\tCluster: {} , fraction: {}".format(cl[0], cl[1]))
+
+        return cluster_calo_assoc, cluster_calo_assoc_score, sorted_calo_cluster_assoc
+    else: 
+        return cluster_calo_assoc, cluster_calo_assoc_score, calo_cluster_assoc_map
