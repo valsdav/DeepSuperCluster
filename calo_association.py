@@ -5,7 +5,7 @@ from operator import itemgetter
 def get_calo_association(clusters_scores, clusters_eta, sort_calo_cl=False, debug=False):
     '''
     pfCluster_scores is a list. For each pfCluster, there is a list of scores for each calo. 
-    Each cluster is associated with the calo with the highest score. 
+    Each cluster is associated with the calo with the highest score (with a minumum score of 1e-5). 
     Each calo is assocciated with the list of cluster for which it has the highest score.
     '''
     calo_cluster_assoc_scores = defaultdict(list)

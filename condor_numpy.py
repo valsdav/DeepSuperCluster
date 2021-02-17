@@ -26,6 +26,7 @@ parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (bar
 parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barrel, endcap)", default=[0.7,0.7])
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1)
+parser.add_argument('-c', "--compress", action="store_true",  help="Compress output")
 parser.add_argument("--redo", action="store_true", default=False, help="Redo all files")
 args = parser.parse_args()
 
@@ -64,13 +65,20 @@ echo -e "Running numpy dumper.."
 python cluster_tonumpy_dynamic_global_overlap.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED};
 
+{compress}
 echo -e "Copying result to: $OUTPUTDIR";
-xrdcp -f --nopbar  output.ndjson root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.ndjson;
+xrdcp -f --nopbar  output.{output_ext} root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.{output_ext};
 
 echo -e "DONE";
 '''
 
 script = script.replace("{eosinstance}", args.eos)
+if args.compress:
+    script = script.replace("{compress}", 'tar -zcf output.ndjson.tar.gz output.ndjson')
+    script = script.replace("{output_ext}", 'ndjson.tar.gz')
+else:
+    script = script.replace("{compress}", '')
+    script = script.replace("{output_ext}", 'ndjson')
 
 arguments= []
 if not os.path.exists(args.outputdir):
