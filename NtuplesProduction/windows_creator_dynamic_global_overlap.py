@@ -123,6 +123,11 @@ class WindowCreator():
         pfcl_f5_sigmaIetaIphi = event.pfCluster_full5x5_sigmaIetaIphi
         pfcl_f5_sigmaIphiIphi = event.pfCluster_full5x5_sigmaIphiIphi
         pfcl_f5_swissCross = event.pfCluster_full5x5_swissCross
+        pfcl_r9 = event.pfCluster_r9
+        pfcl_sigmaIetaIeta = event.pfCluster_sigmaIetaIeta
+        pfcl_sigmaIetaIphi = event.pfCluster_sigmaIetaIphi
+        pfcl_sigmaIphiIphi = event.pfCluster_sigmaIphiIphi
+        pfcl_swissCross = event.pfCluster_swissCross
         pfcl_nxtals = event.pfCluster_nXtals
         pfcl_etaWidth = event.pfCluster_etaWidth
         pfcl_phiWidth = event.pfCluster_phiWidth
@@ -255,6 +260,12 @@ class WindowCreator():
                 "seed_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                 "seed_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                 "seed_f5_swissCross" : pfcl_f5_swissCross[icl],
+                "seed_r9": pfcl_r9[icl],
+                "seed_sigmaIetaIeta" : pfcl_sigmaIetaIeta[icl],
+                "seed_sigmaIetaIphi" : pfcl_sigmaIetaIphi[icl],
+                "seed_sigmaIphiIphi" : pfcl_sigmaIphiIphi[icl],
+                "seed_swissCross" : pfcl_swissCross[icl],
+
                 "seed_etaWidth" : pfcl_etaWidth[icl],
                 "seed_phiWidth" : pfcl_phiWidth[icl],
                 "seed_nxtals" : pfcl_nxtals[icl],
@@ -356,6 +367,13 @@ class WindowCreator():
                         "cl_f5_sigmaIetaIphi" : pfcl_f5_sigmaIetaIphi[icl],
                         "cl_f5_sigmaIphiIphi" : pfcl_f5_sigmaIphiIphi[icl],
                         "cl_f5_swissCross" : pfcl_f5_swissCross[icl],
+                        "cl_r9": pfcl_r9[icl],
+                        "cl_sigmaIetaIeta" : pfcl_sigmaIetaIeta[icl],
+                        "cl_sigmaIetaIphi" : pfcl_sigmaIetaIphi[icl],
+                        "cl_sigmaIphiIphi" : pfcl_sigmaIphiIphi[icl],
+                        "cl_swissCross" : pfcl_swissCross[icl],
+
+
                         "cl_etaWidth" : pfcl_etaWidth[icl],
                         "cl_phiWidth" : pfcl_phiWidth[icl],
                         "cl_nxtals" : pfcl_nxtals[icl],
@@ -496,6 +514,12 @@ class WindowCreator():
             "cl_f5_sigmaIetaIphi" : [],
             "cl_f5_sigmaIphiIphi" : [],
             "cl_f5_swissCross" : [],
+            "cl_r9": [],
+            "cl_sigmaIetaIeta" : [],
+            "cl_sigmaIetaIphi" : [],
+            "cl_sigmaIphiIphi" : [],
+            "cl_swissCross" : [],
+
             "cl_etaWidth" : [],
             "cl_phiWidth" : [],
             "cl_nxtals"   : [],

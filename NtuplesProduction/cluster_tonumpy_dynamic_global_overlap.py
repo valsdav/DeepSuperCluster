@@ -65,7 +65,9 @@ for inputfile in inputfiles:
         if iev % 10 == 0: print(".",end="")
         windows_data = windows_creator.get_windows(event, args.assoc_strategy, 
                 nocalowNmax= args.maxnocalow, min_et_seed= args.min_et_seed, debug= args.debug )
-        windows_files.write("\n".join(windows_data)+"\n")        
+        for w in windows_data:
+            windows_files.write(w)
+            windows_files.write('\n')        
        
     f.Close()
         

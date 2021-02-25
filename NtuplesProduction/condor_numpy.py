@@ -36,7 +36,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = cluster_tonumpy_dynamic_global_overlap.py, windows_creator_dynamic_global_overlap.py, calo_association.py, {wp_file}, Mustache.C
+transfer_input_files    = ../cluster_tonumpy_dynamic_global_overlap.py, ../windows_creator_dynamic_global_overlap.py, ../calo_association.py, ../{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
