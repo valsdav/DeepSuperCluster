@@ -18,6 +18,7 @@ parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True
 parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per tfrecord file", required=True)
 parser.add_argument("-tf", "--test-fraction", type=float, help="Fraction of files for testing", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
+parser.add_argument("-f", "--flag", type=str, help="Flag",required=True )
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 args = parser.parse_args()
 
@@ -44,12 +45,13 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc10-opt/setup.sh
 JOBID=$1;  
 INPUTFILE=$2;
 OUTPUTDIR=$3;
+FLAG=$4;
 
 
 echo -e "Running tfrecord dumper.."
 
 mkdir output;
-python convert_tfrecord_dataset_allinfo.py -i ${INPUTFILE} -o ./output -n records_$JOBID;
+python convert_tfrecord_dataset_allinfo.py -i ${INPUTFILE} -o ./output -n records_$JOBID -f $FLAG;
 
 echo -e "Copying result to: $OUTPUTDIR";
 rsync -avz output/ ${OUTPUTDIR}
@@ -91,16 +93,16 @@ while ifile_used < nfiles_training:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training"))
+        arguments.append("{} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.flag))
         files_groups = []
         ifile_group = 0
 
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 # Join also the last group
-arguments.append("{} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training"))
+arguments.append("{} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/training",args.flag))
 
 
 ######## testing
@@ -120,16 +122,16 @@ while ifile_used < nfiles_testing:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing"))
+        arguments.append("{} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing",args.flag))
         files_groups = []
         ifile_group = 0
 
 print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
-arguments.append("{} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing"))
+arguments.append("{} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing",args.flag))
 
 print("Njobs: ", len(arguments))
     

@@ -236,7 +236,7 @@ class WindowCreator():
                 # The seed is the cluster associated with the particle with the largest fraction
                 "is_seed_calo_seed": caloseed,
                 # Mustache info
-                "is_seed_mustached_matched": mustache_seed_index != -1,
+                "is_seed_mustach_matched": mustache_seed_index != -1,
                 "mustache_seed_index": mustache_seed_index,
                 
                 # Score of the seed cluster
@@ -467,12 +467,13 @@ class WindowCreator():
         
         windows_to_keep = list(filter(lambda w: w["window_index"] in windows_to_keep_index, windows_map.values()))
 
-        # Now we need to convert list of clusters metadata in list. AOS -> SOA
+       
         output_data = []
 
         for window in windows_to_keep:
-            outw = {k:v for k,v in window.items() if k not in ["seed","clusters"]}
-            outw["clusters"] = self.summary_clusters_window(window)
+            outw = {k:v for k,v in window.items() if k not in ["seed","seed_index"]}
+            # outw["clusters"] = self.summary_clusters_window(window)
+            # let's keep AOS approach 
             output_data.append(json.dumps(outw))
             # pprint(window)
 
@@ -480,55 +481,55 @@ class WindowCreator():
         return output_data
 
 
+     # Now we need to convert list of clusters metadata in list. AOS -> SOA
+    # def summary_clusters_window(self, window):
+    #     clusters_data = {  
+    #         "cl_index": [],
+    #         "is_seed": [],
+    #         # True if the cluster geometrically is in the mustache of the seed
+    #         "in_geom_mustache" : [],
+    #         # True if the seed has a calo and the cluster is associated to the same calo
+    #         "is_calo_matched": [],
+    #         # True if the cluster is the main cluster of the calo associated with the seed
+    #         "is_calo_seed": [],
+    #         # is_calo_matched & (sim fraction optimized threshold)
+    #         "in_scluster": [],
+    #         # True if the cluster is associated with the same (legacy) mustache as the seed
+    #         "in_mustache" : [],
+    #         # Score of association with the caloparticle of the seed, if present
+    #         "calo_score" : [], 
 
-    def summary_clusters_window(self, window):
-        clusters_data = {  
-            "cl_index": [],
-            "is_seed": [],
-            # True if the cluster geometrically is in the mustache of the seed
-            "in_geom_mustache" : [],
-            # True if the seed has a calo and the cluster is associated to the same calo
-            "is_calo_matched": [],
-            # True if the cluster is the main cluster of the calo associated with the seed
-            "is_calo_seed": [],
-            # is_calo_matched & (sim fraction optimized threshold)
-            "in_scluster": [],
-            # True if the cluster is associated with the same (legacy) mustache as the seed
-            "in_mustache" : [],
-            # Score of association with the caloparticle of the seed, if present
-            "calo_score" : [], 
-
-            "cluster_deta": [],
-            "cluster_dphi":[] ,
-            "cluster_ieta": [],
-            "cluster_iphi":[] ,
-            "cluster_iz" : [],
-            "en_cluster": [],
-            "et_cluster": [],
-            "en_cluster_calib": [],
-            "et_cluster_calib": [],
+    #         "cluster_deta": [],
+    #         "cluster_dphi":[] ,
+    #         "cluster_ieta": [],
+    #         "cluster_iphi":[] ,
+    #         "cluster_iz" : [],
+    #         "en_cluster": [],
+    #         "et_cluster": [],
+    #         "en_cluster_calib": [],
+    #         "et_cluster_calib": [],
             
-            # Shower shape variables
-            "cl_f5_r9": [],
-            "cl_f5_sigmaIetaIeta" : [],
-            "cl_f5_sigmaIetaIphi" : [],
-            "cl_f5_sigmaIphiIphi" : [],
-            "cl_f5_swissCross" : [],
-            "cl_r9": [],
-            "cl_sigmaIetaIeta" : [],
-            "cl_sigmaIetaIphi" : [],
-            "cl_sigmaIphiIphi" : [],
-            "cl_swissCross" : [],
+    #         # Shower shape variables
+    #         "cl_f5_r9": [],
+    #         "cl_f5_sigmaIetaIeta" : [],
+    #         "cl_f5_sigmaIetaIphi" : [],
+    #         "cl_f5_sigmaIphiIphi" : [],
+    #         "cl_f5_swissCross" : [],
+    #         "cl_r9": [],
+    #         "cl_sigmaIetaIeta" : [],
+    #         "cl_sigmaIetaIphi" : [],
+    #         "cl_sigmaIphiIphi" : [],
+    #         "cl_swissCross" : [],
 
-            "cl_etaWidth" : [],
-            "cl_phiWidth" : [],
-            "cl_nxtals"   : [],
-            "cl_hits" : []
-        }
-        for cl in window["clusters"]:
-            for key in clusters_data.keys():
-                if type(cl[key]) is bool:
-                    clusters_data[key].append(int(cl[key]))
-                else:
-                    clusters_data[key].append(cl[key])
-        return clusters_data
+    #         "cl_etaWidth" : [],
+    #         "cl_phiWidth" : [],
+    #         "cl_nxtals"   : [],
+    #         "cl_hits" : []
+    #     }
+    #     for cl in window["clusters"]:
+    #         for key in clusters_data.keys():
+    #             if type(cl[key]) is bool:
+    #                 clusters_data[key].append(int(cl[key]))
+    #             else:
+    #                 clusters_data[key].append(cl[key])
+    #     return clusters_data

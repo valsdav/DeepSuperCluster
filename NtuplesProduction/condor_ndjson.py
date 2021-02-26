@@ -36,7 +36,7 @@ condor = '''executable              = run_numpy_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../cluster_tonumpy_dynamic_global_overlap.py, ../windows_creator_dynamic_global_overlap.py, ../calo_association.py, ../{wp_file}, ../Mustache.C
+transfer_input_files    = ../cluster_ndjson_dynamic_global_overlap.py, ../windows_creator_dynamic_global_overlap.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -62,7 +62,7 @@ ET_SEED=$7;
 
 echo -e "Running numpy dumper.."
 
-python cluster_tonumpy_dynamic_global_overlap.py -i ${INPUTFILE} -o output.ndjson \
+python cluster_ndjson_dynamic_global_overlap.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED};
 
 {compress}

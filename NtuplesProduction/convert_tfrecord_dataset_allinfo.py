@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-n","--name", type=str, help="Job name", required=True)
 parser.add_argument("-i","--inputfiles", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputdir", type=str, help="Outputdirectory",required=True)
+parser.add_argument("-f","--flag", type=int, help="flag to add")
 args = parser.parse_args()
 
 
@@ -26,10 +27,9 @@ def load_iter(files):
                     try:
                         data1 = json.loads(content)
                         yield data1
-                    except:
-                        break
-                else:
-                    break
+                    except Exception as  e:
+                        print(e)
+                        continue
                     
                
 
@@ -41,17 +41,18 @@ def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def _int64_feature(value):
-  """Returns an int64_list from a bool / enum / int / uint."""
-  return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+    """Returns an int64_list from a bool / enum / int / uint."""
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 def _float_feature(value):
-  """Returns an float32_list from a bool / enum / int / uint."""
-  return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+    """Returns an float32_list from a bool / enum / int / uint."""
+    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+def _tensor_feature(value):
+    return _bytes_feature(tf.io.serialize_tensor(value))
 
 
 def make_example_window(window):
-
-    clusters_features = []
 
     seed_features = ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
@@ -63,10 +64,10 @@ def make_example_window(window):
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
                     ]
 
-    seed_metadata_int = [ "is_seed_calo_matched","is_seed_calo_seed","is_seed_mustached_matched"]
-    seed_metadata_float = ["seed_score"]
+    seed_labels = [ "is_seed_calo_matched","is_seed_calo_seed","is_seed_mustach_matched"]
+    seed_metadata = ["nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
+                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster","seed_score" ]
 
-    
     cls_features = [  "cluster_ieta","cluster_iphi","cluster_iz",
                      "cluster_deta", "cluster_dphi",
                      "en_cluster","et_cluster", 
@@ -78,18 +79,13 @@ def make_example_window(window):
                     "cl_nxtals", "cl_etaWidth","cl_phiWidth",
                     ]
 
-    cls_metadata_int = ["is_seed","is_calo_matched","is_calo_seed",
-                        "in_scluster","in_geom_mustache","in_mustache"]
-    cls_metadata_float = ["calo_score"]
+    cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
+    cls_metadata = [ "calo_score" ]
 
     seed_f = np.array( [window[f] for f in seed_features],dtype='float32')
-    seed_m_i = np.array( [window[f] for f in seed_metadata_int],dtype='int')
-    seed_m_f = np.array( [window[f] for f in seed_metadata_float],dtype='float32')
-    seed_rechits = np.array([ [r[0],r[1],r[2],r[4]] for r in  window['seed_hits']], dtype='float32')
-
-    clusters_features = np.transpose(np.array([ window["clusters"][feat] for feat in cls_features],dtype='float32'))
-    clusters_m_f = np.transpose(np.array([ window["clusters"][feat] for feat in cls_metadata_float],dtype='float32')) 
-    clusters_m_i = np.transpose(np.array([ window["clusters"][feat] for feat in cls_metadata_int],dtype='float32'))
+    seed_l = np.array( [window[f] for f in seed_labels],dtype='int')
+    seed_m = np.array( [window[f] for f in seed_metadata],dtype='float32')
+    seed_hits = np.array([ [r[0],r[1],r[2],r[4]] for r in  window['seed_hits']], dtype='float32')
 
     # Class division
     if not window['is_seed_calo_matched']:
@@ -100,21 +96,39 @@ def make_example_window(window):
         class_ = 2
 
     #Using short labels because they are repeated a lot of times
-    feature = {
-        's_f': _bytes_feature(tf.io.serialize_tensor(seed_f)),
-        's_m_i': _bytes_feature(tf.io.serialize_tensor(seed_m_i)),
-        's_m_f': _bytes_feature(tf.io.serialize_tensor(seed_m_f)),
-        'cl_f': _bytes_feature(tf.io.serialize_tensor(clusters_features)),
-        'cl_m_f': _bytes_feature(tf.io.serialize_tensor(clusters_m_f)),
-        'cl_m_i': _bytes_feature(tf.io.serialize_tensor(clusters_m_i)),
+    context_features = {
+        's_f': _tensor_feature(seed_f),
+        's_l': _tensor_feature(seed_l),
+        's_m': _tensor_feature(seed_m),
+        's_h': _tensor_feature(seed_hits),
         # window class
         'w_cl' : _int64_feature(class_),
         # number of clusters
-        'n_cl' : _int64_feature(len(window["clusters"]))
+        'n_cl' : _int64_feature(window["ncls"]),
     }
+    # flag for flavour or other info
+    if args.flag != None:
+        context_features['f'] = _int64_feature(args.flag) 
 
 
-    example = tf.train.Example(features=tf.train.Features(feature=feature))
+    # Now clusters features as a list
+    clusters_features = [ _tensor_feature(np.array([ cl[feat] for feat in cls_features],dtype='float32'))  for cl in window["clusters"] ]
+    clusters_metadata = [ _tensor_feature(np.array([ cl[m] for m in cls_metadata],dtype='float32'))  for cl in window["clusters"] ]
+    clusters_labels =   [ _tensor_feature(np.array([ cl[l] for l in cls_labels],dtype='int'))  for cl in window["clusters"] ]
+    clusters_hits =     [ _tensor_feature(np.array([[r[0],r[1],r[2],r[4]] for r in  cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
+
+    clusters_list = tf.train.FeatureLists(
+        feature_list={
+            "cl_f" : tf.train.FeatureList(feature=clusters_features),
+            "cl_m" : tf.train.FeatureList(feature=clusters_metadata),
+            "cl_l" : tf.train.FeatureList(feature=clusters_labels),
+            "cl_h" : tf.train.FeatureList(feature=clusters_hits)
+        }
+    )
+    
+    example = tf.train.SequenceExample(context=tf.train.Features(feature=context_features), 
+                                       feature_lists=clusters_list)
+
     return example, class_
 
 
@@ -131,6 +145,7 @@ if __name__ == "__main__":
     else:
         inputfiles = [args.inputfiles]
 
+    print("Start reading files")
     it_files = load_iter(inputfiles)
 
     writers= {0: tf.io.TFRecordWriter(os.path.join(outputdir,"no_calo_matched","nocalomatch_" + args.name+".proto")),
@@ -143,7 +158,7 @@ if __name__ == "__main__":
 
     try:
         for i, row in enumerate(it_files):
-            example, class_ = make_example_window(next(it_files))
+            example, class_ = make_example_window(row)
             writers[class_].write(example.SerializeToString())
             counter[class_] += 1
 
