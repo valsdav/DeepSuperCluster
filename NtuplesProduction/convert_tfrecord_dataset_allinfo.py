@@ -36,20 +36,27 @@ def load_iter(files):
 #https://stackoverflow.com/questions/47861084/how-to-store-numpy-arrays-as-tfrecord
 def _bytes_feature(value):
     """Returns a bytes_list from a string / byte."""
-    if isinstance(value, type(tf.constant(0))): # if value ist tensor
-        value = value.numpy() # get value of tensor
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[values]))
+
+def _int64_features(values):
+    """Returns an int64_list from a bool / enum / int / uint."""
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=values))
 
 def _int64_feature(value):
     """Returns an int64_list from a bool / enum / int / uint."""
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
+def _float_features(values):
+    """Returns an float32_list from a bool / enum / int / uint."""
+    return tf.train.Feature(float_list=tf.train.FloatList(value=values))
 
 def _float_feature(value):
     """Returns an float32_list from a bool / enum / int / uint."""
     return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
 def _tensor_feature(value):
-    return _bytes_feature(tf.io.serialize_tensor(value))
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.io.serialize_tensor(value).numpy()]))
 
 
 def make_example_window(window):
@@ -95,11 +102,12 @@ def make_example_window(window):
     elif window['is_seed_calo_matched'] and window["is_seed_calo_seed"]:
         class_ = 2
 
+    #print(_int64_feature(window["ncls"])
     #Using short labels because they are repeated a lot of times
     context_features = {
-        's_f': _tensor_feature(seed_f),
-        's_l': _tensor_feature(seed_l),
-        's_m': _tensor_feature(seed_m),
+        's_f': _float_features(seed_f),
+        's_l': _int64_features(seed_l),
+        's_m': _float_features(seed_m),
         's_h': _tensor_feature(seed_hits),
         # window class
         'w_cl' : _int64_feature(class_),
@@ -110,21 +118,30 @@ def make_example_window(window):
     if args.flag != None:
         context_features['f'] = _int64_feature(args.flag) 
 
-
     # Now clusters features as a list
-    clusters_features = [ _tensor_feature(np.array([ cl[feat] for feat in cls_features],dtype='float32'))  for cl in window["clusters"] ]
-    clusters_metadata = [ _tensor_feature(np.array([ cl[m] for m in cls_metadata],dtype='float32'))  for cl in window["clusters"] ]
-    clusters_labels =   [ _tensor_feature(np.array([ cl[l] for l in cls_labels],dtype='int'))  for cl in window["clusters"] ]
-    clusters_hits =     [ _tensor_feature(np.array([[r[0],r[1],r[2],r[4]] for r in  cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
-
+    clusters_features = [ _float_features(np.array([ cl[feat] for feat in cls_features],dtype='float32'))  for cl in window["clusters"] ]
+    clusters_metadata = [ _float_features(np.array([ cl[m] for m in cls_metadata],dtype='float32'))  for cl in window["clusters"] ]
+    clusters_labels =   [ _int64_features(np.array([ cl[l] for l in cls_labels],dtype='int'))  for cl in window["clusters"] ]
+    
+    clusters_hits0 =     [ _float_features(np.array([r[0] for r in cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
+    clusters_hits1 =     [ _float_features(np.array([r[1] for r in cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
+    clusters_hits2 =     [ _float_features(np.array([r[2] for r in cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
+    clusters_hits4 =     [ _float_features(np.array([r[4] for r in cl['cl_hits']],dtype="float32"))  for cl in window["clusters"] ]
+    
+    
     clusters_list = tf.train.FeatureLists(
         feature_list={
             "cl_f" : tf.train.FeatureList(feature=clusters_features),
             "cl_m" : tf.train.FeatureList(feature=clusters_metadata),
             "cl_l" : tf.train.FeatureList(feature=clusters_labels),
-            "cl_h" : tf.train.FeatureList(feature=clusters_hits)
+            "cl_h0" : tf.train.FeatureList(feature=clusters_hits0),
+            "cl_h1" : tf.train.FeatureList(feature=clusters_hits1),
+            "cl_h2" : tf.train.FeatureList(feature=clusters_hits2),
+            "cl_h4" : tf.train.FeatureList(feature=clusters_hits4)
         }
     )
+
+    # print(clusters_list)
     
     example = tf.train.SequenceExample(context=tf.train.Features(feature=context_features), 
                                        feature_lists=clusters_list)
