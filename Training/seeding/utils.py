@@ -41,8 +41,13 @@ def parse_window_all(element, read_hits=False):
     
     return ex
   
-  
-  
+def load_dataset(path, options):
+    '''
+    options = { "read_hits" }
+    '''
+    dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
+    dataset = dataset.map(lambda el: parse_window_all(el, options['read_hits']),num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    return dataset
 
 # # Create datasets from TFRecord files.
 # dataset = tf.data.TFRecordDataset(tf.io.gfile.glob('{}/training-*'.format(data_path)))
