@@ -138,3 +138,98 @@ class SGConv(tf.keras.layers.Dense):
         out = tf.linalg.matmul(adj_k, support*norm_k)*norm_k
 
         return self.activation(out + b)
+
+
+############################
+# From https://www.tensorflow.org/tutorials/text/transformer#multi-head_attention
+@tf.function
+def scaled_dot_product_attention(q, k, v, mask):
+    """Calculate the attention weights.
+    q, k, v must have matching leading dimensions.
+    k, v must have matching penultimate dimension, i.e.: seq_len_k = seq_len_v.
+    The mask has different shapes depending on its type(padding or look ahead) 
+    but it must be broadcastable for addition.
+
+    Args:
+    q: query shape == (..., seq_len_q, depth)
+    k: key shape == (..., seq_len_k, depth)
+    v: value shape == (..., seq_len_v, depth_v)
+    mask: Float tensor with shape broadcastable 
+          to (..., seq_len_q, seq_len_k). Defaults to None.
+
+    Returns:
+    output, attention_weights
+    """
+
+    matmul_qk = tf.matmul(q, k, transpose_b=True)  # (..., seq_len_q, seq_len_k)
+
+    # scale matmul_qk
+    dk = tf.cast(tf.shape(k)[-1], tf.float32)
+    scaled_attention_logits = matmul_qk / tf.math.sqrt(dk)
+
+    # add the mask to the scaled tensor.
+    if mask is not None:
+        # the mask signals the elements to keep so we have to invert it
+        scaled_attention_logits += ( (1 - mask) * -1e9)  
+
+    # softmax is normalized on the last axis (seq_len_k) so that the scores
+    # add up to 1.
+    attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)  # (..., seq_len_q, seq_len_k)
+
+    output = tf.matmul(attention_weights, v)  # (..., seq_len_q, depth_v)
+
+    return output, attention_weights
+
+############################
+## GCN + Self-attention block for rechits feature extraction
+# A single features vector of dimension output_dim is built from arbitrary list of rechits. 
+# A GHconv block is applied and then a self-attention block 
+class RechitsGCN(tf.keras.layers.Layer):
+    
+    def __init__(self, n_iter, input_dim, output_dim, *args, **kwargs):
+        self.activation = kwargs.pop("activation")
+        self.output_dim = output_dim
+        self.input_dim = input_dim
+    
+        super(RechitsGCN, self).__init__(*args, **kwargs)
+        
+        self.dist = Distance(batch_dim=2)
+        self.GCN = GHConvI(n_iter = n_iter, input_dim=input_dim, hidden_dim=output_dim, activation=self.activation)
+        
+        # Self-attention matrices
+        self.Q = self.add_weight(shape=(self.output_dim, self.output_dim), name="_sa", initializer="random_normal")
+        self.K = self.add_weight(shape=(self.output_dim, self.output_dim), name="K_sa", initializer="random_normal")
+        self.V = self.add_weight(shape=(self.output_dim, self.output_dim), name="V_sa", initializer="random_normal")
+        
+        
+    def call(self, x, mask):
+        # x has structure  [Nbatch, Nclusters, Nrechits, 4]
+        coord = x[:,:,:,0:2]
+        adj = self.dist(coord,coord)
+        # apply GCN in fully batched style
+        out_gcn = self.GCN(x,adj)
+        
+        q = tf.matmul(out_gcn,self.Q)
+        k = tf.matmul(out_gcn,self.K)
+        v = tf.matmul(out_gcn,self.V)
+        mask_for_attention = mask[:,:,tf.newaxis,:]
+        sa_output, attention_weights= scaled_dot_product_attention(q, k, v, mask_for_attention)
+        
+        # Now compute the mean of the output masking the correct rechits
+        N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
+        mask_for_output = mask[:,:,:,tf.newaxis]
+        masked_sa_output = mask_for_output * sa_output
+        # Sum the rechits vectors
+        output = tf.math.divide_no_nan( tf.reduce_sum(masked_sa_output, -2), N_rechits)
+        
+        return output, masked_sa_output, attention_weights
+
+
+
+#########################3
+# Masking utils
+
+def create_padding_masks(rechits):
+    mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
+    mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
+    return mask_rechits, mask_cls
