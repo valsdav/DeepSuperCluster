@@ -31,7 +31,6 @@ class Distance(tf.keras.layers.Layer):
         self.batch_dim = kwargs.pop('batch_dim',1)
         super(Distance, self).__init__(*args, **kwargs)
         
-
     def call(self, inputs1, inputs2):
         #compute the pairwise distance matrix between the vectors defined by the first two components of the input array
         #inputs1, inputs2: [Nbatch, Nelem, distance_dim] embedded coordinates used for element-to-element distance calculation
@@ -65,7 +64,7 @@ class GHConvI(tf.keras.layers.Layer):
         self.W_t = self.add_weight(shape=(self.input_dim, self.hidden_dim), name="w_t", initializer="random_normal")
         self.b_t = self.add_weight(shape=(self.hidden_dim, ), name="b_t", initializer="zeros")
         self.theta = self.add_weight(shape=(self.input_dim, self.hidden_dim), name="theta", initializer="random_normal")
- 
+    
     def call(self, x, adj):
         #compute the normalization of the adjacency matrix
         in_degrees = tf.reduce_sum(adj, axis=-1)
@@ -95,7 +94,7 @@ class GHConvO(tf.keras.layers.Layer):
         self.b_t = self.add_weight(shape=(self.hidden_dim, ), name="b_t", initializer="zeros")
         self.W_h = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="w_h", initializer="random_normal")
         self.theta = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="theta", initializer="random_normal")
- 
+    
     def call(self, x, adj):
         #compute the normalization of the adjacency matrix
         in_degrees = tf.reduce_sum(adj, axis=-1)
@@ -142,7 +141,6 @@ class SGConv(tf.keras.layers.Dense):
 
 ############################
 # From https://www.tensorflow.org/tutorials/text/transformer#multi-head_attention
-@tf.function
 def scaled_dot_product_attention(q, k, v, mask):
     """Calculate the attention weights.
     q, k, v must have matching leading dimensions.
@@ -200,7 +198,10 @@ class RechitsGCN(tf.keras.layers.Layer):
         self.Q = self.add_weight(shape=(self.output_dim, self.output_dim), name="_sa", initializer="random_normal")
         self.K = self.add_weight(shape=(self.output_dim, self.output_dim), name="K_sa", initializer="random_normal")
         self.V = self.add_weight(shape=(self.output_dim, self.output_dim), name="V_sa", initializer="random_normal")
-        
+
+        # Output Conv1d / or Dense 
+        #self.conv1d_out = tf.keras.layers.Conv1D(self.output_dim, 1, padding="Valid", activation=tf.nn.selu)
+        self.dense_out = tf.keras.layers.Dense(self.output_dim, activation=tf.nn.relu)
         
     def call(self, x, mask):
         # x has structure  [Nbatch, Nclusters, Nrechits, 4]
@@ -219,10 +220,12 @@ class RechitsGCN(tf.keras.layers.Layer):
         N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
         mask_for_output = mask[:,:,:,tf.newaxis]
         masked_sa_output = mask_for_output * sa_output
+        # Apply dense layer on each rechit output before the final sum
+        convout = self.dense_out(masked_sa_output)
         # Sum the rechits vectors
-        output = tf.math.divide_no_nan( tf.reduce_sum(masked_sa_output, -2), N_rechits)
+        output = tf.math.divide_no_nan( tf.reduce_sum(convout, -2), N_rechits)
         
-        return output, masked_sa_output, attention_weights
+        return output, attention_weights
 
 
 
@@ -233,3 +236,79 @@ def create_padding_masks(rechits):
     mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
     mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
     return mask_rechits, mask_cls
+
+def plotA(plt, *args):
+    f, axs = plt.subplots(1,len(args), figsize=(7*len(args), 6), dpi=100)
+    if len(args)>1:
+        for i in range(len(args)):
+            c= axs[i].imshow(tf.transpose(args[i]))
+            plt.colorbar(c, ax=axs[i])
+    else:
+        axs.imshow(tf.transpose(args[0]))
+        plt.colorbar()
+
+
+################################
+# Graph building part of the model
+class GraphBuilding(tf.keras.layers.Layer):
+    
+    def __init__(self, 
+                layers_input = [64,64],
+                layers_coord = [64,64], 
+                output_dim_rechits = 8,
+                output_dim_nodes = 32, 
+                coord_dim = 3 ,  
+                n_iter_rechits = 4, 
+                *args, **kwargs):
+        
+        self.activation = kwargs.pop("activation", tf.nn.selu)
+        self.layers_input = layers_input
+        self.layers_coord = layers_coord
+        self.output_dim_rechits = output_dim_rechits
+        self.output_dim_nodes = output_dim_nodes
+        self.coord_dim = coord_dim
+        self.n_iter_rechits = n_iter_rechits
+    
+        super(GraphBuilding, self).__init__(*args, **kwargs)
+        
+        self.rechitsGCN = RechitsGCN(output_dim=self.output_dim_rechits, input_dim=4, n_iter=self.n_iter_rechits, activation=self.activation)
+        
+        self.dist = Distance(batch_dim=1)
+        self.concat = tf.keras.layers.Concatenate(axis=-1)
+        
+        self.dense_feats = []
+        self.dense_coord = []
+        #append last layer dimension that is the output dimension of the node features
+        self.layers_input.append(self.output_dim_nodes)
+        for N in self.layers_input:
+            self.dense_feats.append(tf.keras.layers.Dense(N, activation=self.activation))
+        
+        for N in self.layers_coord:
+            self.dense_coord.append(tf.keras.layers.Dense(N, activation=self.activation))
+        # last layer fixes the dim of coordinatate space and the linear activation of it
+        self.coord_dense_out = tf.keras.layers.Dense(self.coord_dim, activation=tf.keras.activations.linear)
+
+    def call(self, x):
+        rechits = x[1].to_tensor()
+        mask_rechits, mask_cls = create_padding_masks(rechits)
+        # Cal the rechitGCN and get out 1 vector for each cluster 
+        output_rechits, _ = self.rechitsGCN(rechits, mask_rechits)
+        # Concat the per-cluster feature with the rechits output
+        cl_and_rechits = self.concat([x[0], output_rechits])
+        # apply dense layers for feature building
+        for dense in self.dense_feats:
+            cl_and_rechits = dense(cl_and_rechits)
+        
+        # Now apply the coordinate network 
+        coord_x = cl_and_rechits
+        for dense in self.dense_coord:
+            coord_x = dense(coord_x)
+        coord_output = self.coord_dense_out(coord_x)
+        # Build the adjacency matrix
+        adj = self.dist(coord_output,coord_output)
+        # mask the padded clusters      
+        adj = adj*mask_cls[:,tf.newaxis,:]
+        
+        #return the nodes features, the coordinates , the adjacency matrix, the clusters mask
+        return  cl_and_rechits, coord_output, adj, mask_cls
+

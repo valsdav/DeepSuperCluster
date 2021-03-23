@@ -148,3 +148,4 @@ def cluster_features_and_hits(dataset, features):
 def get(dataset):
     el = next(iter(dataset.take(1)))
     return el
+
