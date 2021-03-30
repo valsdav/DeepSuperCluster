@@ -28,6 +28,7 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1)
 parser.add_argument('-c', "--compress", action="store_true",  help="Compress output")
 parser.add_argument("--redo", action="store_true", default=False, help="Redo all files")
+parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 args = parser.parse_args()
 
 
@@ -63,7 +64,7 @@ ET_SEED=$7;
 echo -e "Running numpy dumper.."
 
 python cluster_ndjson_dynamic_global_overlap.py -i ${INPUTFILE} -o output.ndjson \
-            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED};
+            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED}  {debug};
 
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
@@ -79,6 +80,10 @@ if args.compress:
 else:
     script = script.replace("{compress}", '')
     script = script.replace("{output_ext}", 'ndjson')
+if args.debug:
+    script = script.replace("{debug}", "--debug")
+else: 
+    script = script.replace("{debug}", "")
 
 arguments= []
 if not os.path.exists(args.outputdir):

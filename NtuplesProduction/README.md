@@ -45,6 +45,22 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
   - If the seed is not associated with a calo the matching of the cluster is not checked
 
 
+### Example
+Examples for the production of electron and gammas training dataset can be found in `prod_gamma` and `prod_electron`.
+
+To test the production of the ntuples
+```
+ python ../condor_ndjson.py -q espresso \
+ -o *your_output_folder* \
+ -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_withPU_withTracker_106X_mcRun3_2021_realistic_v3_RAW_StdSeedingGathering_Mustache_optimizedDeepSC_v17_joindet_elegamma_EBEE \
+ --test-fraction 0 --min-et-seed 1. --maxnocalow 10 -a sim_fraction \
+ --wp-file simScore_Minima_ElectronsOnly.root '
+ --nfile-group 1  --debug \
+--compress
+
+```
+The script will create the necessary bash script and a files with arguments. Just take one line of arguments and run the script to check the log and output. 
+
 
 ### Features in final dataset
 
