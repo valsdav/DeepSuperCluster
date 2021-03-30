@@ -123,6 +123,7 @@ def get_cluster_features_and_hits(feat_index):
         cl_hits = kargs[1]['cl_h']
         is_seed = tf.gather(cl_l,indices=[0],axis=2)
         in_sc = tf.gather(cl_l,indices=[3],axis=2)
+        cl_X = tf.concat([ cl_X,tf.cast(is_seed, tf.float32),], axis=-1)
         return cl_X, cl_hits, is_seed, in_sc,  kargs[2]["cl_f"]
     return process
 

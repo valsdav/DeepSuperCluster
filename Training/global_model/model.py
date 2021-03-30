@@ -2,6 +2,18 @@
 import tensorflow as tf
 import numpy as np
 
+#########################3
+# Masking utils
+
+def create_padding_masks(rechits):
+    mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
+    mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
+    return mask_rechits, mask_cls
+
+
+###########################
+#Distance
+
 
 def dist(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
@@ -178,24 +190,74 @@ def scaled_dot_product_attention(q, k, v, mask):
 
     return output, attention_weights
 
+###########################3
+class SelfAttention(tf.keras.layers.Layer):
+    '''
+    Generic self attention layer that can reduce or not the output feature vectors.
+    Input : [Nbatch, Nclusters, input_dim]
+    Output:  
+            - reduce=none  [Nbatch, Nclusters, output_dim]  
+            - reduce=sum or mean   [Nbatch, output_dim]  
+    '''    
+    def __init__(self, input_dim, output_dim, reduce=None, *args, **kwargs):
+        self.activation = kwargs.pop("activation")
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.reduce = reduce # it can be None, sum, mean
+    
+        super(SelfAttention, self).__init__(*args, **kwargs)
+        
+        # Self-attention matrices
+        self.Q = self.add_weight(shape=(self.input_dim, self.output_dim), name="Q_sa", initializer="random_normal")
+        self.K = self.add_weight(shape=(self.input_dim, self.output_dim), name="K_sa", initializer="random_normal")
+        self.V = self.add_weight(shape=(self.input_dim, self.output_dim), name="V_sa", initializer="random_normal")
+
+        # Output Conv1d / or Dense 
+        #self.conv1d_out = tf.keras.layers.Conv1D(self.output_dim, 1, padding="Valid", activation=tf.nn.selu)
+        self.dense_out = tf.keras.layers.Dense(self.output_dim, activation=self.activation)
+        
+    def call(self, x, mask):
+        # x has structure  [Nbatch, Nclusters, Nfeatures]
+        q = tf.matmul(x,self.Q)
+        k = tf.matmul(x,self.K)
+        v = tf.matmul(x,self.V)
+        # mask the padded clusters in the attention distance
+        mask_for_attention = mask[:,tf.newaxis,:]
+        sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
+        # Mask for output
+        mask_for_nodes = mask[:,:,tf.newaxis]
+        # Apply dense layer on each rechit output before the aggregation
+        out_nodes = self.dense_out(sa_output) * mask_for_nodes
+   
+        # Now the aggregation 
+        if self.reduce == "sum":
+            return  tf.reduce_sum(out_nodes, -2),attention_weights
+        if self.reduce == "mean":
+            N_nodes = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
+            return tf.math.divide_no_nan( tf.reduce_sum(out_nodes, -2), N_nodes),attention_weights
+        else:
+            #just return all the nodes
+            return out_nodes,attention_weights
+
 ############################
 ## GCN + Self-attention block for rechits feature extraction
 # A single features vector of dimension output_dim is built from arbitrary list of rechits. 
 # A GHconv block is applied and then a self-attention block 
 class RechitsGCN(tf.keras.layers.Layer):
     
-    def __init__(self, n_iter, input_dim, output_dim, *args, **kwargs):
+    def __init__(self, nconv, input_dim, output_dim, *args, **kwargs):
         self.activation = kwargs.pop("activation")
         self.output_dim = output_dim
         self.input_dim = input_dim
+        self.nconv = nconv
     
         super(RechitsGCN, self).__init__(*args, **kwargs)
         
         self.dist = Distance(batch_dim=2)
-        self.GCN = GHConvI(n_iter = n_iter, input_dim=input_dim, hidden_dim=output_dim, activation=self.activation)
+        self.GCN = GHConvI(n_iter = self.nconv, input_dim=input_dim, hidden_dim=output_dim, activation=self.activation)
         
         # Self-attention matrices
-        self.Q = self.add_weight(shape=(self.output_dim, self.output_dim), name="_sa", initializer="random_normal")
+        self.Q = self.add_weight(shape=(self.output_dim, self.output_dim), name="Q_sa", initializer="random_normal")
         self.K = self.add_weight(shape=(self.output_dim, self.output_dim), name="K_sa", initializer="random_normal")
         self.V = self.add_weight(shape=(self.output_dim, self.output_dim), name="V_sa", initializer="random_normal")
 
@@ -205,7 +267,7 @@ class RechitsGCN(tf.keras.layers.Layer):
         
     def call(self, x, mask):
         # x has structure  [Nbatch, Nclusters, Nrechits, 4]
-        coord = x[:,:,:,0:2]
+        coord = x[:,:,:,0:2] #ieta and iphi as coordinated
         adj = self.dist(coord,coord)
         # apply GCN in fully batched style
         out_gcn = self.GCN(x,adj)
@@ -214,64 +276,37 @@ class RechitsGCN(tf.keras.layers.Layer):
         k = tf.matmul(out_gcn,self.K)
         v = tf.matmul(out_gcn,self.V)
         mask_for_attention = mask[:,:,tf.newaxis,:]
-        sa_output, attention_weights= scaled_dot_product_attention(q, k, v, mask_for_attention)
-        
-        # Now compute the mean of the output masking the correct rechits
-        N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
+        sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
+        # Mask to compute the output masking the correct rechits
         mask_for_output = mask[:,:,:,tf.newaxis]
-        masked_sa_output = mask_for_output * sa_output
         # Apply dense layer on each rechit output before the final sum
-        convout = self.dense_out(masked_sa_output)
+        convout = self.dense_out(sa_output)
         # Sum the rechits vectors
-        output = tf.math.divide_no_nan( tf.reduce_sum(convout, -2), N_rechits)
+        output = tf.reduce_sum(convout * mask_for_output, -2)
+        # Or doing the mean 
+        #N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
+        #output = tf.math.divide_no_nan( tf.reduce_sum(convout, -2), N_rechits)
         
-        return output, attention_weights
-
-
-
-#########################3
-# Masking utils
-
-def create_padding_masks(rechits):
-    mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
-    mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
-    return mask_rechits, mask_cls
-
-def plotA(plt, *args):
-    f, axs = plt.subplots(1,len(args), figsize=(7*len(args), 6), dpi=100)
-    if len(args)>1:
-        for i in range(len(args)):
-            c= axs[i].imshow(tf.transpose(args[i]))
-            plt.colorbar(c, ax=axs[i])
-    else:
-        axs.imshow(tf.transpose(args[0]))
-        plt.colorbar()
+        return output, (attention_weights, adj)
 
 
 ################################
 # Graph building part of the model
 class GraphBuilding(tf.keras.layers.Layer):
     
-    def __init__(self, 
-                layers_input = [64,64],
-                layers_coord = [64,64], 
-                output_dim_rechits = 8,
-                output_dim_nodes = 32, 
-                coord_dim = 3 ,  
-                n_iter_rechits = 4, 
-                *args, **kwargs):
-        
+    def __init__(self,  **kwargs):
         self.activation = kwargs.pop("activation", tf.nn.selu)
-        self.layers_input = layers_input
-        self.layers_coord = layers_coord
-        self.output_dim_rechits = output_dim_rechits
-        self.output_dim_nodes = output_dim_nodes
-        self.coord_dim = coord_dim
-        self.n_iter_rechits = n_iter_rechits
+        self.layers_input = kwargs.pop("layers_input",[64,64])
+        self.layers_coord = kwargs.pop("layers_coord",[64,64])
+        self.output_dim_rechits = kwargs.pop("output_dim_rechits",16)
+        self.output_dim_nodes = kwargs.pop("output_dim_nodes",32)
+        self.coord_dim = kwargs.pop("coord_dim",3)
+        self.nconv_rechits = kwargs.pop("nconv_rechits",3)
     
-        super(GraphBuilding, self).__init__(*args, **kwargs)
+        super(GraphBuilding, self).__init__( **kwargs)
         
-        self.rechitsGCN = RechitsGCN(output_dim=self.output_dim_rechits, input_dim=4, n_iter=self.n_iter_rechits, activation=self.activation)
+        
+        self.rechitsGCN = RechitsGCN(output_dim=self.output_dim_rechits, input_dim=4, nconv=self.nconv_rechits, activation=self.activation)
         
         self.dist = Distance(batch_dim=1)
         self.concat = tf.keras.layers.Concatenate(axis=-1)
@@ -288,16 +323,17 @@ class GraphBuilding(tf.keras.layers.Layer):
         # last layer fixes the dim of coordinatate space and the linear activation of it
         self.coord_dense_out = tf.keras.layers.Dense(self.coord_dim, activation=tf.keras.activations.linear)
 
-    def call(self, x):
-        rechits = x[1].to_tensor()
+    def call(self, inputs):
+        rechits = inputs[1].to_tensor()
         mask_rechits, mask_cls = create_padding_masks(rechits)
         # Cal the rechitGCN and get out 1 vector for each cluster 
-        output_rechits, _ = self.rechitsGCN(rechits, mask_rechits)
+        output_rechits, (debug) = self.rechitsGCN(rechits, mask_rechits)
         # Concat the per-cluster feature with the rechits output
-        cl_and_rechits = self.concat([x[0], output_rechits])
+        cl_and_rechits = self.concat([inputs[0], output_rechits])
         # apply dense layers for feature building
         for dense in self.dense_feats:
             cl_and_rechits = dense(cl_and_rechits)
+        #cl_and_rechits are now the baseline node features
         
         # Now apply the coordinate network 
         coord_x = cl_and_rechits
@@ -310,5 +346,5 @@ class GraphBuilding(tf.keras.layers.Layer):
         adj = adj*mask_cls[:,tf.newaxis,:]
         
         #return the nodes features, the coordinates , the adjacency matrix, the clusters mask
-        return  cl_and_rechits, coord_output, adj, mask_cls
+        return  cl_and_rechits, coord_output, adj, mask_cls, debug
 
