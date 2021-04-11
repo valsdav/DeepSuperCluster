@@ -105,9 +105,9 @@ def get_cluster_features_indexes(feats):
                 "cl_sigmaIphiIphi","cl_swissCross",
                 "cl_nxtals", "cl_etaWidth","cl_phiWidth"]
     output = [] 
-    for f in feats: 
+    for f in feats:
         if f in cl_feat:
-            output.append(feats.index(f))
+            output.append(cl_feat.index(f))
         else:
             print("Missing branch! ", f)
     return output
