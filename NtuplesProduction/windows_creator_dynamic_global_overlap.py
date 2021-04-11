@@ -55,7 +55,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_eta, window_phi)
     else:
         return False,(-1,-1)
 
-def get_cluster_hists(pfclhit_ieta,pfclhit_iphi,pfclhit_iz,pfclhit_energy, pfclhit_fraction):
+def get_cluster_hits(pfclhit_ieta,pfclhit_iphi,pfclhit_iz,pfclhit_energy, pfclhit_fraction):
     #ieta,iphi,iz,rechit,fraction
     data = []
     for i in range(len(pfclhit_ieta)):
@@ -269,7 +269,7 @@ class WindowCreator():
                 "seed_etaWidth" : pfcl_etaWidth[icl],
                 "seed_phiWidth" : pfcl_phiWidth[icl],
                 "seed_nxtals" : pfcl_nxtals[icl],
-                "seed_hits" : get_cluster_hists(pfclhit_ieta[icl], pfclhit_iphi[icl],pfclhit_iz[icl], pfclhit_energy[icl], pfclhit_fraction[icl]), 
+                "seed_hits" : get_cluster_hits(pfclhit_ieta[icl], pfclhit_iphi[icl],pfclhit_iz[icl], pfclhit_energy[icl], pfclhit_fraction[icl]), 
             
                 "clusters": [],
 
@@ -378,7 +378,7 @@ class WindowCreator():
                         "cl_phiWidth" : pfcl_phiWidth[icl],
                         "cl_nxtals" : pfcl_nxtals[icl],
 
-                        "cl_hits":  get_cluster_hists(pfclhit_ieta[icl], pfclhit_iphi[icl],pfclhit_iz[icl], pfclhit_energy[icl], pfclhit_fraction[icl])
+                        "cl_hits":  get_cluster_hits(pfclhit_ieta[icl], pfclhit_iphi[icl],pfclhit_iz[icl], pfclhit_energy[icl], pfclhit_fraction[icl])
                     }
                     if window["seed_eta"] > 0:
                         cevent["cluster_deta"] = cl_eta - window["seed_eta"]

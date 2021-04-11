@@ -89,7 +89,9 @@ def parse_windows_batch(elements, read_hits=False):
     
     return ex
 
-########################
+
+####################################################
+# Function to prepare tensors for training 
 
 def get_cluster_features_indexes(feats):
     '''
@@ -112,23 +114,28 @@ def get_cluster_features_indexes(feats):
             print("Missing branch! ", f)
     return output
 
-####################################################
-# Function to prepare tensors for training 
 
 def get_cluster_features_and_hits(feat_index): 
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
         cl_l = kargs[1]['cl_l']
-        cl_X = tf.gather(cl_f, indices=feat_index,axis=2)
+        cl_X = tf.gather(cl_f, indices=feat_index,axis=-1)
         cl_hits = kargs[1]['cl_h']
-        is_seed = tf.gather(cl_l,indices=[0],axis=2)
-        in_sc = tf.gather(cl_l,indices=[3],axis=2)
+        is_seed = tf.gather(cl_l,indices=[0],axis=-1)
+        in_sc = tf.gather(cl_l,indices=[3],axis=-1)
         cl_X = tf.concat([ cl_X,tf.cast(is_seed, tf.float32),], axis=-1)
-        return cl_X, cl_hits, is_seed, in_sc,  kargs[2]["cl_f"]
+        n_cl = kargs[0]["n_cl"]
+        return cl_X, cl_hits, is_seed, in_sc,n_cl
     return process
 
 
+def cluster_features_and_hits(dataset, features):
+    return dataset.map( get_cluster_features_and_hits(get_cluster_features_indexes(features)),
+           num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
+
+
 ##############################################
+# Loading functions
   
 def load_dataset_batch(path, batch_size, options):
     '''
@@ -140,11 +147,43 @@ def load_dataset_batch(path, batch_size, options):
                 num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
     return dataset
 
+def load_dataset_single(path, options):
+    '''
+    options = { "read_hits" }
+    '''
+    dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
+    dataset = dataset.map(
+                lambda el: parse_single_window(el, options['read_hits']),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
+    return dataset
 
-def cluster_features_and_hits(dataset, features):
-    return dataset.map( get_cluster_features_and_hits(get_cluster_features_indexes(features)),
-           num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
+def load_balanced_dataset_batch(data_paths, features, batch_size, weights=None):
+    datasets = {}
+    for n, p in data_paths.items():
+        df = load_dataset_single(p, options={"read_hits":True})
+        df = cluster_features_and_hits(df, features)
+        datasets[n] = df
+    if weights:
+        total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=weights)
+    else:
+        total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=[1/len(datasets)]*len(datasets))
+    # Now we can shuffle and batch
+    def batch_features(cl_X, cl_hits, is_seed, in_sc, ncls):
+        '''This function is used to create padded batches together for dense features and ragged ones'''
+        return tf.data.Dataset.zip((cl_X.padded_batch(batch_size), 
+                                    cl_hits.batch(batch_size), 
+                                is_seed.padded_batch(batch_size), 
+                                in_sc.padded_batch(batch_size),
+                                ncls.padded_batch(batch_size)))
+    #total_ds = total_ds.shuffle(1000, reshuffle_each_iteration=True)
+    total_ds_batched = total_ds.window(batch_size).flat_map(batch_features)
+    return total_ds_batched
+
+
+
+######################### 
+#Utils for debugging
 
 def get(dataset):
     el = next(iter(dataset.take(1)))
