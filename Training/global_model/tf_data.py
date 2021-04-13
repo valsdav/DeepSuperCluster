@@ -115,23 +115,56 @@ def get_cluster_features_indexes(feats):
     return output
 
 
-def get_cluster_features_and_hits(feat_index): 
+def prepare_features(dataset,  features): 
+    ''' The tensor containing the requested featues follow the requested order '''
+    feat_index = get_cluster_features_indexes(features)
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
         cl_l = kargs[1]['cl_l']
         cl_X = tf.gather(cl_f, indices=feat_index,axis=-1)
         cl_hits = kargs[1]['cl_h']
         is_seed = tf.gather(cl_l,indices=[0],axis=-1)
-        in_sc = tf.gather(cl_l,indices=[3],axis=-1)
+        in_sc = tf.gather(cl_l,indices=[3], axis=-1)
+        # true_Et = tf.gather(kargs[0]['s_f'],indices=[10], axis=-1)
         cl_X = tf.concat([ cl_X,tf.cast(is_seed, tf.float32),], axis=-1)
         n_cl = kargs[0]["n_cl"]
-        return cl_X, cl_hits, is_seed, in_sc,n_cl
-    return process
+        # window class , flavour and true simEnergy (gen energy will be added)
+        wind_meta = tf.stack(  [tf.cast(kargs[0]['w_cl'],tf.float32), 
+                                tf.cast(kargs[0]['f'],tf.float32),
+                                kargs[0]['s_f'][10]], axis=-1)
+        return  cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta
+
+    return dataset.map( process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
 
-def cluster_features_and_hits(dataset, features):
-    return dataset.map( get_cluster_features_and_hits(get_cluster_features_indexes(features)),
-           num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
+def delta_energy_seed(dataset, en_index, et_index):
+    '''
+    Add to the cluster featrues the delta energy and Et wrt the seed cluster.
+    N.B. to be applied on batched dataset
+    '''
+    def process(*kargs):
+        # The expected kargs are: cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta
+        # but we stay generic in order to be able to add more elements without changing this code
+        mask_seed = tf.squeeze(kargs[2])
+        mask_seed.set_shape([None,None])
+        seed_en = tf.boolean_mask(kargs[0][:,:,en_index], mask_seed)[:,tf.newaxis]
+        seed_et = tf.boolean_mask(kargs[0][:,:,et_index], mask_seed)[:,tf.newaxis]
+        delta_seed_en = (seed_en - kargs[0][:,:,en_index])[:,:,tf.newaxis]
+        delta_seed_et = (seed_et - kargs[0][:,:,et_index])[:,:,tf.newaxis]
+        cl_X = tf.concat([kargs[0], delta_seed_en, delta_seed_et], axis=-1)
+        output = [cl_X] 
+        for k in kargs[1:]: output.append(k)
+        return output
+    return dataset.map(process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
+
+
+
+def training_format(dataset):
+    def process(*kargs):
+        ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
+        cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta = kargs
+        return (cl_X,cl_hits, is_seed,n_cl), (in_sc, wind_meta)
+    return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
 ##############################################
@@ -162,20 +195,21 @@ def load_balanced_dataset_batch(data_paths, features, batch_size, weights=None):
     datasets = {}
     for n, p in data_paths.items():
         df = load_dataset_single(p, options={"read_hits":True})
-        df = cluster_features_and_hits(df, features)
+        df = prepare_features(df, features)
         datasets[n] = df
     if weights:
         total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=weights)
     else:
         total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=[1/len(datasets)]*len(datasets))
     # Now we can shuffle and batch
-    def batch_features(cl_X, cl_hits, is_seed, in_sc, ncls):
+    def batch_features(cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta):
         '''This function is used to create padded batches together for dense features and ragged ones'''
         return tf.data.Dataset.zip((cl_X.padded_batch(batch_size), 
                                     cl_hits.batch(batch_size), 
                                 is_seed.padded_batch(batch_size), 
+                                n_cl.padded_batch(batch_size),
                                 in_sc.padded_batch(batch_size),
-                                ncls.padded_batch(batch_size)))
+                                wind_meta.padded_batch(batch_size)))
     #total_ds = total_ds.shuffle(1000, reshuffle_each_iteration=True)
     total_ds_batched = total_ds.window(batch_size).flat_map(batch_features)
     return total_ds_batched

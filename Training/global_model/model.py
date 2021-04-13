@@ -1,6 +1,7 @@
 ## Graph Highway network
 import tensorflow as tf
 import numpy as np
+from loss import *
 
 #########################3
 # Masking utils
@@ -211,7 +212,8 @@ class SelfAttention(tf.keras.layers.Layer):
         self.Q = self.add_weight(shape=(self.input_dim, self.output_dim), name="Q_sa", initializer="random_normal")
         self.K = self.add_weight(shape=(self.input_dim, self.output_dim), name="K_sa", initializer="random_normal")
         self.V = self.add_weight(shape=(self.input_dim, self.output_dim), name="V_sa", initializer="random_normal")
-
+        # Matrix to convert input dimension for offset
+        self.dense_input = tf.keras.layers.Dense(self.output_dim, activation=tf.keras.activations.linear)
         # Output Conv1d / or Dense 
         #self.conv1d_out = tf.keras.layers.Conv1D(self.output_dim, 1, padding="Valid", activation=tf.nn.selu)
         self.dense_out = tf.keras.layers.Dense(self.output_dim, activation=self.activation)
@@ -226,8 +228,12 @@ class SelfAttention(tf.keras.layers.Layer):
         sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
         # Mask for output
         mask_for_nodes = mask[:,:,tf.newaxis]
-        # Apply dense layer on each rechit output before the aggregation
-        out_nodes = self.dense_out(sa_output) * mask_for_nodes
+        # Apply the dense_input to x to get transformed dimension
+        transformed_input = self.dense_input(x)
+        # Apply non-linearity on the offset between SA output and transformed input
+        offset = self.dense_out(transformed_input - sa_output)
+        # Sum the offset to the input
+        out_nodes =  (transformed_input + offset) * mask_for_nodes
    
         # Now the aggregation 
         if self.reduce == "sum":
@@ -323,13 +329,13 @@ class GraphBuilding(tf.keras.layers.Layer):
         # last layer fixes the dim of coordinatate space and the linear activation of it
         self.coord_dense_out = tf.keras.layers.Dense(self.coord_dim, activation=tf.keras.activations.linear)
 
-    def call(self, inputs):
-        rechits = inputs[1].to_tensor()
+    def call(self, cl_features, rechits_features):
+        rechits = rechits_features.to_tensor()
         mask_rechits, mask_cls = create_padding_masks(rechits)
         # Cal the rechitGCN and get out 1 vector for each cluster 
         output_rechits, (debug) = self.rechitsGCN(rechits, mask_rechits)
-        # Concat the per-cluster feature with the rechits output
-        cl_and_rechits = self.concat([inputs[0], output_rechits])
+        # Concat the per-cluster feature with the rechits output applying the mask (to be sure)
+        cl_and_rechits = self.concat([cl_features * mask_cls[:,:,tf.newaxis], output_rechits])
         # apply dense layers for feature building
         for dense in self.dense_feats:
             cl_and_rechits = dense(cl_and_rechits)
@@ -346,5 +352,103 @@ class GraphBuilding(tf.keras.layers.Layer):
         adj = adj*mask_cls[:,tf.newaxis,:]
         
         #return the nodes features, the coordinates , the adjacency matrix, the clusters mask
-        return  cl_and_rechits, coord_output, adj, mask_cls, debug
+        return  cl_and_rechits, coord_output, adj, mask_cls
 
+
+
+#############################################
+# Putting all the pieces together
+
+class DeepClusterGN(tf.keras.Model):
+    '''
+    Model parameters:
+    - activation
+    - output_dim_nodes: latent space dimension for clusters node built from rechits and cluster features
+    - output_dim_rechits:  latent space dimension for the rechits per-cluster feature vector
+    - output_dim_gconv: output of the graph convolution (default==output_dim_nodes)
+    - output_dim_clclass: output of the self-attention layer for cluster classification (default==output_dim_gconv)
+    - coord_dim:  coordinated space dimension
+    - nconv_rechits: number of convolutions for the rechits GCN
+    - nconv: number of convolutions for the global model
+    - layers_input:  list representing the DNN applied on the [rechit+cluster] concatened features to build the clusters latent space
+    - layers_coord:  list representing the DNN applied on the clusters latent space to extract the coordinated
+    - layers_clclass:  list representing the DNN for cluster classification eg [64,64]
+    '''
+    def __init__(self, **kwargs):
+        self.activation = kwargs.get("activation", tf.nn.selu)
+        self.output_dim_nodes = kwargs.get("output_dim_nodes",32)
+        self.output_dim_gconv = kwargs.pop("output_dim_gconv",self.output_dim_nodes)
+        self.output_dim_clclass = kwargs.pop("output_dim_clclass",self.output_dim_gconv)
+        self.nconv = kwargs.pop("nconv",3)
+        self.layers_clclass = kwargs.pop("layers_clclass",[64,64])
+        
+        super(DeepClusterGN, self).__init__()
+        
+        self.graphbuild = GraphBuilding(**kwargs)
+        self.GCN = GHConvI(n_iter =self.nconv, input_dim=self.output_dim_nodes , hidden_dim=self.output_dim_gconv , activation=self.activation)
+        
+        self.SA_cl = SelfAttention(input_dim=self.output_dim_gconv, output_dim=self.output_dim_clclass, activation=self.activation)
+        
+        self.dense_clclass = []
+        for N in self.layers_clclass:
+            self.dense_clclass.append(tf.keras.layers.Dense(N, activation=self.activation))
+        self.dense_clclass.append(tf.keras.layers.Dense(1, activation=tf.keras.activations.linear))
+
+    def set_metrics(self):
+        self.loss_tracker = tf.keras.metrics.Mean(name="loss")
+        # self.loss_tracker_val = tf.keras.metrics.Mean(name="val_loss")
+        
+    def call(self, inputs, training=True):
+        cl_X_initial, cl_hits, is_seed,n_cl = inputs 
+        #cl_X now is the latent cluster+rechits representation
+        cl_X, coord, adj, mask_cls = self.graphbuild(cl_X_initial, cl_hits)
+        out_gcn = self.GCN(cl_X, adj)
+        out_SA,_ = self.SA_cl(out_gcn, mask_cls)
+        dense_clclass_X = out_SA
+        for dense in self.dense_clclass:  
+            dense_clclass_X = dense(dense_clclass_X)
+        
+        return dense_clclass_X, mask_cls, (cl_X, coord, adj ,out_gcn, out_SA)
+
+    
+    def train_step(self, data):
+        x, y = data 
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)  # Forward pass
+            # Compute our own loss
+            loss = simple_classification_loss(y, y_pred)
+
+        # Compute gradients
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        # Update weights
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        # Compute our own metrics
+        self.loss_tracker.update_state(loss)
+        # mae_metric.update_state(y, y_pred)
+        return {"loss": self.loss_tracker.result()}
+
+    def test_step(self, data):
+        # Unpack the data
+        x, y = data
+        # Compute predictions
+        y_pred = self(x, training=False)
+        # Updates the metrics tracking the loss
+        loss = simple_classification_loss(y, y_pred)
+        # Update the metrics.
+        self.loss_tracker.update_state(loss)
+        # Return a dict mapping metric names to current value.
+        # Note that it will include the loss (tracked in self.metrics).
+        return {"loss": self.loss_tracker.result()}
+
+    @property
+    def metrics(self):
+        # We list our `Metric` objects here so that `reset_states()` can be
+        # called automatically at the start of each epoch
+        # or at the start of `evaluate()`.
+        # If you don't implement this property, you have to call
+        # `reset_states()` yourself at the time of your choosing.
+        return [self.loss_tracker]
+
+
+    #Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
