@@ -15,7 +15,6 @@ def create_padding_masks(rechits):
 ###########################
 #Distance
 
-
 def dist(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
     nb = tf.reduce_sum(tf.square(B), -1)
@@ -186,9 +185,7 @@ def scaled_dot_product_attention(q, k, v, mask):
     # softmax is normalized on the last axis (seq_len_k) so that the scores
     # add up to 1.
     attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)  # (..., seq_len_q, seq_len_k)
-
     output = tf.matmul(attention_weights, v)  # (..., seq_len_q, depth_v)
-
     return output, attention_weights
 
 ###########################3
@@ -311,7 +308,6 @@ class GraphBuilding(tf.keras.layers.Layer):
     
         super(GraphBuilding, self).__init__( **kwargs)
         
-        
         self.rechitsGCN = RechitsGCN(output_dim=self.output_dim_rechits, input_dim=4, nconv=self.nconv_rechits, activation=self.activation)
         
         self.dist = Distance(batch_dim=1)
@@ -330,6 +326,7 @@ class GraphBuilding(tf.keras.layers.Layer):
         self.coord_dense_out = tf.keras.layers.Dense(self.coord_dim, activation=tf.keras.activations.linear)
 
     def call(self, cl_features, rechits_features):
+        # Conversion from RaggedTensor to dense tensor
         rechits = rechits_features.to_tensor()
         mask_rechits, mask_cls = create_padding_masks(rechits)
         # Cal the rechitGCN and get out 1 vector for each cluster 
@@ -410,7 +407,6 @@ class DeepClusterGN(tf.keras.Model):
         
         return dense_clclass_X, mask_cls, (cl_X, coord, adj ,out_gcn, out_SA)
 
-    
     def train_step(self, data):
         x, y = data 
         with tf.GradientTape() as tape:

@@ -163,7 +163,7 @@ def training_format(dataset):
     def process(*kargs):
         ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
         cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta = kargs
-        return (cl_X,cl_hits, is_seed,n_cl), (in_sc, wind_meta)
+        return (cl_X, cl_hits, is_seed,n_cl), (in_sc, wind_meta)
     return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
@@ -213,7 +213,6 @@ def load_balanced_dataset_batch(data_paths, features, batch_size, weights=None):
     #total_ds = total_ds.shuffle(1000, reshuffle_each_iteration=True)
     total_ds_batched = total_ds.window(batch_size).flat_map(batch_features)
     return total_ds_batched
-
 
 
 ######################### 
