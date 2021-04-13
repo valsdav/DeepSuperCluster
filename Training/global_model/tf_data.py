@@ -198,7 +198,10 @@ def load_balanced_dataset_batch(data_paths, features, batch_size, weights=None):
         df = prepare_features(df, features)
         datasets[n] = df
     if weights:
-        total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=weights)
+        ws = [ ]
+        for d in datasets.keys():
+             ws.append(weights[d])
+        total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=ws)
     else:
         total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=[1/len(datasets)]*len(datasets))
     # Now we can shuffle and batch

@@ -11,6 +11,16 @@ def create_padding_masks(rechits):
     mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
     return mask_rechits, mask_cls
 
+###########################
+
+def get_dense(spec, act, last_act, dropout=0.):
+    layers = [] 
+    for d in spec[:-2]:
+        layers.append(tf.keras.layers.Dense(d, activation=act))
+        if dropout > 0.:
+            layers.append(tf.keras.layers.Dropout(dropout))
+    layers.append(tf.keras.layers.Dense(spec[-1], activation=last_act))
+    return tf.keras.Sequential(layers)
 
 ###########################
 #Distance
@@ -289,8 +299,7 @@ class RechitsGCN(tf.keras.layers.Layer):
         # Or doing the mean 
         #N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
         #output = tf.math.divide_no_nan( tf.reduce_sum(convout, -2), N_rechits)
-        
-        return output, (attention_weights, adj)
+        return output, (sa_output, attention_weights, adj)
 
 
 ################################
@@ -313,17 +322,14 @@ class GraphBuilding(tf.keras.layers.Layer):
         self.dist = Distance(batch_dim=1)
         self.concat = tf.keras.layers.Concatenate(axis=-1)
         
-        self.dense_feats = []
-        self.dense_coord = []
         #append last layer dimension that is the output dimension of the node features
-        self.layers_input.append(self.output_dim_nodes)
-        for N in self.layers_input:
-            self.dense_feats.append(tf.keras.layers.Dense(N, activation=self.activation))
+        self.dense_feats = get_dense(self.layers_input+[self.output_dim_nodes], self.activation,last_act=self.activation )
+        self.dense_coord = get_dense(self.layers_coord+[self.coord_dim], self.activation, last_act=tf.keras.activations.linear )
         
-        for N in self.layers_coord:
-            self.dense_coord.append(tf.keras.layers.Dense(N, activation=self.activation))
-        # last layer fixes the dim of coordinatate space and the linear activation of it
-        self.coord_dense_out = tf.keras.layers.Dense(self.coord_dim, activation=tf.keras.activations.linear)
+        #Layer normalizations
+        self.input_layer_normalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        self.coord_layer_normalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+
 
     def call(self, cl_features, rechits_features):
         # Conversion from RaggedTensor to dense tensor
@@ -333,20 +339,21 @@ class GraphBuilding(tf.keras.layers.Layer):
         output_rechits, (debug) = self.rechitsGCN(rechits, mask_rechits)
         # Concat the per-cluster feature with the rechits output applying the mask (to be sure)
         cl_and_rechits = self.concat([cl_features * mask_cls[:,:,tf.newaxis], output_rechits])
+        # Layer normalizatiopn of the concatenated inputs
+        cl_and_rechits = self.input_layer_normalization(cl_and_rechits)
         # apply dense layers for feature building
-        for dense in self.dense_feats:
-            cl_and_rechits = dense(cl_and_rechits)
+        cl_and_rechits = self.dense_feats(cl_and_rechits)
         #cl_and_rechits are now the baseline node features
         
-        # Now apply the coordinate network 
-        coord_x = cl_and_rechits
-        for dense in self.dense_coord:
-            coord_x = dense(coord_x)
-        coord_output = self.coord_dense_out(coord_x)
+        # Now apply the coordinate network with a layer normalization before
+        coord_x = self.coord_layer_normalization(cl_and_rechits)
+        coord_output = self.dense_coord(coord_x)
         # Build the adjacency matrix
         adj = self.dist(coord_output,coord_output)
         # mask the padded clusters      
-        adj = adj*mask_cls[:,tf.newaxis,:]
+        adj_mask = m =  mask_cls[:,:,tf.newaxis] @ mask_cls[:,tf.newaxis, :]
+        adj = adj* adj_mask
+        # mask_cls[:,:,tf.newaxis]
         
         #return the nodes features, the coordinates , the adjacency matrix, the clusters mask
         return  cl_and_rechits, coord_output, adj, mask_cls
@@ -370,6 +377,7 @@ class DeepClusterGN(tf.keras.Model):
     - layers_input:  list representing the DNN applied on the [rechit+cluster] concatened features to build the clusters latent space
     - layers_coord:  list representing the DNN applied on the clusters latent space to extract the coordinated
     - layers_clclass:  list representing the DNN for cluster classification eg [64,64]
+    - dropout: dropout function to apply on classification DNN
     '''
     def __init__(self, **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
@@ -378,18 +386,21 @@ class DeepClusterGN(tf.keras.Model):
         self.output_dim_clclass = kwargs.pop("output_dim_clclass",self.output_dim_gconv)
         self.nconv = kwargs.pop("nconv",3)
         self.layers_clclass = kwargs.pop("layers_clclass",[64,64])
+        self.dropout = kwargs.pop("dropout",0.)
         
         super(DeepClusterGN, self).__init__()
         
         self.graphbuild = GraphBuilding(**kwargs)
         self.GCN = GHConvI(n_iter =self.nconv, input_dim=self.output_dim_nodes , hidden_dim=self.output_dim_gconv , activation=self.activation)
-        
+        self.concat = tf.keras.layers.Concatenate(axis=-1)
         self.SA_cl = SelfAttention(input_dim=self.output_dim_gconv, output_dim=self.output_dim_clclass, activation=self.activation)
         
-        self.dense_clclass = []
-        for N in self.layers_clclass:
-            self.dense_clclass.append(tf.keras.layers.Dense(N, activation=self.activation))
-        self.dense_clclass.append(tf.keras.layers.Dense(1, activation=tf.keras.activations.linear))
+        self.dense_classification = get_dense(self.layers_clclass+[1], self.activation,
+                                     last_act=tf.keras.activations.linear, dropout=self.dropout)
+
+        # Layer normalizations
+        self.gcn_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        self.SA_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
 
     def set_metrics(self):
         self.loss_tracker = tf.keras.metrics.Mean(name="loss")
@@ -399,13 +410,22 @@ class DeepClusterGN(tf.keras.Model):
         cl_X_initial, cl_hits, is_seed,n_cl = inputs 
         #cl_X now is the latent cluster+rechits representation
         cl_X, coord, adj, mask_cls = self.graphbuild(cl_X_initial, cl_hits)
+
         out_gcn = self.GCN(cl_X, adj)
-        out_SA,_ = self.SA_cl(out_gcn, mask_cls)
-        dense_clclass_X = out_SA
-        for dense in self.dense_clclass:  
-            dense_clclass_X = dense(dense_clclass_X)
-        
-        return dense_clclass_X, mask_cls, (cl_X, coord, adj ,out_gcn, out_SA)
+        # Normalize the output of the GCN
+        # maybe in the future add here a skip connection with the features input
+        out_gcn_norm =self.gcn_output_layernormalization(out_gcn)
+        # Apply self attention
+        out_SA,_ = self.SA_cl(out_gcn_norm, mask_cls)
+        # now concatenate the output of GCN and SA layer
+        concat_GCN_SA = self.concat([out_gcn_norm, out_SA])
+        # normalize
+        concat_GCN_SA_norm = self.SA_output_layernormalization(concat_GCN_SA)
+        # use the normalized output for Dense classification
+        clclass_out = self.dense_classification(concat_GCN_SA_norm)
+       
+        return clclass_out, mask_cls, (cl_X, coord, adj ,out_gcn_norm, concat_GCN_SA_norm)
+
 
     def train_step(self, data):
         x, y = data 
