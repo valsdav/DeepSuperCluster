@@ -281,10 +281,13 @@ class RechitsGCN(tf.keras.layers.Layer):
     def call(self, x, mask):
         # x has structure  [Nbatch, Nclusters, Nrechits, 4]
         coord = x[:,:,:,0:2] #ieta and iphi as coordinated
-        adj = self.dist(coord,coord)
+        # create mask for adjacency matrix
+        adj_mask = m =  mask[:,:,:,tf.newaxis] @ mask[:,:,tf.newaxis, :]
+        # compute adjacency and mask it
+        adj = self.dist(coord,coord) * adj_mask
         # apply GCN in fully batched style
         out_gcn = self.GCN(x,adj)
-        
+        # And now SA layer for aggregation
         q = tf.matmul(out_gcn,self.Q)
         k = tf.matmul(out_gcn,self.K)
         v = tf.matmul(out_gcn,self.V)
@@ -402,10 +405,6 @@ class DeepClusterGN(tf.keras.Model):
         self.gcn_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
         self.SA_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
 
-    def set_metrics(self):
-        self.loss_tracker = tf.keras.metrics.Mean(name="loss")
-        # self.loss_tracker_val = tf.keras.metrics.Mean(name="val_loss")
-        
     def call(self, inputs, training=True):
         cl_X_initial, cl_hits, is_seed,n_cl = inputs 
         #cl_X now is the latent cluster+rechits representation
@@ -426,13 +425,22 @@ class DeepClusterGN(tf.keras.Model):
        
         return clclass_out, mask_cls, (cl_X, coord, adj ,out_gcn_norm, concat_GCN_SA_norm)
 
+    def set_metrics(self):
+        self.loss_tracker = tf.keras.metrics.Mean(name="loss")
+        self.loss1_tracker = tf.keras.metrics.Mean(name="loss_simple")
+        self.loss2_tracker = tf.keras.metrics.Mean(name="loss_etweight")
+        # self.loss_tracker_val = tf.keras.metrics.Mean(name="val_loss")
 
+    # Customized training loop
+    # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
     def train_step(self, data):
         x, y = data 
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute our own loss
-            loss = simple_classification_loss(y, y_pred)
+            loss_simple = simple_classification_loss(y, y_pred)
+            loss_etweighted = energy_weighted_classification_loss(y,y_pred, x)
+            loss =loss_simple+loss_etweighted
 
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -441,8 +449,12 @@ class DeepClusterGN(tf.keras.Model):
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
         # Compute our own metrics
         self.loss_tracker.update_state(loss)
+        self.loss1_tracker.update_state(loss_simple)
+        self.loss2_tracker.update_state(loss_etweighted)
         # mae_metric.update_state(y, y_pred)
-        return {"loss": self.loss_tracker.result()}
+        return {"loss": self.loss_tracker.result(),
+                "loss_simple": self.loss1_tracker.result(),
+                "loss_etweighted": self.loss2_tracker.result()}
 
     def test_step(self, data):
         # Unpack the data
@@ -450,12 +462,17 @@ class DeepClusterGN(tf.keras.Model):
         # Compute predictions
         y_pred = self(x, training=False)
         # Updates the metrics tracking the loss
-        loss = simple_classification_loss(y, y_pred)
-        # Update the metrics.
+        loss_simple = simple_classification_loss(y, y_pred)
+        loss_etweighted = energy_weighted_classification_loss(y,y_pred, x)
+        loss =loss_simple+loss_etweighted
+        # Compute our own metrics
         self.loss_tracker.update_state(loss)
-        # Return a dict mapping metric names to current value.
-        # Note that it will include the loss (tracked in self.metrics).
-        return {"loss": self.loss_tracker.result()}
+        self.loss1_tracker.update_state(loss_simple)
+        self.loss2_tracker.update_state(loss_etweighted)
+        # mae_metric.update_state(y, y_pred)
+        return {"loss": self.loss_tracker.result(),
+                "loss_simple": self.loss1_tracker.result(),
+                "loss_etweighted": self.loss2_tracker.result()}
 
     @property
     def metrics(self):
@@ -464,7 +481,7 @@ class DeepClusterGN(tf.keras.Model):
         # or at the start of `evaluate()`.
         # If you don't implement this property, you have to call
         # `reset_states()` yourself at the time of your choosing.
-        return [self.loss_tracker]
+        return [self.loss_tracker, self.loss1_tracker, self.loss2_tracker]
 
 
-    #Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
+    
