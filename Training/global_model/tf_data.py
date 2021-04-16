@@ -196,6 +196,7 @@ def load_balanced_dataset_batch(data_paths, features, batch_size, weights=None):
     for n, p in data_paths.items():
         df = load_dataset_single(p, options={"read_hits":True})
         df = prepare_features(df, features)
+        df = df.shuffle(buffer_size=600)
         datasets[n] = df
     if weights:
         ws = [ ]

@@ -3,13 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plotM(*args,**kwargs):
+    t = kwargs.get("t", True)
     f, axs = plt.subplots(1,len(args), figsize=(6*len(args), 6), dpi=100)
     if len(args)>1:
         for i in range(len(args)):
-            c= axs[i].imshow(tf.transpose(args[i]))
+            if t:   c= axs[i].imshow(tf.transpose(args[i]))
+            else:   c= axs[i].imshow(args[i])
             plt.colorbar(c, ax=axs[i])
     else:
-        c= axs.imshow(tf.transpose(args[0]), **kwargs)
+        if t:  c= axs.imshow(tf.transpose(args[0]), **kwargs)
+        else:  c= axs.imshow(args[0], **kwargs)
         plt.colorbar(c, ax=axs)
 
 def plot3D(coord, mask):
