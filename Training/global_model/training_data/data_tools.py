@@ -1,5 +1,9 @@
 import tensorflow as tf
 import numpy as np
+import pandas as pd
+
+import sys
+sys.path.append('..')
 import tf_data
 
 def parameters(ds, features):
@@ -48,3 +52,37 @@ def parameters(ds, features):
     s = tf.math.sqrt(s/total_cl)
     sigma = dict(zip(features, s))
     return mean, sigma
+
+def convert_df(data_path, features, n_samples=100):
+    '''
+    Function to convert tensorflow dataset to pandas dataframe.
+    
+    Return: 
+    - df: pandas dataframe with columns=features + is_seed.
+    
+    Args: 
+    - data_path: dict with path to the .proto file.
+    - features: features to be saved in the dataframe.
+    - n_samples (default=100): number of samples to save. 
+    '''
+    # prepare the required variables
+    dataframes = []
+    ds = tf_data.load_balanced_dataset_batch(data_path, features, 1).take(n_samples)
+    features_ext = features+['is_seed']
+    
+    # iterate through the dataset
+    for el in ds: 
+        cl_X, _, _, n_cl, *_ = el
+        
+        # choose only features that were passed to the function
+        X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
+        d = dict(zip(features_ext, X_features))
+        
+        # save each entry in dataset
+        df_el = pd.DataFrame(data=d)
+        df_el['n_cl'] = n_cl[0].numpy()
+        dataframes.append(df_el)
+    
+    # aggregate all the samples
+    df = pd.concat(dataframes, keys=np.arange(0,n_samples))
+    return df
