@@ -52,7 +52,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_deta_up, windows
     if seed_eta < 0:
         etaw = -etaw
     phiw = DeltaPhi(seed_phi, phi)
-    if etaw >= windows_deta_down and etaw <= window_deta_up  and abs(phiw) <= window_phi: 
+    if etaw >= windows_deta_down and etaw <= window_deta_up  and abs(phiw) <= window_dphi: 
         return True, (etaw, phiw)
     else:
         return False,(-1,-1)
@@ -139,7 +139,7 @@ class WindowCreator():
         calo_simphi = event.caloParticle_simPhi
         calo_simiz = event.caloParticle_simIz
         calo_isPU = event.caloParticle_isPU
-        calo_isOOTPU = events.caloParticle_isOOTPU
+        calo_isOOTPU = event.caloParticle_isOOTPU
         pfcl_f5_r9 = event.pfCluster_full5x5_r9
         pfcl_f5_sigmaIetaIeta = event.pfCluster_full5x5_sigmaIetaIeta
         pfcl_f5_sigmaIetaIphi = event.pfCluster_full5x5_sigmaIetaIphi
@@ -174,10 +174,14 @@ class WindowCreator():
             print(">>> Cluster_calo map")
             for cluster, calo in pfcluster_calo_map.items():
                 if calo == -1: continue
-                print("cl: {} | calo: {} (calo eta {:.3f}, phi {:.3f})| score: {:.4f}".format(cluster,calo,calo_simeta[calo],calo_simphi[calo],pfcluster_calo_score[cluster]))
+                print("cl: {} | calo: {} (calo Et: {:.2f}, eta {:.2f}, phi {:.2f})| score: {:.4f}, simEnPU: {:.3f}".format(cluster,calo,
+                                            calo_simenergy[calo]/cosh(calo_simeta[calo]) ,calo_simeta[calo],calo_simphi[calo],pfcluster_calo_score[cluster],cluster_PU_simenergy[cluster]))
             print("\n>>> Calo_cluster map")
             for calo, clusters in calo_pfcluster_map.items():
-                print("calo: {} | clusters: {}".format(calo, ["cl: {}, score: {:.4f}, simEnPU: {:.3f}".format(cl,sc, cluster_PU_simenergy[cl]) for cl, sc in clusters]))
+                print("calo: {} | clusters: ".format(calo))
+                for cl, sc in clusters:
+                    print("\t> cl: {}, Et: {:.2f}, eta: {:.2f}, phi:{:.2f}, score: {:.4f}, simEnPU: {:.3f}".format(cl,pfCluster_rawEnergy[cl]/ cosh(pfCluster_eta[cl]), pfCluster_eta[cl],pfCluster_phi[cl], sc,cluster_PU_simenergy[cl]))
+                
             print()
 
         #Mustache info
@@ -220,6 +224,7 @@ class WindowCreator():
                                                     *self.dynamic_window(window["seed"][0])) 
                 if is_in_this_window:
                     is_in_window = True
+                    if debug: print("Cluster {} already in window {}! skipping window".format(icl, window["window_index"]))
                     break
                 
             # Create new window ONLY IF THE CLUSTER IS NOT ALREADY IN ANOTHER WINDOW
@@ -237,7 +242,7 @@ class WindowCreator():
                     if PU_simenfrac < self.simenergy_pu_limit:
                         #Check if the caloparticle is in the same window
                         if in_window(calo_simeta[caloid],calo_simphi[caloid],calo_simiz[caloid], cl_eta, cl_phi, cl_iz, 
-                                                        *self.dynamic_window(cl_eta, cl_phi)):
+                                                        *self.dynamic_window(cl_eta)):
                             calomatched = caloid
                             # Now check if the seed cluster is the main cluster of the calo
                             if calo_pfcluster_map[caloid][0][0] == icl:
@@ -245,15 +250,16 @@ class WindowCreator():
                             else:
                                 caloseed =False
                             if debug: 
-                                print("Seed-to-calo: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, is caloseed: {}".format(
-                                                    icl,caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], caloseed))
+                                print("Seed-to-calo: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, seed PUenfract: {:.3f}, is caloseed: {}".format(
+                                                    icl,caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], PU_simenfrac, caloseed))
                         else:
                             calomatched = -1
                             caloseed = False
                             if debug: 
-                                print("Seed-to-calo [Failed window cut]: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, is caloseed: {}".format(
-                                                    icl, caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], caloseed))
+                                print("Seed-to-calo [Failed window cut]: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, seed PUenfract: {:.3f}, is caloseed: {}".format(
+                                                    icl, caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], PU_simenfrac, caloseed))
                     else:
+                        if debug: print("Seed {} do not pass PU simenergy cut {:.3f}".format(icl, PU_simenfrac))
                         calomatched = -1 
                         caloseed = False
                 else:
@@ -345,6 +351,9 @@ class WindowCreator():
                     # Save also the window index
                     windows_calomatched.append(windex)
 
+        ####################################
+        ## Now loop on clusters
+
         # All the clusters will go in all the windows
         if debug: print(">> Associate clusters...")
         # Now that all the windows have been created let's add all the cluster
@@ -393,6 +402,7 @@ class WindowCreator():
                                 else:
                                     is_calo_seed =False
                             else:
+                                if debug: print("Cluster {} do not pass PU simenergy cut {:.3f}".format(icl, PU_simenfrac))
                                 in_scluster = False   
                                 is_calo_seed = False
                         else:
@@ -474,15 +484,15 @@ class WindowCreator():
             print("Calo-matched windows: ")
             for w in calo_match:
                 print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"]," Seed calo-seed: ",w['is_seed_calo_seed'])
-                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, En:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["en_seed"]))
-                print("\t Calo: {}, Eta:{:.3f}, Phi:{:.3f}, En:{:.3f}".format(w["calo_index"],
-                                        calo_simeta[w["calo_index"]],calo_simphi[w["calo_index"]], w["en_true"]))
+                print("\t Calo: {}, Eta:{:.3f}, Phi:{:.3f}, Et:{:.3f}".format(w["calo_index"],
+                                        calo_simeta[w["calo_index"]],calo_simphi[w["calo_index"]], w["et_true_sim"]))
+                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
                 print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
                 
             print("Not Calo-matched windows: ")
             for w in nocalo_match:
                 print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"])
-                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, En:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["en_seed"]))
+                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
                 print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
                 
             print(">>> TOT windows calomatched: ", len(calo_match))
