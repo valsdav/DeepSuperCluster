@@ -134,29 +134,34 @@ arguments.append("{} {} {} {} {} {} {}".format(
 
 
 # ######## testing
-# ifile_group = 0
-# files_groups = []
-# ifile_used = 0
-# #ifile_curr from training cycle
 
-# while ifile_used < nfiles_testing:
-#     while (template_inputfile.format(ifile_curr) not in inputfiles): 
-#         ifile_curr +=1
-    
-#     files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
-#     ifile_used +=1 
-#     ifile_curr +=1
+files_groups = []
+ifile_used = 0
+ifile_curr = 0
 
-#     if len(files_groups) == args.nfile_group:
-#         jobid +=1
-#         #join input files by ;
-#         arguments.append("{} {} {} {} {} {} {}".format(
-#                 jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
-#                 args.maxnocalow, args.min_et_seed))
-#         files_groups = []
-#         ifile_group = 0
+for file in files_testing:
+    files_groups.append(args.inputdir + "/" + file)
+    ifile_used +=1 
+    ifile_curr +=1
 
-# print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
+    if len(files_groups) == args.nfile_group:
+        jobid +=1
+        #join input files by ;
+        arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy, wp_file,
+                args.maxnocalow, args.min_et_seed))
+        files_groups = []
+        ifile_group = 0
+
+print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
+
+# Join also the last group
+arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
+                args.maxnocalow, args.min_et_seed))
+
+
+print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 #join also the last group
 arguments.append("{} {} {} {} {} {} {}".format(

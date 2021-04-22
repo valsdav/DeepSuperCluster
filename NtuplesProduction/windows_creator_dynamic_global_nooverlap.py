@@ -158,6 +158,10 @@ class WindowCreator():
         pfclhit_ieta = event.pfClusterHit_ieta
         pfclhit_iphi = event.pfClusterHit_iphi
         pfclhit_iz = event.pfClusterHit_iz
+        nVtx = event.nVtx
+        rho = event.rho
+        obsPU = event.obsPU
+        truePU = event.truePU
         # pfclhit_eta = event.pfClusterHit_eta
         # pfclhit_phi = event.pfClusterHit_phi
 
@@ -169,6 +173,7 @@ class WindowCreator():
                                 calo_association.get_calo_association_withpu(clusters_scores, calo_isPU, calo_isOOTPU,
                                                                             calo_simenergy,  sort_calo_cl=True, 
                                                                             debug=False, min_sim_fraction=self.cluster_min_fraction)
+        total_PU_simenergy = sum(cluster_PU_simenergy)
 
         if debug:
             print(">>> Cluster_calo map")
@@ -323,6 +328,13 @@ class WindowCreator():
                     "et_mustache_raw": mustache_rawEn[mustache_seed_index]/cosh(mustache_eta[mustache_seed_index]) if mustache_seed_index!=-1 else 0, 
                     "en_mustache_calib": mustache_calibEn[mustache_seed_index]  if mustache_seed_index!=-1 else 0, 
                     "et_mustache_calib": mustache_calibEn[mustache_seed_index]/cosh(mustache_eta[mustache_seed_index]) if mustache_seed_index!=-1 else 0,
+
+                    # PU information
+                    "nVtx": nVtx, 
+                    "rho": rho,
+                    "obsPU": obsPU, 
+                    "truePU": truePU,
+                    "simen_PU_tot": total_PU_simenergy,
 
                     "seed_f5_r9": pfcl_f5_r9[icl],
                     "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
@@ -541,7 +553,8 @@ class WindowCreator():
 
         ## Now save only the first N nocalomatched windows and then nocalowNMax of random ones
         if len(windows_nocalomatched)> len(windows_calomatched):
-            windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] +  random.sample(windows_nocalomatched[len(windows_calomatched):], nocalowNmax)
+            windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] + \
+                          random.sample(windows_nocalomatched[len(windows_calomatched):], min(nocalowNmax,len(windows_nocalomatched)-len(windows_calomatched) ))
         else:
             windows_to_keep_index = windows_calomatched + windows_nocalomatched
 
