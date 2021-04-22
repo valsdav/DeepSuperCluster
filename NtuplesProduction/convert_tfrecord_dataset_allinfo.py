@@ -60,7 +60,7 @@ def _tensor_feature(value):
 
 
 def make_example_window(window):
-
+    
     seed_features = ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
                     "seed_f5_r9","seed_f5_sigmaIetaIeta", "seed_f5_sigmaIetaIphi",
@@ -70,14 +70,17 @@ def make_example_window(window):
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
                     ]
 
-    seed_labels = [ "is_seed_calo_matched","is_seed_calo_seed","is_seed_mustach_matched"]
-   
-    window_metadata = ["nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
-                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster",
-                        "seed_score","seed_PUfrac", 
-                        "sim_true_eta", "sim_true_phi",  "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+    seed_labels =   [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustach_matched"]
+    seed_metadata = [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"]
+
+    # Metadata about the window like true energy, true calo position, useful info
+    window_metadata = [ "sim_true_eta", "sim_true_phi",  
+                        "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                        "nVtx", "rho", "obsPU", "truePU", "simen_PU_tot" ]
+                        "nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
+                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster",
+                        "nVtx", "rho", "obsPU", "truePU",
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig" ]
 
     cls_features = [  "cluster_ieta","cluster_iphi","cluster_iz",
                      "cluster_deta", "cluster_dphi",
@@ -91,10 +94,11 @@ def make_example_window(window):
                     ]
 
     cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
-    cls_metadata = [ "calo_score", "cluster_PUfrac" ]
+    cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac" ]
 
     seed_f = np.array( [window[f] for f in seed_features],dtype='float32')
     seed_l = np.array( [window[f] for f in seed_labels],dtype='int')
+    seed_m = np.array( [window[f] for f in seed_metadata],dtype='float32')
     window_m = np.array( [window[f] for f in window_metadata],dtype='float32')
     seed_hits = np.array([ [r[0],r[1],r[2],r[4]] for r in  window['seed_hits']], dtype='float32')
 
@@ -109,8 +113,13 @@ def make_example_window(window):
     #print(_int64_feature(window["ncls"])
     #Using short labels because they are repeated a lot of times
     context_features = {
+        # Seed features (for training)
         's_f': _float_features(seed_f),
+        # Seed labels
         's_l': _int64_features(seed_l),
+        #Seed metadata
+        's_m': _float_features(seed_m),
+        # Seed hits
         's_h': _tensor_feature(seed_hits),
         # window metadata and truth info
         'w_m': _float_features(window_m),
