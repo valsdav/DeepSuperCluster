@@ -63,7 +63,6 @@ def make_example_window(window):
 
     seed_features = ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
-                     "en_true","et_true",
                     "seed_f5_r9","seed_f5_sigmaIetaIeta", "seed_f5_sigmaIetaIphi",
                     "seed_f5_sigmaIphiIphi","seed_f5_swissCross",
                     "seed_r9","seed_sigmaIetaIeta", "seed_sigmaIetaIphi",
@@ -72,8 +71,13 @@ def make_example_window(window):
                     ]
 
     seed_labels = [ "is_seed_calo_matched","is_seed_calo_seed","is_seed_mustach_matched"]
-    seed_metadata = ["nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
-                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster","seed_score" ]
+   
+    window_metadata = ["nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
+                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster",
+                        "seed_score","seed_PUfrac", 
+                        "sim_true_eta", "sim_true_phi",  "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
+                        "nVtx", "rho", "obsPU", "truePU", "simen_PU_tot" ]
 
     cls_features = [  "cluster_ieta","cluster_iphi","cluster_iz",
                      "cluster_deta", "cluster_dphi",
@@ -87,11 +91,11 @@ def make_example_window(window):
                     ]
 
     cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
-    cls_metadata = [ "calo_score" ]
+    cls_metadata = [ "calo_score", "cluster_PUfrac" ]
 
     seed_f = np.array( [window[f] for f in seed_features],dtype='float32')
     seed_l = np.array( [window[f] for f in seed_labels],dtype='int')
-    seed_m = np.array( [window[f] for f in seed_metadata],dtype='float32')
+    window_m = np.array( [window[f] for f in window_metadata],dtype='float32')
     seed_hits = np.array([ [r[0],r[1],r[2],r[4]] for r in  window['seed_hits']], dtype='float32')
 
     # Class division
@@ -107,8 +111,9 @@ def make_example_window(window):
     context_features = {
         's_f': _float_features(seed_f),
         's_l': _int64_features(seed_l),
-        's_m': _float_features(seed_m),
         's_h': _tensor_feature(seed_hits),
+        # window metadata and truth info
+        'w_m': _float_features(window_m),
         # window class
         'w_cl' : _int64_feature(class_),
         # number of clusters
