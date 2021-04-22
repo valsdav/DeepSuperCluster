@@ -72,7 +72,7 @@ def convert_df(data_path, features, n_samples=100):
     
     # iterate through the dataset
     for el in ds: 
-        cl_X, _, _, n_cl, *_ = el
+        cl_X, _, _, n_cl, in_sc, wind_meta = el
         
         # choose only features that were passed to the function
         X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
@@ -81,6 +81,8 @@ def convert_df(data_path, features, n_samples=100):
         # save each entry in dataset
         df_el = pd.DataFrame(data=d)
         df_el['n_cl'] = n_cl[0].numpy()
+        df_el['in_sc'] = in_sc[0].numpy()
+        df_el['eta_s'] = wind_meta[0,3].numpy()
         dataframes.append(df_el)
     
     # aggregate all the samples
