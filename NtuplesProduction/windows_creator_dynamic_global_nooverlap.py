@@ -173,7 +173,8 @@ class WindowCreator():
                                 calo_association.get_calo_association_withpu(clusters_scores, calo_isPU, calo_isOOTPU,
                                                                             calo_simenergy,  sort_calo_cl=True, 
                                                                             debug=False, min_sim_fraction=self.cluster_min_fraction)
-        total_PU_simenergy = sum(cluster_PU_simenergy)
+        #total PU simenergy in all clusters in the event
+        total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
 
         if debug:
             print(">>> Cluster_calo map")
@@ -299,6 +300,8 @@ class WindowCreator():
                     
                     # Score of the seed cluster
                     "seed_score": pfcluster_calo_score[icl],
+                    "seed_simen_sig": calo_simenergy[calomatched] * pfcluster_calo_score[icl] if calomatched!=-1 else 0.,
+                    "seed_simen_PU":  cluster_PU_simenergy[icl],
                     "seed_PUfrac" : PU_simenfrac,
 
                     "seed_eta": cl_eta,
@@ -334,7 +337,7 @@ class WindowCreator():
                     "rho": rho,
                     "obsPU": obsPU, 
                     "truePU": truePU,
-                    "simen_PU_tot": total_PU_simenergy,
+                    "event_tot_simen_PU": total_PU_simenergy,
 
                     "seed_f5_r9": pfcl_f5_r9[icl],
                     "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
@@ -391,22 +394,23 @@ class WindowCreator():
                     # If the window is not associated to a calo then in_scluster is always false for the cluster
                     if not window["is_seed_calo_matched"]:
                         is_calo_matched = False   
-                        in_scluster = False
+                        pass_simfrac_thres = False
                         is_calo_seed = False
                         PU_simenfrac = -1.
                     else: 
                         # We have to check the calo_matching using simfraction threshold
                         # Check if the cluster is associated to the SAME calo as the seed
-                        is_calo_matched = pfcluster_calo_map[icl] == window["calo_index"]
-                        # If the cluster is associated to the same calo of the seed 
+                        is_calo_matched =  pfcluster_calo_map[icl] == window["calo_index"]  # we know at this point it is not -1
+                        # If the cluster is associated to the SAME CALO of the seed 
                         # the simfraction threshold by seed eta/et is used
                         if is_calo_matched: 
                             # Check the fraction of sim energy and PU energy 
+                            # simenergy signal == linked to the caloparticle of the SEED
                             PU_simenfrac = cluster_PU_simenergy[icl] / (calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl])
                             # First of all check the PU sim energy limit
                             if PU_simenfrac < self.simenergy_pu_limit:
                                 #associate the cluster to the caloparticle with simfraction optimized thresholds 
-                                in_scluster = self.pass_simfraction_threshold(window["seed_eta"], 
+                                pass_simfrac_thres = self.pass_simfraction_threshold(window["seed_eta"], 
                                                     window["et_seed"], pfcluster_calo_score[icl] )
                                 # Check if the cluster is the main cluster of the calo associated to the seed
                                 if calo_pfcluster_map[window["calo_index"]][0][0] == icl:
@@ -415,10 +419,13 @@ class WindowCreator():
                                     is_calo_seed =False
                             else:
                                 if debug: print("Cluster {} do not pass PU simenergy cut {:.3f}".format(icl, PU_simenfrac))
-                                in_scluster = False   
+                                pass_simfrac_thres = False   
                                 is_calo_seed = False
                         else:
-                            in_scluster = False   
+                            # if the cluster is not associated to a caloparticle
+                            # or it is associated to a calo different from the seed
+                            # do not associate it
+                            pass_simfrac_thres = False   
                             is_calo_seed = False
                             PU_simenfrac = -1.            
                             
@@ -439,12 +446,15 @@ class WindowCreator():
                         "is_calo_matched": is_calo_matched,
                         # True if the cluster is the main cluster of the calo associated with the seed
                         "is_calo_seed": is_calo_seed,
-                        # is_calo_matched & (sim fraction optimized threshold) || is window seed
-                        "in_scluster": in_scluster or window["seed_index"] == icl ,
+                        # is_calo_matched & (sim fraction optimized threshold) || cl it is the seed of the window and it is calomatched
+                        "in_scluster": pass_simfrac_thres or (window["seed_index"] == icl and window["is_seed_calo_matched"]) ,
                         # True if the cluster is associated with the same (legacy) mustache as the seed
                         "in_mustache" : in_mustache,
                         # Score of association with the caloparticle of the seed, if present
                         "calo_score": pfcluster_calo_score[icl],
+                        # Simenergy of the signal and PU in the cluster
+                        "calo_simen_sig": calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl] if is_calo_matched else 0.,
+                        "calo_simen_PU":  cluster_PU_simenergy[icl],
                         "cluster_PUfrac": PU_simenfrac,
 
                         "cluster_ieta" : cl_ieta,
@@ -482,35 +492,13 @@ class WindowCreator():
                     # Save the cluster in the window
                     window["clusters"].append(cevent)
                     # In this script save all the clusters in all the windows
-                    # Save the cluster only in the first window encountered by Et
+                    # Uncomment the next line if instead you want to
+                    # save only the cluster in the first window encountered by Et
                     #break
 
-        if debug:
-            print("ALL windows")
-            print("N windows:", len(windows_map))
-            calo_match = []
-            nocalo_match = []
-            for w in windows_map.values():
-                if w["is_seed_calo_matched"]: calo_match.append(w)
-                else: nocalo_match.append(w)
-            print("Calo-matched windows: ")
-            for w in calo_match:
-                print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"]," Seed calo-seed: ",w['is_seed_calo_seed'])
-                print("\t Calo: {}, Eta:{:.3f}, Phi:{:.3f}, Et:{:.3f}".format(w["calo_index"],
-                                        calo_simeta[w["calo_index"]],calo_simphi[w["calo_index"]], w["et_true_sim"]))
-                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
-                print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
-                
-            print("Not Calo-matched windows: ")
-            for w in nocalo_match:
-                print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"])
-                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
-                print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
-                
-            print(">>> TOT windows calomatched: ", len(calo_match))
-
         ###############################
-        #### Add some global data for each window
+        #### Now that all the clusters have been put in all the windows
+        ###  Add some global data for each window
         
         for window in windows_map.values():
             calo_index = window["calo_index"]
@@ -535,6 +523,44 @@ class WindowCreator():
             window["max_en_cluster"] = max( cl["en_cluster"] for cl in window["clusters"])
             window["max_deta_cluster"] = max( cl["cluster_deta"] for cl in window["clusters"])
             window["max_dphi_cluster"] = max( cl["cluster_dphi"] for cl in window["clusters"])
+            # Compute total simEnergy of the signal and PU in the window    
+            # Take only the calo of the window
+            total_PU_simenergy_inwindow = 0. 
+            total_sig_simenergy_inwindow = 0.
+            for cl in window["clusters"]:
+                total_PU_simenergy_inwindow  +=  cl["calo_simen_PU"]
+                total_sig_simenergy_inwindow += cl["calo_simen_sig"]
+            # Saving window totals to differentiate from total in the event
+            window["wtot_simen_PU"] = total_PU_simenergy_inwindow
+            window["wtot_simen_sig"] = total_sig_simenergy_inwindow
+            print(window["wtot_simen_PU"] , window["wtot_simen_sig"] )
+        
+        if debug:
+            print("ALL windows")
+            print("N windows:", len(windows_map))
+            calo_match = []
+            nocalo_match = []
+            for w in windows_map.values():
+                if w["is_seed_calo_matched"]: calo_match.append(w)
+                else: nocalo_match.append(w)
+            print("Calo-matched windows: ")
+            for w in calo_match:
+                print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"]," Seed calo-seed: ",w['is_seed_calo_seed'])
+                print("\t Calo: {}, Eta:{:.3f}, Phi:{:.3f}, Et:{:.3f}".format(w["calo_index"],
+                                        calo_simeta[w["calo_index"]],calo_simphi[w["calo_index"]], w["et_true_sim"]))
+                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
+                print("\t Total simEnergy signal: {:.3f}, PU: {:.3f}".format(w["wtot_simen_sig"],w["wtot_simen_PU"]))
+                print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
+                
+            print("Not Calo-matched windows: ")
+            for w in nocalo_match:
+                print(">> Window: ", w["window_index"], "  Calo Matched: ",  w["is_seed_calo_matched"])
+                print("\t Seed: {}, Eta:{:.3f}, Phi:{:.3f}, Iz: {:.3f}, Et:{:.3f}".format( w['seed_index'], w["seed_eta"], w["seed_phi"],w["seed_iz"], w["et_seed"]))
+                print("\t Total simEnergy signal: {:.3f}, PU: {:.3f}".format(w["wtot_simen_sig"],w["wtot_simen_PU"]))
+                print("\t Clusters: ", [cl['cl_index'] for cl in w['clusters']])
+                
+            print(">>> TOT windows calomatched: ", len(calo_match))
+            print(">>> Tot PU simEnergy in the event: ", total_PU_simenergy)
 
         # Check if there are more than one windows associated with the same caloparticle
         # windows_calomatched = []
@@ -575,56 +601,3 @@ class WindowCreator():
         # if debug: print(output_data)
         return output_data
 
-
-     # Now we need to convert list of clusters metadata in list. AOS -> SOA
-    # def summary_clusters_window(self, window):
-    #     clusters_data = {  
-    #         "cl_index": [],
-    #         "is_seed": [],
-    #         # True if the cluster geometrically is in the mustache of the seed
-    #         "in_geom_mustache" : [],
-    #         # True if the seed has a calo and the cluster is associated to the same calo
-    #         "is_calo_matched": [],
-    #         # True if the cluster is the main cluster of the calo associated with the seed
-    #         "is_calo_seed": [],
-    #         # is_calo_matched & (sim fraction optimized threshold)
-    #         "in_scluster": [],
-    #         # True if the cluster is associated with the same (legacy) mustache as the seed
-    #         "in_mustache" : [],
-    #         # Score of association with the caloparticle of the seed, if present
-    #         "calo_score" : [], 
-
-    #         "cluster_deta": [],
-    #         "cluster_dphi":[] ,
-    #         "cluster_ieta": [],
-    #         "cluster_iphi":[] ,
-    #         "cluster_iz" : [],
-    #         "en_cluster": [],
-    #         "et_cluster": [],
-    #         "en_cluster_calib": [],
-    #         "et_cluster_calib": [],
-            
-    #         # Shower shape variables
-    #         "cl_f5_r9": [],
-    #         "cl_f5_sigmaIetaIeta" : [],
-    #         "cl_f5_sigmaIetaIphi" : [],
-    #         "cl_f5_sigmaIphiIphi" : [],
-    #         "cl_f5_swissCross" : [],
-    #         "cl_r9": [],
-    #         "cl_sigmaIetaIeta" : [],
-    #         "cl_sigmaIetaIphi" : [],
-    #         "cl_sigmaIphiIphi" : [],
-    #         "cl_swissCross" : [],
-
-    #         "cl_etaWidth" : [],
-    #         "cl_phiWidth" : [],
-    #         "cl_nxtals"   : [],
-    #         "cl_hits" : []
-    #     }
-    #     for cl in window["clusters"]:
-    #         for key in clusters_data.keys():
-    #             if type(cl[key]) is bool:
-    #                 clusters_data[key].append(int(cl[key]))
-    #             else:
-    #                 clusters_data[key].append(cl[key])
-    #     return clusters_data
