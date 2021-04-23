@@ -128,9 +128,12 @@ def make_example_window(window):
         # number of clusters
         'n_cl' : _int64_feature(window["ncls"]),
     }
-    # flag for flavour or other info
+    # flag for flavour 
     if args.flag != None:
-        context_features['f'] = _int64_feature(args.flag) 
+        if window["is_seed_calo_matched"]:
+            context_features['f'] = _int64_feature(args.flag) 
+        else:
+            context_features['f'] = _int64_feature(0) 
 
     # Now clusters features as a list
     clusters_features = [ _float_features(np.array([ cl[feat] for feat in cls_features],dtype='float32'))  for cl in window["clusters"] ]
