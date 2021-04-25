@@ -217,9 +217,8 @@ class SelfAttention(tf.keras.layers.Layer):
             - reduce=none  [Nbatch, Nclusters, output_dim]  
             - reduce=sum or mean   [Nbatch, output_dim]  
     '''    
-    def __init__(self, input_dim, sa_dim,  output_dim, reduce=None, *args, **kwargs):
+    def __init__(self, input_dim, output_dim, reduce=None, *args, **kwargs):
         self.activation = kwargs.pop("activation")
-        self.dropout = kwargs.pop("dropout")
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.reduce = reduce # it can be None, sum, mean
@@ -230,46 +229,32 @@ class SelfAttention(tf.keras.layers.Layer):
         self.Q = self.add_weight(shape=(self.input_dim, self.output_dim), name="Q_sa", initializer="random_normal")
         self.K = self.add_weight(shape=(self.input_dim, self.output_dim), name="K_sa", initializer="random_normal")
         self.V = self.add_weight(shape=(self.input_dim, self.output_dim), name="V_sa", initializer="random_normal")
-        # Matrix to convert input dimension to self-attention dimension
+        # Matrix to convert input dimension for offset
         self.dense_input = tf.keras.layers.Dense(self.output_dim, activation=tf.keras.activations.linear)
-        # Feed-forward output
-        self.dense_out = get_dense([self.output_dim, self.output_dim] , self.activation, last_act=self.activation,
-                                    L2=False, dropout=self.dropout)
-        # Layer normalizations
-        self.norm1 = tf.keras.layers.LayerNormalization(epsilon=1e-3, axis=-1)
-        self.norm2 = tf.keras.layers.LayerNormalization(epsilon=1e-3, axis=-1)
-        # Dropouts
-        self.drop1 = tf.keras.layers.Dropout(self.dropout)
-        self.drop2 = tf.keras.layers.Dropout(self.dropout)
+        # Output Conv1d / or Dense 
+        #self.conv1d_out = tf.keras.layers.Conv1D(self.output_dim, 1, padding="Valid", activation=tf.nn.selu)
+        self.dense_out = tf.keras.layers.Dense(self.output_dim, activation=self.activation)
         
-    def call(self, x, mask, training):
+    def call(self, x, mask):
         # x has structure  [Nbatch, Nclusters, Nfeatures]
         q = tf.matmul(x,self.Q)
         k = tf.matmul(x,self.K)
         v = tf.matmul(x,self.V)
         # mask the padded clusters in the attention distance
         mask_for_attention = mask[:,tf.newaxis,:]
+        sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
         # Mask for output
         mask_for_nodes = mask[:,:,tf.newaxis]
         # Apply the dense_input to x to get transformed dimension
-        transf_input = self.dense_input(x)
-
-        # Get self-attention output and attention weights
-        sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
-        # Dropout
-        sa_output = self.drop1(sa_output, training=training)
-        # Add and layer norm  + mask
-        output_sa = self.norm1(transf_input + sa_output) * mask_for_nodes
-        # Apply dense
-        output_dense = self.dense_out(output_sa)
-        # Dropout
-        output_dense = self.drop2(sa_output, training=training)
-        # Add and layer norm
-        output_block = self.norm2(output_dense + output_sa) * mask_for_nodes
+        transformed_input = self.dense_input(x)
+        # Apply non-linearity on the offset between SA output and transformed input
+        offset = self.dense_out(transformed_input - sa_output)
+        # Sum the offset to the input
+        out_nodes =  (transformed_input + offset) * mask_for_nodes
    
         # Now the aggregation 
         if self.reduce == "sum":
-            return  tf.reduce_sum(out_nodes, -2), attention_weights
+            return  tf.reduce_sum(out_nodes, -2),attention_weights
         if self.reduce == "mean":
             N_nodes = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
             return tf.math.divide_no_nan( tf.reduce_sum(out_nodes, -2), N_nodes),attention_weights
