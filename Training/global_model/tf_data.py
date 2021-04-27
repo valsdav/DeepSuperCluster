@@ -2,7 +2,7 @@ import numpy as np
 import glob
 import multiprocessing
 import os
-
+import numpy as np
 import tensorflow as tf
 
 ####################################
@@ -177,8 +177,6 @@ def prepare_features(dataset,  features, metadata):
         cl_hits = kargs[1]['cl_h']
         is_seed = tf.gather(cl_l,indices=[0],axis=-1)
         in_sc = tf.gather(cl_l,indices=[3], axis=-1)
-        # true_Et = tf.gather(kargs[0]['s_f'],indices=[10], axis=-1)
-        cl_X = tf.concat([ cl_X,tf.cast(is_seed, tf.float32),], axis=-1)
         n_cl = kargs[0]["n_cl"]
         # get requested window metadata
         w_metadata =  tf.gather(kargs[0]["w_m"], indices=metadata_index, axis=-1)
@@ -203,24 +201,47 @@ def delta_energy_seed(dataset, en_index, et_index):
         mask_seed.set_shape([None,None])
         seed_en = tf.boolean_mask(kargs[0][:,:,en_index], mask_seed)[:,tf.newaxis]
         seed_et = tf.boolean_mask(kargs[0][:,:,et_index], mask_seed)[:,tf.newaxis]
-        delta_seed_en = (seed_en - kargs[0][:,:,en_index])[:,:,tf.newaxis]
-        delta_seed_et = (seed_et - kargs[0][:,:,et_index])[:,:,tf.newaxis]
+        delta_seed_en = ((seed_en - kargs[0][:,:,en_index]) * tf.cast(kargs[0][:,:,en_index]!=0, tf.float32))[:,:,tf.newaxis]
+        delta_seed_et = ((seed_et - kargs[0][:,:,et_index]) * tf.cast(kargs[0][:,:,et_index]!=0, tf.float32))[:,:,tf.newaxis]
         cl_X = tf.concat([kargs[0], delta_seed_en, delta_seed_et], axis=-1)
         output = [cl_X] 
         for k in kargs[1:]: output.append(k)
         return output
     return dataset.map(process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
+###########
+## Features normalization, to be applied at the same level as the normalization parameters have been calculated
+def normalize_features(dataset, file):
+    params = np.load(file)
+    m = tf.convert_to_tensor(params["mean"], dtype=tf.float32)
+    s = tf.convert_to_tensor(params["sigma"], dtype=tf.float32)
 
+    def process(cl_X, *kargs):
+        # Remove mean and divide by sigma
+        cl_X_norm = (cl_X - m) / s
+        # Pass through both
+        output = [cl_X, cl_X_norm]
+        for k in kargs: output.append(k)
+        return output
+
+    return dataset.map(process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
+
+########################################
+# Final shapes that are used in the training loop
+# Split the tensors in X and Y tuples
 
 def training_format(dataset):
     def process(*kargs):
         ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
-        cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta = kargs
-        return (cl_X, cl_hits, is_seed,n_cl), (in_sc, wind_meta)
+        cl_X, cl_X_norm, cl_hits, is_seed, n_cl, in_sc, wind_meta = kargs
+        # get window classification target, total number of true clusters, total simenergy and genenergy
+        w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
+
+        return (cl_X_norm, cl_hits, is_seed, n_cl), (in_sc, w_flavour, cl_X, wind_meta)
     return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
+ 
 ##############################################
 # Loading functions
   
