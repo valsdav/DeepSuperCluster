@@ -33,11 +33,11 @@ args = parser.parse_args()
 
 
 # Prepare condor jobs
-condor = '''executable              = run_numpy_script.sh
+condor = '''executable              = run_ndjson_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../cluster_ndjson_dynamic_global_overlap.py, ../windows_creator_dynamic_global_overlap.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
+transfer_input_files    = ../cluster_ndjson_dynamic_global_nooverlap.py, ../windows_creator_dynamic_global_nooverlap.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -63,8 +63,8 @@ ET_SEED=$7;
 
 echo -e "Running numpy dumper.."
 
-python cluster_ndjson_dynamic_global_overlap.py -i ${INPUTFILE} -o output.ndjson \
-            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED}  {debug};
+python cluster_ndjson_dynamic_global_nooverlap.py -i ${INPUTFILE} -o output.ndjson \
+            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO  {debug};
 
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
@@ -93,7 +93,7 @@ if not os.path.exists(args.outputdir):
 
 inputfiles = [ f for f in os.listdir(args.inputdir)]
 ninputfiles = len(inputfiles)
-template_inputfile = "cluster_job{}_step2_output.root"
+# template_inputfile = "cluster_job{}_step2_output.root"
 
 wp_file = os.path.split(args.wp_file)[1]
 
@@ -108,11 +108,11 @@ files_groups = []
 ifile_used = 0
 ifile_curr = 0
 
-while ifile_used < nfiles_training:
-    while (template_inputfile.format(ifile_curr) not in inputfiles): 
-        ifile_curr +=1
-    
-    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+files_training = inputfiles[:nfiles_training]
+files_testing = inputfiles[nfiles_training:]
+
+for file in files_training:
+    files_groups.append(args.inputdir + "/" + file)
     ifile_used +=1 
     ifile_curr +=1
 
@@ -133,17 +133,14 @@ arguments.append("{} {} {} {} {} {} {}".format(
                 args.maxnocalow, args.min_et_seed))
 
 
-######## testing
-ifile_group = 0
+# ######## testing
+
 files_groups = []
 ifile_used = 0
-#ifile_curr from training cycle
+ifile_curr = 0
 
-while ifile_used < nfiles_testing:
-    while (template_inputfile.format(ifile_curr) not in inputfiles): 
-        ifile_curr +=1
-    
-    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+for file in files_testing:
+    files_groups.append(args.inputdir + "/" + file)
     ifile_used +=1 
     ifile_curr +=1
 
@@ -151,10 +148,18 @@ while ifile_used < nfiles_testing:
         jobid +=1
         #join input files by ;
         arguments.append("{} {} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy, wp_file,
                 args.maxnocalow, args.min_et_seed))
         files_groups = []
         ifile_group = 0
+
+print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
+
+# Join also the last group
+arguments.append("{} {} {} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
+                args.maxnocalow, args.min_et_seed))
+
 
 print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
@@ -171,7 +176,7 @@ with open("condor_job.txt", "w") as cnd_out:
 with open("arguments.txt", "w") as args:
     args.write("\n".join(arguments))
 
-with open("run_numpy_script.sh", "w") as rs:
+with open("run_ndjson_script.sh", "w") as rs:
     rs.write(script)
 
 #os.system("condor_submit condor_job.txt")
