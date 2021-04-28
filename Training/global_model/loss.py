@@ -39,8 +39,9 @@ def energy_loss(y_true, y_pred):
     selected_cls =  tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5, tf.int64)
     diff = y_clclass - selected_cls
 
-    missing_en = tf.squeeze(tf.where(diff==1, cl_X[:,:,0][:,:,tf.newaxis], tf.zeros(tf.shape(diff))))
-    spurious_en =  tf.squeeze(tf.where(diff==-1, cl_X[:,:,0][:,:,tf.newaxis], tf.zeros(tf.shape(diff))))
+    # 1 is et_cluster
+    missing_en = tf.squeeze(tf.where(diff==1, cl_X[:,:,1][:,:,tf.newaxis], tf.zeros(tf.shape(diff))))
+    spurious_en =  tf.squeeze(tf.where(diff==-1, cl_X[:,:,1][:,:,tf.newaxis], tf.zeros(tf.shape(diff))))
 
     reduced_loss_missing = tf.reduce_mean(tf.reduce_sum(missing_en, axis=-1)) 
     reduced_loss_spurious =  tf.reduce_mean(tf.reduce_sum(spurious_en, axis=-1))

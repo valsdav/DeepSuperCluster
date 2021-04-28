@@ -176,7 +176,9 @@ def prepare_features(dataset,  features, metadata):
         cl_X = tf.gather(cl_f, indices=feat_index,axis=-1)
         cl_hits = kargs[1]['cl_h']
         is_seed = tf.gather(cl_l,indices=[0],axis=-1)
-        in_sc = tf.gather(cl_l,indices=[3], axis=-1)
+        in_sc = tf.gather(cl_l,indices=[3], axis=-1) 
+        # HACK to include in the supercluster all the seeds also for unmatched windows
+        in_sc = tf.cast( tf.math.logical_or(tf.cast(is_seed, tf.bool), tf.cast(in_sc, tf.bool)), tf.int64)
         n_cl = kargs[0]["n_cl"]
         # get requested window metadata
         w_metadata =  tf.gather(kargs[0]["w_m"], indices=metadata_index, axis=-1)
@@ -267,12 +269,14 @@ def load_dataset_single(path, options):
 
 
 # Function to load and prepare a batched dataset with prepared tensors
-def load_balanced_dataset_batch(data_paths, features, metadata, batch_size, weights=None, options={"read_hits":True, "read_metadata":True}):
+def load_balanced_dataset_batch(data_paths, features, metadata, batch_size, filter=None, weights=None, options={"read_hits":True, "read_metadata":True}):
     datasets = {}
     for n, p in data_paths.items():
         df = load_dataset_single(p, options)
+        if filter:
+            df = df.filter(filter)
         df = prepare_features(df, features, metadata)
-        df = df.shuffle(buffer_size=batch_size*15) # Shuffle elements for 15 times sample the batch size
+        df = df.shuffle(buffer_size=batch_size*30) # Shuffle elements for 15 times sample the batch size
         datasets[n] = df
     if weights:
         ws = [ ]

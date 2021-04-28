@@ -15,7 +15,7 @@ def create_padding_masks(rechits):
 
 def get_dense(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"):
     layers = [] 
-    for d in spec[:-2]:
+    for d in spec[:-1]:
         if not L1 and not L2:
             layers.append(tf.keras.layers.Dense(d, activation=act))
         if not L1 and L2:
@@ -217,23 +217,23 @@ class SelfAttention(tf.keras.layers.Layer):
             - reduce=none  [Nbatch, Nclusters, output_dim]  
             - reduce=sum or mean   [Nbatch, output_dim]  
     '''    
-    def __init__(self, output_dim, reduce=None, *args, **kwargs):
+    def __init__(self, input_dim, output_dim, reduce=None, *args, **kwargs):
         self.activation = kwargs.pop("activation", "relu")
-        self.dropout = kwargs.pop("dropout", 0.)
-        self.l2_reg = kwargs.pop("l2_reg", False)
+        self.dropout = kwargs.get("dropout", 0.)
+        self.l2_reg = kwargs.get("l2_reg", False)
+        self.input_dim = input_dim
         self.output_dim = output_dim
-        self.reduce = reduce # it can be None, sum, mean
+        self.reduce = reduce # it can be None, sum, mean, max
         name = kwargs.pop("name", None)
 
-        super(SelfAttention, self).__init__(*args, name=name)
+        super(SelfAttention, self).__init__(name=name)
         
         # Self-attention matrices
-        self.Q = tf.keras.layers.Dense(self.output_dim, name="Q_sa")
-        self.K = tf.keras.layers.Dense(self.output_dim, name="K_sa")
-        self.V = tf.keras.layers.Dense(self.output_dim, name="V_sa")
+        self.Q = self.add_weight(shape=(self.input_dim, self.output_dim), name="Q_sa", initializer="random_normal")
+        self.K = self.add_weight(shape=(self.input_dim, self.output_dim), name="K_sa", initializer="random_normal")
+        self.V = self.add_weight(shape=(self.input_dim, self.output_dim), name="V_sa", initializer="random_normal")
+        self.inputW = self.add_weight(shape=(self.input_dim, self.output_dim), name="input_sa", initializer="random_normal")
 
-        # Matrix to convert input dimension to self-attention dimension
-        self.dense_input = tf.keras.layers.Dense(self.output_dim, name="input_sa")
         # Feed-forward output (1 hidden layer)
         self.dense_out = get_dense([self.output_dim, self.output_dim], self.activation, last_act=self.activation,
                                     L2=self.l2_reg, dropout=self.dropout, name="output_sa")
@@ -246,16 +246,15 @@ class SelfAttention(tf.keras.layers.Layer):
         
     def call(self, x, mask, training):
         # x has structure  [Nbatch, Nclusters, Nfeatures]
-        q = self.Q(x)
-        k = self.K(x)
-        v = self.V(x)
+        q = tf.matmul(x,self.Q)
+        k = tf.matmul(x,self.K)
+        v = tf.matmul(x,self.V)
+        # Apply the dense_input to x to get transformed dimension
+        transf_input = tf.matmul(x,self.inputW)
         # mask the padded clusters in the attention distance
         mask_for_attention = mask[:,tf.newaxis,:]
         # Mask for output
         mask_for_nodes = mask[:,:,tf.newaxis]
-        # Apply the dense_input to x to get transformed dimension
-        transf_input = self.dense_input(x)
-
         # Get self-attention output and attention weights
         sa_output, attention_weights = scaled_dot_product_attention(q, k, v, mask_for_attention)
         # Dropout
@@ -275,6 +274,8 @@ class SelfAttention(tf.keras.layers.Layer):
         if self.reduce == "mean":
             N_nodes = tf.reduce_sum(mask,-1)[:,tf.newaxis]
             return tf.math.divide_no_nan( tf.reduce_sum(output_block, -2), N_nodes), attention_weights
+        if self.reduce == "max":
+            return tf.reduce_max(output_block, axis=-2), attention_weights
         else:
             #just return all the nodes
             return output_block, attention_weights
@@ -366,7 +367,7 @@ class GraphBuilding(tf.keras.layers.Layer):
                                 nconv=self.nconv_rechits, activation=self.activation, dropout=self.dropout)
         
         #Self-attention for coordinations
-        self.SA_coord = SelfAttention(name="rechit_SA", input_dim = self.output_dim_nodes, output_dim=self.coord_dim)
+        self.SA_coord = SelfAttention(name="rechit_SA", input_dim=self.output_dim_nodes, output_dim=self.coord_dim, dropout=0.)
         self.dist = Distance(batch_dim=1)
         self.concat = tf.keras.layers.Concatenate(axis=-1)
         
@@ -434,6 +435,7 @@ class DeepClusterGN(tf.keras.Model):
     - n_windclasses: number of classes for window classification
     - dropout: dropout function to apply on classification DNN
     - l2_reg: activate l2 regularization in all the Dense layers
+    - loss_weights:  dictionary "loss_clusters, loss_window, loss_etw, loss_et_miss, loss_et_spur"
     '''
     def __init__(self, **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
@@ -447,6 +449,7 @@ class DeepClusterGN(tf.keras.Model):
         self.n_windclasses = kwargs.pop("n_windclasses", 1)
         self.dropout = kwargs.get("dropout",0.)
         self.l2_reg = kwargs.get("l2_reg", False)
+        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "etw":1., "et_miss":1., "et_spur":1})
         
         super(DeepClusterGN, self).__init__()
         
@@ -455,22 +458,26 @@ class DeepClusterGN(tf.keras.Model):
                                         hidden_dim=self.output_dim_gconv , activation=self.activation)
 
         # Clusters classification head
-        self.SA_clclass = SelfAttention(name="SA_clclass",  output_dim=self.output_dim_sa_clclass, reduce=None, **kwargs)
+        self.SA_clclass = SelfAttention(name="SA_clclass", input_dim=self.output_dim_gconv, output_dim=self.output_dim_sa_clclass, 
+                                        reduce=None, **kwargs)
         self.dense_clclass = get_dense(name="dense_clclass", spec=self.layers_clclass+[1], act=self.activation,
                                      last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
         # Window classification head
-        self.concat_gcn_SAcl = tf.keras.layers.Concatenate(axis=-1)
+        # self.concat_gcn_SAcl = tf.keras.layers.Concatenate(axis=-1)
         # self-attention for windows classification with "mean" reduction
-        self.SA_windclass = SelfAttention(name="SA_windclass", output_dim=self.output_dim_sa_windclass, reduce="mean", **kwargs)
+        self.SA_windclass = SelfAttention(name="SA_windclass", input_dim=self.output_dim_gconv, output_dim=self.output_dim_sa_windclass,
+                                         reduce="sum", **kwargs)
         self.dense_windclass = get_dense(name="dense_windclass", spec=self.layers_windclass+[self.n_windclasses], act=self.activation,
                                      last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
 
         #dropout layers
         self.gcn_dropout = tf.keras.layers.Dropout(self.dropout)
-        # self.gcn_sa_dropout = tf.keras.layers.Dropout(self.dropout)
+        # self.SA_windclass_input_dropout = tf.keras.layers.Dropout(self.dropout)
+        self.SA_windclass_output_dropout = tf.keras.layers.Dropout(self.dropout)
         # Layer normalizations
-        self.gcn_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
-        # self.SA_output_layernormalization = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        self.gcn_output_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        # self.input_SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        self.SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
 
     def call(self, inputs, training):
         cl_X_initial, cl_hits, is_seed,n_cl = inputs 
@@ -482,7 +489,8 @@ class DeepClusterGN(tf.keras.Model):
         out_gcn = self.GCN(cl_X, adj) 
         # Dropout + normalization
         out_gcn = self.gcn_dropout(out_gcn, training=training)
-        out_gcn = self.gcn_output_layernormalization(out_gcn) * mask_cls_to_apply
+        out_gcn = self.gcn_output_layernorm(out_gcn) * mask_cls_to_apply
+    
         # Apply self attention: output already masked internally
         out_SA_clclass, att_weights_clclass = self.SA_clclass(out_gcn, mask_cls, training)
         # No need to normalize since the self-attention layer
@@ -490,23 +498,29 @@ class DeepClusterGN(tf.keras.Model):
         clclass_out = self.dense_clclass(out_SA_clclass, training=training) * mask_cls_to_apply
 
         # Concatenate the GCN and SA_clusterclassification output
-        in_SA_windcl = self.concat_gcn_SAcl([out_gcn, out_SA_clclass])
+        # in_SA_windcl = self.concat_gcn_SAcl([out_gcn, out_SA_clclass])
         # Apply Self-attention for window classification
-        out_SA_windcl, att_weights_windclass = self.SA_windclass(in_SA_windcl, mask_cls, training)
-        # dense for wind classification
-        windclass_out = self.dense_windclass(out_SA_windcl)
+        # input_SA_windcl = self.input_SA_windclass_layernorm(out_gcn + out_SA_clclass)
+        # input_SA_windcl = self.SA_windclass_input_dropout(input_SA_windcl, training=training)
+        out_SA_windcl, att_weights_windclass = self.SA_windclass(out_gcn, mask_cls, training)
+        # Norm before dense for wind classification because the sum is performed in the SA layer
+        out_SA_windcl = self.SA_windclass_layernorm(out_SA_windcl)
+        out_SA_windcl = self.SA_windclass_output_dropout(out_SA_windcl, training=training)
+        windclass_out = self.dense_windclass(out_SA_windcl, training=training)
        
         return clclass_out, windclass_out, mask_cls, \
                (  cl_X, coord, adj, coord_att_ws, output_rechits, out_gcn, \
                   out_SA_clclass, out_SA_windcl, att_weights_clclass,att_weights_windclass)
 
+    ########################
+    # Training related methods
     def set_metrics(self):
         self.loss_tracker = tf.keras.metrics.Mean(name="loss")
         self.loss1_tracker = tf.keras.metrics.Mean(name="loss_clusters")
         self.loss2_tracker = tf.keras.metrics.Mean(name="loss_windows")
         self.loss3_tracker = tf.keras.metrics.Mean(name="loss_etw")
-        self.loss4_tracker = tf.keras.metrics.Mean(name="loss_en_miss")
-        self.loss5_tracker = tf.keras.metrics.Mean(name="loss_en_spur")
+        self.loss4_tracker = tf.keras.metrics.Mean(name="loss_et_miss")
+        self.loss5_tracker = tf.keras.metrics.Mean(name="loss_et_spur")
 
     # Customized training loop
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
@@ -518,11 +532,13 @@ class DeepClusterGN(tf.keras.Model):
             loss_clusters = clusters_classification_loss(y, y_pred)
             loss_etweighted = energy_weighted_classification_loss(y,y_pred)
             loss_windows = window_classification_loss(y, y_pred)
-            loss_en_miss, loss_en_spur = energy_loss(y, y_pred)
+            loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
             # Total loss function
-            loss =  loss_clusters + loss_windows + loss_etweighted + loss_en_miss + loss_en_spur
-            if self.l2_reg:
-               loss += self.losses
+            loss =  self.loss_weights["clusters"] * loss_clusters +\
+                    self.loss_weights["window"] * loss_windows + \
+                    self.loss_weights["etw"] * loss_etweighted + \
+                    self.loss_weights["et_miss"] * loss_et_miss + \
+                    self.loss_weights["et_spur"] *  loss_et_spur + self.losses
 
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -534,15 +550,15 @@ class DeepClusterGN(tf.keras.Model):
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
         self.loss3_tracker.update_state(loss_etweighted)
-        self.loss4_tracker.update_state(loss_en_miss)
-        self.loss5_tracker.update_state(loss_en_spur)
+        self.loss4_tracker.update_state(loss_et_miss)
+        self.loss5_tracker.update_state(loss_et_spur)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_etw": self.loss3_tracker.result(),
-                "loss_en_miss": self.loss4_tracker.result(),
-                "loss_en_spur": self.loss5_tracker.result(),}
+                "loss_et_miss": self.loss4_tracker.result(),
+                "loss_et_spur": self.loss5_tracker.result(),}
 
     def test_step(self, data):
         # Unpack the data
@@ -553,25 +569,28 @@ class DeepClusterGN(tf.keras.Model):
         loss_clusters = clusters_classification_loss(y, y_pred)
         loss_etweighted = energy_weighted_classification_loss(y,y_pred)
         loss_windows = window_classification_loss(y, y_pred)
-        loss_en_miss, loss_en_spur = energy_loss(y, y_pred)
+        loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
         # Total loss function
-        loss =  loss_clusters + loss_windows + loss_etweighted + loss_en_miss + loss_en_spur
-        if self.l2_reg:
-            loss += self.losses
+        loss =  self.loss_weights["clusters"] * loss_clusters +\
+                self.loss_weights["window"] * loss_windows + \
+                self.loss_weights["etw"] * loss_etweighted + \
+                self.loss_weights["et_miss"] * loss_et_miss + \
+                self.loss_weights["et_spur"] *  loss_et_spur + self.losses
+        
         # Compute our own metrics
         self.loss_tracker.update_state(loss)
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
         self.loss3_tracker.update_state(loss_etweighted)
-        self.loss4_tracker.update_state(loss_en_miss)
-        self.loss5_tracker.update_state(loss_en_spur)
+        self.loss4_tracker.update_state(loss_et_miss)
+        self.loss5_tracker.update_state(loss_et_spur)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_etw": self.loss3_tracker.result(),
-                "loss_en_miss": self.loss4_tracker.result(),
-                "loss_en_spur": self.loss5_tracker.result()}
+                "loss_et_miss": self.loss4_tracker.result(),
+                "loss_et_spur": self.loss5_tracker.result()}
 
     @property
     def metrics(self):
