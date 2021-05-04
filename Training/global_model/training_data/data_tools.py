@@ -53,7 +53,7 @@ def parameters(ds, features):
     sigma = dict(zip(features, s))
     return mean, sigma
 
-def convert_df(data_path, features, n_samples=100):
+def convert_df(data_path, features, metadata, n_samples=100):
     '''
     Function to convert tensorflow dataset to pandas dataframe.
     
@@ -67,22 +67,25 @@ def convert_df(data_path, features, n_samples=100):
     '''
     # prepare the required variables
     dataframes = []
-    ds = tf_data.load_balanced_dataset_batch(data_path, features, 1).take(n_samples)
-    features_ext = features+['is_seed']
+    ds = tf_data.load_balanced_dataset_batch(data_path, features, metadata, 1).take(n_samples)
+    features_ext = features
     
     # iterate through the dataset
     for el in ds: 
-        cl_X, _, _, n_cl, in_sc, wind_meta = el
-        
+        cl_X, _, is_seed, n_cl, in_sc, wind_meta = el
         # choose only features that were passed to the function
         X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
         d = dict(zip(features_ext, X_features))
         
         # save each entry in dataset
         df_el = pd.DataFrame(data=d)
+        df_el['is_seed'] = is_seed[0].numpy()
         df_el['n_cl'] = n_cl[0].numpy()
         df_el['in_sc'] = in_sc[0].numpy()
-        df_el['eta_s'] = wind_meta[0,3].numpy()
+        
+        # window metadata info  
+        df_el["sim_true_eta"] = wind_meta[0,0].numpy()
+        df_el["truePU"] = wind_meta[0,1].numpy()
         dataframes.append(df_el)
     
     # aggregate all the samples
