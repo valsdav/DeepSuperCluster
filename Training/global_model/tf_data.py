@@ -188,7 +188,7 @@ def prepare_features(dataset,  features, metadata):
         wind_meta = tf.concat( [w_metadata , 
                                     tf.stack( [tf.cast(kargs[0]['w_cl'],tf.float32), 
                                                 tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
-                                 tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
+                                    tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
                                  ] , 
                                 axis=-1) 
         return  cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta

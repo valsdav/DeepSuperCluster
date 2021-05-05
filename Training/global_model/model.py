@@ -243,6 +243,17 @@ class SelfAttention(tf.keras.layers.Layer):
         # Dropouts
         self.drop1 = tf.keras.layers.Dropout(self.dropout)
         self.drop2 = tf.keras.layers.Dropout(self.dropout)
+
+    def get_config():
+        return {
+            "input_dim" : self.input_dim,
+            "output_dim": self.output_dim,
+            "l2_reg": self.l2_reg,
+            "dropout": self.dropout,
+            "activation": self.activation,
+            "reduce": self.reduce,
+            "name": self.name
+        }
         
     def call(self, x, mask, training):
         # x has structure  [Nbatch, Nclusters, Nfeatures]
@@ -315,6 +326,16 @@ class RechitsGCN(tf.keras.layers.Layer):
         #Layer normalizations
         self.sa_normalization = tf.keras.layers.LayerNormalization(epsilon=1e-3, axis=-1)
         self.out_normalization = tf.keras.layers.LayerNormalization(epsilon=1e-3, axis=-1)
+
+    def get_config():
+        return {
+            "input_dim" : self.input_dim,
+            "output_dim": self.output_dim,
+            "nconv": self.nconv,
+            "l2_reg": self.l2_reg,
+            "dropout": self.dropout,
+            "activation": self.activation
+        }
         
     def call(self, x, mask, training):
         # x has structure  [Nbatch, Nclusters, Nrechits, 4]
@@ -380,6 +401,20 @@ class GraphBuilding(tf.keras.layers.Layer):
 
         super(GraphBuilding, self).__init__(name=name)
 
+    def get_config(self):
+        return {
+            "layers_input": self.layers_input,
+            "output_dim_rechits": self.output_dim_rechits,
+            "output_dim_nodes": self.output_dim_nodes,
+            "coord_dim" : self.coord_dim,
+            "nconv_rechits": self.nconv_rechits,
+            "output_dim": self.output_dim,
+            "nconv": self.nconv,
+            "l2_reg": self.l2_reg,
+            "dropout": self.dropout,
+            "activation": self.activation,
+            "name": self.name
+        }
 
     def call(self, cl_features, rechits_features, training):
         # Conversion from RaggedTensor to dense tensor
@@ -479,6 +514,31 @@ class DeepClusterGN(tf.keras.Model):
         # self.input_SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
         self.SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
 
+    def get_config(self):
+        return {
+            "layers_input": self.graphbuild.layers_input,
+            "output_dim_rechits": self.graphbuild.output_dim_rechits,
+            "coord_dim" : self.graphbuild.coord_dim,
+            "nconv_rechits": self.graphbuild.nconv_rechits,
+
+            "layers_clclass": self.layers_clclass, 
+            "layers_windclass": self.layers_windclass,
+           
+            "output_dim_nodes": self.output_dim_nodes,
+            "output_dim_gconv": self.output_dim_gconv,
+            "output_dim_sa_clclass": self.output_dim_sa_clclass,
+            "output_dim_sa_windclass": self.output_dim_sa_windclass,
+            
+            "n_windclasses": self.n_windclasses,
+            
+            "nconv": self.nconv,
+            "l2_reg": self.l2_reg,
+            "dropout": self.dropout,
+            "activation": self.activation,
+            "name": self.name,
+            "loss_weights": self.loss_weights
+        }
+
     def call(self, inputs, training):
         cl_X_initial, cl_hits, is_seed,n_cl = inputs 
         # Concatenate the seed label on clusters features
@@ -538,7 +598,7 @@ class DeepClusterGN(tf.keras.Model):
                     self.loss_weights["window"] * loss_windows + \
                     self.loss_weights["softF1"] * loss_softF1 + \
                     self.loss_weights["et_miss"] * loss_et_miss + \
-                    self.loss_weights["et_spur"] *  loss_et_spur + self.losses
+                    self.loss_weights["et_spur"] *  loss_et_spur + sum(self.losses)
 
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -575,7 +635,7 @@ class DeepClusterGN(tf.keras.Model):
                 self.loss_weights["window"] * loss_windows + \
                 self.loss_weights["softF1"] * loss_softF1 + \
                 self.loss_weights["et_miss"] * loss_et_miss + \
-                self.loss_weights["et_spur"] *  loss_et_spur + self.losses
+                self.loss_weights["et_spur"] *  loss_et_spur + sum(self.losses)
         
         # Compute our own metrics
         self.loss_tracker.update_state(loss)
