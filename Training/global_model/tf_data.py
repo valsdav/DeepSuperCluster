@@ -168,6 +168,7 @@ def get_window_metadata_indexes(feats):
 def prepare_features(dataset,  features, metadata): 
     ''' The tensor containing the requested featues follow the requested order '''
     feat_index = get_cluster_features_indexes(features)
+    seed_feat_index = get_seed_features_indexes(["seed_eta","et_seed"])
     metadata_index = get_window_metadata_indexes(metadata)
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
@@ -183,8 +184,12 @@ def prepare_features(dataset,  features, metadata):
         # get requested window metadata
         w_metadata =  tf.gather(kargs[0]["w_m"], indices=metadata_index, axis=-1)
         # Add window class , flavour
-        wind_meta = tf.concat( [w_metadata , tf.stack([tf.cast(kargs[0]['w_cl'],tf.float32), 
-                                tf.cast(kargs[0]['f'],tf.float32)], axis=-1) ] , 
+        # Add also some seed information
+        wind_meta = tf.concat( [w_metadata , 
+                                    tf.stack( [tf.cast(kargs[0]['w_cl'],tf.float32), 
+                                                tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
+                                 tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
+                                 ] , 
                                 axis=-1) 
         return  cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta
 

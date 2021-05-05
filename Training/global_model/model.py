@@ -449,7 +449,7 @@ class DeepClusterGN(tf.keras.Model):
         self.n_windclasses = kwargs.pop("n_windclasses", 1)
         self.dropout = kwargs.get("dropout",0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "etw":1., "et_miss":1., "et_spur":1})
+        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1})
         
         super(DeepClusterGN, self).__init__()
         
@@ -498,7 +498,7 @@ class DeepClusterGN(tf.keras.Model):
         clclass_out = self.dense_clclass(out_SA_clclass, training=training) * mask_cls_to_apply
 
         # Concatenate the GCN and SA_clusterclassification output
-        # in_SA_windcl = self.concat_gcn_SAcl([out_gcn, out_SA_clclass])
+        # input_SA_windcl = self.concat_gcn_SAcl([out_gcn, out_SA_clclass])
         # Apply Self-attention for window classification
         # input_SA_windcl = self.input_SA_windclass_layernorm(out_gcn + out_SA_clclass)
         # input_SA_windcl = self.SA_windclass_input_dropout(input_SA_windcl, training=training)
@@ -518,7 +518,7 @@ class DeepClusterGN(tf.keras.Model):
         self.loss_tracker = tf.keras.metrics.Mean(name="loss")
         self.loss1_tracker = tf.keras.metrics.Mean(name="loss_clusters")
         self.loss2_tracker = tf.keras.metrics.Mean(name="loss_windows")
-        self.loss3_tracker = tf.keras.metrics.Mean(name="loss_etw")
+        self.loss3_tracker = tf.keras.metrics.Mean(name="loss_softF1")
         self.loss4_tracker = tf.keras.metrics.Mean(name="loss_et_miss")
         self.loss5_tracker = tf.keras.metrics.Mean(name="loss_et_spur")
 
@@ -530,13 +530,13 @@ class DeepClusterGN(tf.keras.Model):
             y_pred = self(x, training=True)  # Forward pass
             # Compute our own loss
             loss_clusters = clusters_classification_loss(y, y_pred)
-            loss_etweighted = energy_weighted_classification_loss(y,y_pred)
+            loss_softF1 =  soft_f1_score(y,y_pred)
             loss_windows = window_classification_loss(y, y_pred)
             loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
             # Total loss function
             loss =  self.loss_weights["clusters"] * loss_clusters +\
                     self.loss_weights["window"] * loss_windows + \
-                    self.loss_weights["etw"] * loss_etweighted + \
+                    self.loss_weights["softF1"] * loss_softF1 + \
                     self.loss_weights["et_miss"] * loss_et_miss + \
                     self.loss_weights["et_spur"] *  loss_et_spur + self.losses
 
@@ -549,14 +549,14 @@ class DeepClusterGN(tf.keras.Model):
         self.loss_tracker.update_state(loss)
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
-        self.loss3_tracker.update_state(loss_etweighted)
+        self.loss3_tracker.update_state(loss_softF1)
         self.loss4_tracker.update_state(loss_et_miss)
         self.loss5_tracker.update_state(loss_et_spur)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
-                "loss_etw": self.loss3_tracker.result(),
+                "loss_softF1": self.loss3_tracker.result(),
                 "loss_et_miss": self.loss4_tracker.result(),
                 "loss_et_spur": self.loss5_tracker.result(),}
 
@@ -567,13 +567,13 @@ class DeepClusterGN(tf.keras.Model):
         y_pred = self(x, training=False)
         # Updates the metrics tracking the loss
         loss_clusters = clusters_classification_loss(y, y_pred)
-        loss_etweighted = energy_weighted_classification_loss(y,y_pred)
+        loss_softF1 =  soft_f1_score(y,y_pred)
         loss_windows = window_classification_loss(y, y_pred)
         loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
         # Total loss function
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
-                self.loss_weights["etw"] * loss_etweighted + \
+                self.loss_weights["softF1"] * loss_softF1 + \
                 self.loss_weights["et_miss"] * loss_et_miss + \
                 self.loss_weights["et_spur"] *  loss_et_spur + self.losses
         
@@ -581,14 +581,14 @@ class DeepClusterGN(tf.keras.Model):
         self.loss_tracker.update_state(loss)
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
-        self.loss3_tracker.update_state(loss_etweighted)
+        self.loss3_tracker.update_state(loss_softF1)
         self.loss4_tracker.update_state(loss_et_miss)
         self.loss5_tracker.update_state(loss_et_spur)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
-                "loss_etw": self.loss3_tracker.result(),
+                "loss_softF1": self.loss3_tracker.result(),
                 "loss_et_miss": self.loss4_tracker.result(),
                 "loss_et_spur": self.loss5_tracker.result()}
 
