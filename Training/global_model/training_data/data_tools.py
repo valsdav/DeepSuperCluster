@@ -84,8 +84,11 @@ def convert_df(data_path, features, metadata, n_samples=100):
         df_el['in_sc'] = in_sc[0].numpy()
         
         # window metadata info  
-        df_el["sim_true_eta"] = wind_meta[0,0].numpy()
-        df_el["truePU"] = wind_meta[0,1].numpy()
+        for i, meta in enumerate(metadata):
+            df_el[meta] = wind_meta[0,i].numpy()
+           
+        df_el['seed_eta'] = wind_meta[0,-2].numpy()
+        
         dataframes.append(df_el)
     
     # aggregate all the samples
