@@ -2,7 +2,7 @@ from collections import defaultdict
 from operator import itemgetter
 
 
-def get_calo_association(clusters_scores, sort_calo_cl=False, debug=False, min_sim_fraction=1e-5,):
+def get_calo_association(clusters_scores, sort_calo_cl=False, min_sim_fraction=1e-5, debug=False):
     '''
     pfCluster_scores is a list. For each pfCluster, there is a list of scores for each calo. 
     Each cluster is associated with the calo with the highest score (with a minumum score of 1e-5). 
