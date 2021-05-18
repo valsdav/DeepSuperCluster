@@ -188,7 +188,7 @@ def prepare_features(dataset,  features, metadata):
         wind_meta = tf.concat( [w_metadata , 
                                     tf.stack( [tf.cast(kargs[0]['w_cl'],tf.float32), 
                                                 tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
-                                 tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
+                                    tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
                                  ] , 
                                 axis=-1) 
         return  cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta
@@ -242,7 +242,7 @@ def training_format(dataset):
         ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
         cl_X, cl_X_norm, cl_hits, is_seed, n_cl, in_sc, wind_meta = kargs
         # get window classification target, total number of true clusters, total simenergy and genenergy
-        w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
+        w_flavour = tf.one_hot( tf.cast(wind_meta[:,-3] / 11, tf.int32) , depth=3)
 
         return (cl_X_norm, cl_hits, is_seed, n_cl), (in_sc, w_flavour, cl_X, wind_meta)
     return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)

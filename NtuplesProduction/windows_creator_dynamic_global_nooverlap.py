@@ -8,6 +8,7 @@ import calo_association
 import random
 from pprint import pprint
 import json
+import numpy as np
 import ROOT as R
 R.gROOT.ProcessLine(".L Mustache.C+")
 
@@ -138,8 +139,8 @@ class WindowCreator():
         calo_simeta = event.caloParticle_simEta
         calo_simphi = event.caloParticle_simPhi
         calo_simiz = event.caloParticle_simIz
-        calo_isPU = event.caloParticle_isPU
-        calo_isOOTPU = event.caloParticle_isOOTPU
+        # calo_isPU = event.caloParticle_isPU
+        # calo_isOOTPU = event.caloParticle_isOOTPU
         pfcl_f5_r9 = event.pfCluster_full5x5_r9
         pfcl_f5_sigmaIetaIeta = event.pfCluster_full5x5_sigmaIetaIeta
         pfcl_f5_sigmaIetaIphi = event.pfCluster_full5x5_sigmaIetaIphi
@@ -168,13 +169,22 @@ class WindowCreator():
         clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
         # Get Association between pfcluster and calo
         # Sort the clusters for each calo in order of score. 
-        # This is needed to understand which cluster is the seed of the calo
-        pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map, cluster_PU_simenergy = \
-                                calo_association.get_calo_association_withpu(clusters_scores, calo_isPU, calo_isOOTPU,
-                                                                            calo_simenergy,  sort_calo_cl=True, 
-                                                                            debug=False, min_sim_fraction=self.cluster_min_fraction)
-        #total PU simenergy in all clusters in the event
-        total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
+        # # This is needed to understand which cluster is the seed of the calo
+        # pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map, cluster_PU_simenergy = \
+        #                         calo_association.get_calo_association_withpu(clusters_scores, calo_isPU, calo_isOOTPU,
+        #                                                                     calo_simenergy,  sort_calo_cl=True, 
+        #                                                                     debug=False, min_sim_fraction=self.cluster_min_fraction)
+        # Working only on signal caloparticle
+        pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
+                                calo_association.get_calo_association(clusters_scores, sort_calo_cl=True, debug=False, min_sim_fraction=self.cluster_min_fraction)
+        # CaloParticle Pileup information
+        cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
+        cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
+        cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
+        total_PU_simenergy = event.caloParticlePU_totEnergy
+
+        # #total PU simenergy in all clusters in the event
+        # total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
 
         if debug:
             print(">>> Cluster_calo map")
@@ -187,7 +197,6 @@ class WindowCreator():
                 print("calo: {} | clusters: ".format(calo))
                 for cl, sc in clusters:
                     print("\t> cl: {}, Et: {:.2f}, eta: {:.2f}, phi:{:.2f}, score: {:.4f}, simEnPU: {:.3f}".format(cl,pfCluster_rawEnergy[cl]/ cosh(pfCluster_eta[cl]), pfCluster_eta[cl],pfCluster_phi[cl], sc,cluster_PU_simenergy[cl]))
-                
             print()
 
         #Mustache info
@@ -221,7 +230,6 @@ class WindowCreator():
             cl_ieta = pfCluster_ieta[icl]
             cl_iphi = pfCluster_iphi[icl]
             cl_iz =  pfCluster_iz[icl]
-
 
             is_in_window = False
             # Check if it is already in one windows
@@ -295,13 +303,14 @@ class WindowCreator():
                     # The seed is the cluster associated with the particle with the largest fraction
                     "is_seed_calo_seed": caloseed,
                     # Mustache info
-                    "is_seed_mustach_matched": mustache_seed_index != -1,
+                    "is_seed_mustache_matched": mustache_seed_index != -1,
                     "mustache_seed_index": mustache_seed_index,
                     
                     # Score of the seed cluster
                     "seed_score": pfcluster_calo_score[icl],
                     "seed_simen_sig": calo_simenergy[calomatched] * pfcluster_calo_score[icl] if calomatched!=-1 else 0.,
                     "seed_simen_PU":  cluster_PU_simenergy[icl],
+                    "seed_recoen_PU":  cluster_PU_recoenergy[icl],
                     "seed_PUfrac" : PU_simenfrac,
 
                     "seed_eta": cl_eta,
@@ -446,8 +455,8 @@ class WindowCreator():
                         "is_calo_matched": is_calo_matched,
                         # True if the cluster is the main cluster of the calo associated with the seed
                         "is_calo_seed": is_calo_seed,
-                        # is_calo_matched & (sim fraction optimized threshold) || cl it is the seed of the window and it is calomatched
-                        "in_scluster": pass_simfrac_thres or (window["seed_index"] == icl and window["is_seed_calo_matched"]) ,
+                        # is_calo_matched & (sim fraction optimized threshold) || cl it is the seed of the window 
+                        "in_scluster": pass_simfrac_thres or (window["seed_index"] == icl) ,
                         # True if the cluster is associated with the same (legacy) mustache as the seed
                         "in_mustache" : in_mustache,
                         # Score of association with the caloparticle of the seed, if present
@@ -455,6 +464,8 @@ class WindowCreator():
                         # Simenergy of the signal and PU in the cluster
                         "calo_simen_sig": calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl] if is_calo_matched else 0.,
                         "calo_simen_PU":  cluster_PU_simenergy[icl],
+                        "calo_recoen_PU": cluster_PU_recoenergy[icl],
+                        "calo_nxtals_PU": cluster_nXtalsPU[icl],
                         "cluster_PUfrac": PU_simenfrac,
 
                         "cluster_ieta" : cl_ieta,
@@ -488,6 +499,9 @@ class WindowCreator():
                         cevent["cluster_deta"] = cl_eta - window["seed_eta"]
                     else:
                         cevent["cluster_deta"] = window["seed_eta"] - cl_eta
+                    # Delta energy with the seed
+                    cevent["cluster_den_seed"] = window["en_seed"] - cevent["en_cluster"]
+                    cevent["cluster_det_seed"] = window["et_seed"] - cevent["et_cluster"]
                     
                     # Save the cluster in the window
                     window["clusters"].append(cevent)
@@ -519,21 +533,41 @@ class WindowCreator():
                 window["max_deta_cluster_insc"] = -1
                 window["max_dphi_cluster_insc"] = -1
             #General info for all the windows
+            #max variable
             window["ncls"] = len(window["clusters"])
             window["max_en_cluster"] = max( cl["en_cluster"] for cl in window["clusters"])
+            window["max_et_cluster"] = max( cl["et_cluster"] for cl in window["clusters"])
             window["max_deta_cluster"] = max( cl["cluster_deta"] for cl in window["clusters"])
             window["max_dphi_cluster"] = max( cl["cluster_dphi"] for cl in window["clusters"])
+            window["max_den_cluster"] = max( cl["cluster_den_seed"] for cl in window["clusters"])
+            window["max_det_cluster"] = max( cl["cluster_det_seed"] for cl in window["clusters"])
+            #min variables
+            window["min_en_cluster"] = min( cl["en_cluster"] for cl in window["clusters"])
+            window["min_et_cluster"] = min( cl["et_cluster"] for cl in window["clusters"])
+            window["min_deta_cluster"] = min( cl["cluster_deta"] for cl in window["clusters"])
+            window["min_dphi_cluster"] = min( cl["cluster_dphi"] for cl in window["clusters"])
+            window["min_den_cluster"] = min( cl["cluster_den_seed"] for cl in window["clusters"])
+            window["min_det_cluster"] = min( cl["cluster_det_seed"] for cl in window["clusters"])
+            #mean variabes
+            window["mean_en_cluster"] = np.mean( list(cl["en_cluster"] for cl in window["clusters"]))
+            window["mean_et_cluster"] = np.mean( list(cl["et_cluster"] for cl in window["clusters"]))
+            window["mean_deta_cluster"] = np.mean( list(cl["cluster_deta"] for cl in window["clusters"]))
+            window["mean_dphi_cluster"] = np.mean( list(cl["cluster_dphi"] for cl in window["clusters"]))
+            window["mean_den_cluster"] = np.mean( list(cl["cluster_den_seed"] for cl in window["clusters"]))
+            window["mean_det_cluster"] = np.mean( list(cl["cluster_det_seed"] for cl in window["clusters"]))
             # Compute total simEnergy of the signal and PU in the window    
             # Take only the calo of the window
             total_PU_simenergy_inwindow = 0. 
+            total_PU_recoenergy_inwindow = 0.
             total_sig_simenergy_inwindow = 0.
             for cl in window["clusters"]:
                 total_PU_simenergy_inwindow  +=  cl["calo_simen_PU"]
+                total_PU_recoenergy_inwindow  +=  cl["calo_recoen_PU"]
                 total_sig_simenergy_inwindow += cl["calo_simen_sig"]
             # Saving window totals to differentiate from total in the event
             window["wtot_simen_PU"] = total_PU_simenergy_inwindow
+            window["wtot_recoen_PU"] = total_PU_recoenergy_inwindow
             window["wtot_simen_sig"] = total_sig_simenergy_inwindow
-            print(window["wtot_simen_PU"] , window["wtot_simen_sig"] )
         
         if debug:
             print("ALL windows")
@@ -580,7 +614,7 @@ class WindowCreator():
         ## Now save only the first N nocalomatched windows and then nocalowNMax of random ones
         if len(windows_nocalomatched)> len(windows_calomatched):
             windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] + \
-                          random.sample(windows_nocalomatched[len(windows_calomatched):], min(nocalowNmax,len(windows_nocalomatched)-len(windows_calomatched) ))
+                          random.sample(windows_nocalomatched[len(windows_calomatched):], min(nocalowNmax,len(windows_nocalomatched) - len(windows_calomatched) ))
         else:
             windows_to_keep_index = windows_calomatched + windows_nocalomatched
 
