@@ -549,12 +549,12 @@ class WindowCreator():
             window["min_den_cluster"] = min( cl["cluster_den_seed"] for cl in window["clusters"])
             window["min_det_cluster"] = min( cl["cluster_det_seed"] for cl in window["clusters"])
             #mean variabes
-            window["mean_en_cluster"] = np.mean( cl["en_cluster"] for cl in window["clusters"])
-            window["mean_et_cluster"] = np.mean( cl["et_cluster"] for cl in window["clusters"])
-            window["mean_deta_cluster"] = np.mean( cl["cluster_deta"] for cl in window["clusters"])
-            window["mean_dphi_cluster"] = np.mean( cl["cluster_dphi"] for cl in window["clusters"])
-            window["mean_den_cluster"] = np.mean( cl["cluster_den_seed"] for cl in window["clusters"])
-            window["mean_det_cluster"] = np.mean( cl["cluster_det_seed"] for cl in window["clusters"])
+            window["mean_en_cluster"] = np.mean( list(cl["en_cluster"] for cl in window["clusters"]))
+            window["mean_et_cluster"] = np.mean( list(cl["et_cluster"] for cl in window["clusters"]))
+            window["mean_deta_cluster"] = np.mean( list(cl["cluster_deta"] for cl in window["clusters"]))
+            window["mean_dphi_cluster"] = np.mean( list(cl["cluster_dphi"] for cl in window["clusters"]))
+            window["mean_den_cluster"] = np.mean( list(cl["cluster_den_seed"] for cl in window["clusters"]))
+            window["mean_det_cluster"] = np.mean( list(cl["cluster_det_seed"] for cl in window["clusters"]))
             # Compute total simEnergy of the signal and PU in the window    
             # Take only the calo of the window
             total_PU_simenergy_inwindow = 0. 
@@ -568,7 +568,6 @@ class WindowCreator():
             window["wtot_simen_PU"] = total_PU_simenergy_inwindow
             window["wtot_recoen_PU"] = total_PU_recoenergy_inwindow
             window["wtot_simen_sig"] = total_sig_simenergy_inwindow
-            print(window["wtot_simen_PU"] , window["wtot_simen_sig"] )
         
         if debug:
             print("ALL windows")
