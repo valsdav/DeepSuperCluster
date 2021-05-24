@@ -70,35 +70,43 @@ def make_example_window(window):
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
                     ]
 
-    seed_labels =   [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustach_matched"]
-    seed_metadata = [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"]
+    seed_labels =   [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
+    seed_metadata = [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_recoen_PU", "seed_PUfrac"]
 
+    
+    # features that can be used in the training
+    window_features = [  "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
+                         "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
+                         "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ]
     # Metadata about the window like true energy, true calo position, useful info
-    window_metadata = [ "sim_true_eta", "sim_true_phi",  
+    window_metadata = ["nVtx", "rho", "obsPU", "truePU",
+                         "sim_true_eta", "sim_true_phi",  
                         "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                        "nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
-                        "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster",
-                        "nVtx", "rho", "obsPU", "truePU",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig" ]
+                        "nclusters_insc",
+                        "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_recoen_PU","wtot_simen_sig" ]
 
-    cls_features = [  "cluster_ieta","cluster_iphi","cluster_iz",
-                     "cluster_deta", "cluster_dphi",
-                     "en_cluster","et_cluster", 
-                     "en_cluster_calib", "et_cluster_calib",
-                    "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-                    "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
-                    "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
-                    "cl_sigmaIphiIphi","cl_swissCross",
-                    "cl_nxtals", "cl_etaWidth","cl_phiWidth",
+    cls_features = [    "en_cluster","et_cluster",
+                        "cluster_eta", "cluster_phi", 
+                        "cluster_ieta","cluster_iphi","cluster_iz",
+                        "cluster_deta", "cluster_dphi",
+                        "cluster_den_seed","cluster_det_seed",
+                        "en_cluster_calib", "et_cluster_calib",
+                        "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+                        "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+                        "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
+                        "cl_sigmaIphiIphi","cl_swissCross",
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth",
                     ]
 
     cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
-    cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac" ]
+    cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU","calo_recoen_PU", "cluster_PUfrac","calo_nxtals_PU" ]
 
     seed_f = np.array( [window[f] for f in seed_features],dtype='float32')
     seed_l = np.array( [window[f] for f in seed_labels],dtype='int')
     seed_m = np.array( [window[f] for f in seed_metadata],dtype='float32')
+    window_f = np.array( [window[f] for f in window_features],dtype='float32')
     window_m = np.array( [window[f] for f in window_metadata],dtype='float32')
     seed_hits = np.array([ [r[0],r[1],r[2],r[4]] for r in  window['seed_hits']], dtype='float32')
 
@@ -121,6 +129,8 @@ def make_example_window(window):
         's_m': _float_features(seed_m),
         # Seed hits
         's_h': _tensor_feature(seed_hits),
+        # window features (for training)
+        'w_f': _float_features(window_f),
         # window metadata and truth info
         'w_m': _float_features(window_m),
         # window class
@@ -162,7 +172,7 @@ def make_example_window(window):
     
     example = tf.train.SequenceExample(context=tf.train.Features(feature=context_features), 
                                        feature_lists=clusters_list)
-
+    # print(example)
     return example, class_
 
 
@@ -192,6 +202,7 @@ if __name__ == "__main__":
 
     try:
         for i, row in enumerate(it_files):
+            # print(row)
             example, class_ = make_example_window(row)
             writers[class_].write(example.SerializeToString())
             counter[class_] += 1

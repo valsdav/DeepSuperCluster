@@ -61,7 +61,7 @@ MAXNOCALO=$6;
 ET_SEED=$7;
 
 
-echo -e "Running numpy dumper.."
+echo -e "Running ndjson dumper.."
 
 python cluster_ndjson_dynamic_global_nooverlap.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO  {debug};
@@ -128,9 +128,10 @@ for file in files_training:
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 # Join also the last group
-arguments.append("{} {} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,wp_file,
-                args.maxnocalow, args.min_et_seed))
+if len(files_groups):
+    arguments.append("{} {} {} {} {} {} {}".format(
+                    jobid+1,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,wp_file,
+                    args.maxnocalow, args.min_et_seed))
 
 
 # ######## testing
@@ -156,17 +157,11 @@ for file in files_testing:
 print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 # Join also the last group
-arguments.append("{} {} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
+if len(files_groups):
+    arguments.append("{} {} {} {} {} {} {}".format(
+                jobid+1,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
                 args.maxnocalow, args.min_et_seed))
 
-
-print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
-
-#join also the last group
-arguments.append("{} {} {} {} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
-                args.maxnocalow, args.min_et_seed))
 
 print("Njobs: ", len(arguments))
     

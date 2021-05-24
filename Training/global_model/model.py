@@ -549,7 +549,7 @@ class DeepClusterGN(tf.keras.Model):
         # Window classification head
         # self.concat_gcn_SAcl = tf.keras.layers.Concatenate(axis=-1)
         # self-attention for windows classification with "mean" reduction
-        self.SA_windclass = SelfAttentionBlock(name="SA_windclass", input_dim=self.output_dim_gconv, output_dim=self.output_dim_sa_windclass,
+        self.SA_windclass = SelfAttentionBlock(name="SA_windclass", input_dim=self.output_dim_gconv + self.output_dim_nodes, output_dim=self.output_dim_sa_windclass,
                                          reduce="sum", **kwargs)
         self.dense_windclass = get_dense(name="dense_windclass", spec=self.layers_windclass+[self.n_windclasses], act=self.activation,
                                      last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
@@ -562,6 +562,7 @@ class DeepClusterGN(tf.keras.Model):
         self.gcn_output_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
         # self.input_SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
         self.SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
+        self.concat_inputs = tf.keras.layers.Concatenate(axis=-1)
 
     def get_config(self):
         return {
@@ -590,7 +591,7 @@ class DeepClusterGN(tf.keras.Model):
         }
 
     def call(self, inputs, training):
-        cl_X_initial, cl_hits, is_seed,n_cl = inputs 
+        cl_X_initial, wind_X, cl_hits, is_seed, n_cl = inputs 
         # Concatenate the seed label on clusters features
         cl_X_initial = tf.concat([tf.cast(is_seed, tf.float32), cl_X_initial], axis=-1)
         #cl_X now is the latent cluster+rechits representation
@@ -603,16 +604,19 @@ class DeepClusterGN(tf.keras.Model):
     
         # Apply self attention: output already masked internally
         out_SA_clclass, att_weights_clclass = self.SA_clclass(out_gcn, mask_cls, training)
+
+        out_SA_and_inputs = self.concat_inputs([cl_X,out_SA_clclass] )
+        
         # No need to normalize since the self-attention layer
         # interanally has skip connections and add+norms
-        clclass_out = self.dense_clclass(out_SA_clclass, training=training) * mask_cls_to_apply
+        clclass_out = self.dense_clclass(out_SA_and_inputs, training=training) * mask_cls_to_apply
 
         # Concatenate the GCN and SA_clusterclassification output
         # input_SA_windcl = self.concat_gcn_SAcl([out_gcn, out_SA_clclass])
         # Apply Self-attention for window classification
         # input_SA_windcl = self.input_SA_windclass_layernorm(out_gcn + out_SA_clclass)
         # input_SA_windcl = self.SA_windclass_input_dropout(input_SA_windcl, training=training)
-        out_SA_windcl, att_weights_windclass = self.SA_windclass(out_gcn, mask_cls, training)
+        out_SA_windcl, att_weights_windclass = self.SA_windclass(out_SA_and_inputs, mask_cls, training)
         # Norm before dense for wind classification because the sum is performed in the SA layer
         out_SA_windcl = self.SA_windclass_layernorm(out_SA_windcl)
         out_SA_windcl = self.SA_windclass_output_dropout(out_SA_windcl, training=training)

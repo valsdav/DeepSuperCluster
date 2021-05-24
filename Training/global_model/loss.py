@@ -2,7 +2,7 @@ import tensorflow as tf
 
 def clusters_classification_loss(y_true, y_pred):
     dense_clclass, dense_windclass, mask_cls, _  = y_pred
-    y_clclass, y_windclass, cl_X, y_metadata = y_true
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
         
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass, dense_clclass, from_logits=True) * mask_cls
     reduced_loss = tf.reduce_mean(tf.reduce_sum(class_loss, axis=-1))
@@ -11,7 +11,7 @@ def clusters_classification_loss(y_true, y_pred):
 
 def energy_weighted_classification_loss(y_true, y_pred):
     dense_clclass,dense_windclass, mask_cls, _  = y_pred
-    y_clclass, y_windclass, cl_X, y_metadata = y_true
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     cl_ets = cl_X[:,:,1]
     # compute the weighting mean of the loss based on the energy of each seed in the window
     cl_ets_weights = cl_ets / tf.reduce_sum(cl_ets, axis=-1)[:,tf.newaxis]
@@ -24,7 +24,7 @@ def energy_weighted_classification_loss(y_true, y_pred):
 
 def window_classification_loss(y_true, y_pred):
     dense_clclass,dense_windclass, mask_cls, _  = y_pred
-    y_clclass, y_windclass, cl_X, y_metadata = y_true
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
 
     # Only window multi-class classification
     windclass_loss = tf.keras.losses.categorical_crossentropy(y_windclass, dense_windclass, from_logits=True)
@@ -34,7 +34,7 @@ def window_classification_loss(y_true, y_pred):
 
 def energy_loss(y_true, y_pred):
     dense_clclass,dense_windclass, mask_cls, _  = y_pred
-    y_clclass, y_windclass, cl_X, y_metadata = y_true
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     y_target = tf.cast(y_clclass, tf.float32) 
 
     pred_prob = tf.nn.sigmoid(dense_clclass)
@@ -48,7 +48,7 @@ def energy_loss(y_true, y_pred):
 
 def soft_f1_score(y_true, y_pred):
     dense_clclass,dense_windclass, mask_cls, _  = y_pred
-    y_clclass, y_windclass, cl_X, y_metadata = y_true
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     y_target = tf.cast(y_clclass, tf.float32) 
 
     pred_prob = tf.nn.sigmoid(dense_clclass)

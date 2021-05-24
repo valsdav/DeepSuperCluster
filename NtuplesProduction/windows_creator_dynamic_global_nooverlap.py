@@ -470,6 +470,8 @@ class WindowCreator():
 
                         "cluster_ieta" : cl_ieta,
                         "cluster_iphi" : cl_iphi,
+                        "cluster_eta" : cl_eta,
+                        "cluster_phi" : cl_phi,
                         "cluster_dphi":phiw ,
                         "cluster_iz" : cl_iz,
                         "en_cluster": pfCluster_rawEnergy[icl],

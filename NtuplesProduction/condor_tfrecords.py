@@ -83,11 +83,9 @@ ifile_used = 0
 ifile_curr = 0
 
 while ifile_used < nfiles_training:
-    while (template_inputfile.format(ifile_curr) not in inputfiles): 
-        ifile_curr +=1
-    
-    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
-    ifile_used +=1 
+    if(template_inputfile.format(ifile_curr) in inputfiles):
+        files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+        ifile_used +=1 
     ifile_curr +=1
 
     if len(files_groups) == args.nfile_group:
@@ -98,11 +96,13 @@ while ifile_used < nfiles_training:
         files_groups = []
         ifile_group = 0
 
+print(files_groups)
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
+if len(files_groups)>0:
 # Join also the last group
-arguments.append("{} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/training",args.flag))
+    arguments.append("{} {} {} {}".format(
+                    jobid+1,"#_#".join(files_groups), args.outputdir +"/training",args.flag))
 
 
 ######## testing
@@ -112,11 +112,9 @@ ifile_used = 0
 #ifile_curr from training cycle
 
 while ifile_used < nfiles_testing:
-    while (template_inputfile.format(ifile_curr) not in inputfiles): 
-        ifile_curr +=1
-    
-    files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
-    ifile_used +=1 
+    if(template_inputfile.format(ifile_curr) in inputfiles):
+        files_groups.append(args.inputdir + "/" + template_inputfile.format(ifile_curr))
+        ifile_used +=1 
     ifile_curr +=1
 
     if len(files_groups) == args.nfile_group:
@@ -129,9 +127,10 @@ while ifile_used < nfiles_testing:
 
 print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
-#join also the last group
-arguments.append("{} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir +"/testing",args.flag))
+if len(files_groups)>0:
+    #join also the last group
+    arguments.append("{} {} {} {}".format(
+                    jobid+1,"#_#".join(files_groups), args.outputdir +"/testing",args.flag))
 
 print("Njobs: ", len(arguments))
     
