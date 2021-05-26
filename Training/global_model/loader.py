@@ -8,9 +8,9 @@ import tf_data
 
     
 
-def load_dataset(path_dict, batch_size, nevents=None, features_dict=None, weights=None, ):
+def load_dataset(path_dict, batch_size, nevents=None, features_dict=None, weights=None, training=False ):
     # Load a balanced dataset from the list of paths given to the function. Selected only the requestes features from clusters and prepare batches
-    test_ds = tf_data.load_balanced_dataset_batch(path_dict, features_dict, batch_size, weights=weights)
+    test_ds = tf_data.load_balanced_dataset_batch(path_dict, features_dict, batch_size, weights=weights, training=training)
     # the indexes for energy and et are from the features list we requestes
     test_ds = tf_data.normalize_features(test_ds, "normalization.npz", "normalization_wind_features.npz")
     test_ds = tf_data.training_format(test_ds)

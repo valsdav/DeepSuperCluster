@@ -63,7 +63,7 @@ print("N. metadata: ", N_metadata)
 print("N. seed features: ", N_seed_features)
 
 print(">> Load the dataset ")
-dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents)
+dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False)
 X,y = tf_data.get(dataset)
 
 print(">> Load the model")
@@ -81,7 +81,8 @@ for ib, (X, y_true) in enumerate(dataset):
         now = time()
         rate = 10* args.batch_size / (now-lastT)
         lastT = now
-        print("Events: {} ({:.1f}Hz)".format(ib*args.batch_size, rate))
+        nsecond = (args.nevents - args.batch_size*ib) / rate
+        print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*args.batch_size, rate, nsecond//60, nsecond%60))
         
     y_out = model(X, training=False)
     
@@ -100,11 +101,17 @@ for ib, (X, y_true) in enumerate(dataset):
     Et_tot_window = tf.squeeze(tf.reduce_sum(Et, axis=1))
     En_tot_window = tf.squeeze(tf.reduce_sum(En, axis=1))
     Et_true = tf.reduce_sum( tf.squeeze(Et * y_target),axis=1)
-    Et_sel = tf.reduce_sum( tf.squeeze(Et * y_pred),axis=1)      
-    Et_mustache = tf.reduce_sum( tf.squeeze(Et) * y_mustache, axis=1)  
+
+    Et_sel =  tf.reduce_sum( tf.squeeze(Et * y_pred),axis=1)
+    Et_sel_true = tf.reduce_sum( tf.squeeze(Et * y_pred * y_target ),axis=1)
+    Et_sel_mustache = tf.reduce_sum( tf.squeeze(Et) * y_mustache, axis=1)  
+    Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)  
+
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
-    En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1)      
-    En_mustache = tf.reduce_sum( tf.squeeze(En) * y_mustache, axis=1)
+    En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1) 
+    En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1)    
+    En_sel_mustache = tf.reduce_sum( tf.squeeze(En) * y_mustache, axis=1)
+    En_sel_mustache_true = tf.reduce_sum( tf.squeeze(En * y_target) * y_mustache, axis=1)
     
     data['ncls'].append(n_cl.numpy())
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
@@ -120,18 +127,22 @@ for ib, (X, y_true) in enumerate(dataset):
     
     data['Et_true'].append(Et_true.numpy())
     data['Et_sel'].append(Et_sel.numpy())   
+    data['Et_sel_true'].append(Et_sel_true.numpy())   
     data['En_true'].append(En_true.numpy())
     data['En_sel'].append(En_sel.numpy()) 
+    data['En_sel_true'].append(En_sel_true.numpy()) 
     
     data['Et_ovEtrue'].append((Et_sel/Et_true).numpy())   
     data['En_ovEtrue'].append((En_sel/En_true).numpy())   
     
     #Mustache energy
-    data['Et_sel_mustache'].append(Et_mustache.numpy())        
-    data['En_sel_mustache'].append(En_mustache.numpy())        
+    data['Et_sel_must'].append(Et_sel_mustache.numpy())        
+    data['En_sel_must'].append(En_sel_mustache.numpy())   
+    data['Et_sel_must_true'].append(Et_sel_mustache_true.numpy())        
+    data['En_sel_must_true'].append(En_sel_mustache_true.numpy())        
     
-    data['Et_ovEtrue_mustache'].append((Et_mustache/Et_true).numpy())   
-    data['En_ovEtrue_mustache'].append((En_mustache/En_true).numpy())   
+    data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
+    data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy())   
     
     
     data["flavour"].append(y_metadata[:, -1].numpy())
