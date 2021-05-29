@@ -53,7 +53,7 @@ def parameters(ds, features):
     sigma = dict(zip(features, s))
     return mean, sigma
 
-def convert_df(data_path, features, metadata, n_samples=100):
+def convert_df(data_path, features, n_samples=100):
     '''
     Function to convert tensorflow dataset to pandas dataframe.
     
@@ -67,12 +67,12 @@ def convert_df(data_path, features, metadata, n_samples=100):
     '''
     # prepare the required variables
     dataframes = []
-    ds = tf_data.load_balanced_dataset_batch(data_path, features, metadata, 1).take(n_samples)
-    features_ext = features
+    ds = tf_data.load_balanced_dataset_batch(data_path, features, 1).take(n_samples)
+    features_ext = features["cl_features"]
     
     # iterate through the dataset
     for el in ds: 
-        cl_X, _, is_seed, n_cl, in_sc, wind_meta = el
+        cl_X, _,_, is_seed, n_cl, in_sc, wind_meta,_ = el
         # choose only features that were passed to the function
         X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
         d = dict(zip(features_ext, X_features))
@@ -84,10 +84,10 @@ def convert_df(data_path, features, metadata, n_samples=100):
         df_el['in_sc'] = in_sc[0].numpy()
         
         # window metadata info  
-        for i, meta in enumerate(metadata):
+        for i, meta in enumerate(features['window_metadata']):
             df_el[meta] = wind_meta[0,i].numpy()
            
-        df_el['seed_eta'] = wind_meta[0,-2].numpy()
+        df_el['seed_eta'] = wind_meta[0,-3].numpy()
         
         dataframes.append(df_el)
     
