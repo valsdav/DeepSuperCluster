@@ -69,6 +69,7 @@ python cluster_ndjson_dynamic_global_nooverlap.py -i ${INPUTFILE} -o output.ndjs
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
 xrdcp -f --nopbar  output.{output_ext} root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.{output_ext};
+xrdcp -f --nopbar  output.meta.csv root://eos{eosinstance}.cern.ch/${OUTPUTDIR}/clusters_data_${JOBID}.meta.csv;
 
 echo -e "DONE";
 '''

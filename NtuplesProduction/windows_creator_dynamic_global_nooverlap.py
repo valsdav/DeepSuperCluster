@@ -126,6 +126,14 @@ class WindowCreator():
 
 
     def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1, debug=False):
+        # Metadata for debugging
+        metadata = {
+            "n_windows_matched" : 0,
+            "n_windows_nomatched" : 0,
+            "n_seeds_good":0,
+            # "n_seeds_bad_calo_position": 0,
+            "n_seeds_in_other_window": 0,
+        }
         # Branches
         pfCluster_energy = event.pfCluster_energy
         pfCluster_rawEnergy = event.pfCluster_rawEnergy
@@ -138,7 +146,10 @@ class WindowCreator():
         calo_genenergy = event.caloParticle_genEnergy
         calo_simeta = event.caloParticle_simEta
         calo_simphi = event.caloParticle_simPhi
+        calo_geneta = event.caloParticle_genEta
+        calo_genphi = event.caloParticle_genPhi
         calo_simiz = event.caloParticle_simIz
+        # calo_geniz = event.caloParticle_genIz
         # calo_isPU = event.caloParticle_isPU
         # calo_isOOTPU = event.caloParticle_isOOTPU
         pfcl_f5_r9 = event.pfCluster_full5x5_r9
@@ -170,10 +181,6 @@ class WindowCreator():
         # Get Association between pfcluster and calo
         # Sort the clusters for each calo in order of score. 
         # # This is needed to understand which cluster is the seed of the calo
-        # pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map, cluster_PU_simenergy = \
-        #                         calo_association.get_calo_association_withpu(clusters_scores, calo_isPU, calo_isOOTPU,
-        #                                                                     calo_simenergy,  sort_calo_cl=True, 
-        #                                                                     debug=False, min_sim_fraction=self.cluster_min_fraction)
         # Working only on signal caloparticle
         pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
                                 calo_association.get_calo_association(clusters_scores, sort_calo_cl=True, debug=False, min_sim_fraction=self.cluster_min_fraction)
@@ -243,40 +250,38 @@ class WindowCreator():
                 
             # Create new window ONLY IF THE CLUSTER IS NOT ALREADY IN ANOTHER WINDOW
             if not is_in_window:
-                # - Check if the seed has more signal simEnergy than PU simEnergy, if not the seed is not associated to the calo
+                # - CHeck if the seed simFraction with the signal calo is at least seed_min_fraction
                 # - Check if the seed is associated with a calo in the window: calomatched 
                 # - Check if the seed is the main cluster of the calo:  caloseed
                 # It is required to have seed_min_fraction% of the calo energy and to be "in the window" of the seed
                 if pfcluster_calo_map[icl] !=-1 and pfcluster_calo_score[icl] > self.seed_min_fraction:
                     # ID of the associated caloparticle
                     caloid = pfcluster_calo_map[icl] 
-                    # Check the fraction of sim energy and PU energy 
-                    PU_simenfrac = cluster_PU_simenergy[icl] / (calo_simenergy[caloid] * pfcluster_calo_score[icl])
-                    # if the simenergy from PU is smaller than the limit the seed is good
-                    if PU_simenfrac < self.simenergy_pu_limit:
-                        #Check if the caloparticle is in the same window
-                        if in_window(calo_simeta[caloid],calo_simphi[caloid],calo_simiz[caloid], cl_eta, cl_phi, cl_iz, 
-                                                        *self.dynamic_window(cl_eta)):
-                            calomatched = caloid
-                            # Now check if the seed cluster is the main cluster of the calo
-                            if calo_pfcluster_map[caloid][0][0] == icl:
-                                caloseed = True
-                            else:
-                                caloseed =False
-                            if debug: 
-                                print("Seed-to-calo: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, seed PUenfract: {:.3f}, is caloseed: {}".format(
-                                                    icl,caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], PU_simenfrac, caloseed))
+                    # Do not check PU fraction on the seed
+                    PU_simenfrac = cluster_PU_simenergy[icl] / (calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl])
+                    #Check if the caloparticle is in the same window with GEN info
+                    if in_window(calo_geneta[caloid],calo_genphi[caloid],calo_simiz[caloid], cl_eta, cl_phi, cl_iz, 
+                                                    *self.dynamic_window(cl_eta)):
+                        calomatched = caloid
+                        metadata["n_seeds_good"] +=1
+                        # Now check if the seed cluster is the main cluster of the calo
+                        if calo_pfcluster_map[caloid][0][0] == icl:
+                            caloseed = True
                         else:
-                            calomatched = -1
-                            caloseed = False
-                            if debug: 
-                                print("Seed-to-calo [Failed window cut]: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, seed PUenfract: {:.3f}, is caloseed: {}".format(
-                                                    icl, caloid,cl_eta,calo_simeta[caloid], pfcluster_calo_score[icl], PU_simenfrac, caloseed))
+                            caloseed =False
+                        if debug: 
+                            print("Seed-to-calo: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_genEta : {:.3f}, seed_score: {:.5f}, is caloseed: {}".format(
+                                                icl,caloid,cl_eta,calo_geneta[caloid], pfcluster_calo_score[icl], caloseed))
                     else:
-                        if debug: print("Seed {} do not pass PU simenergy cut {:.3f}".format(icl, PU_simenfrac))
-                        calomatched = -1 
+                        metadata["n_seeds_bad_calo_position"] +=1
+                        calomatched = -1
                         caloseed = False
+                        if debug: 
+                            print("Seed-to-calo [Failed window cut]: cluster: {}, calo: {}, seed_eta: {:.3f}, calo_eta : {:.3f}, seed_score: {:.5f}, is caloseed: {}".format(
+                                                icl, caloid,cl_eta,calo_geneta[caloid], pfcluster_calo_score[icl], caloseed))
+                
                 else:
+                    metadata["n_windows_nomatched"] += 1
                     calomatched = -1 
                     caloseed = False
                     PU_simenfrac = -1.
@@ -321,7 +326,9 @@ class WindowCreator():
 
                     # Sim position
                     "sim_true_eta" : calo_simeta[calomatched] if calomatched!=-1 else 0, 
-                    "sim_true_phi": calo_simphi[calomatched] if calomatched!=-1 else 0, 
+                    "sim_true_phi":  calo_simphi[calomatched] if calomatched!=-1 else 0, 
+                    "gen_true_eta" : calo_geneta[calomatched] if calomatched!=-1 else 0, 
+                    "gen_true_phi":  calo_genphi[calomatched] if calomatched!=-1 else 0, 
 
                     # Energy of the seed
                     "en_seed": pfCluster_rawEnergy[icl],
@@ -614,6 +621,8 @@ class WindowCreator():
         # In this version we keep all the windows
 
         ## Now save only the first N nocalomatched windows and then nocalowNMax of random ones
+        metadata["n_windows_matched"] = len(windows_calomatched) 
+        metadata["n_windows_nomatched"] = len(windows_nocalomatched) 
         if len(windows_nocalomatched)> len(windows_calomatched):
             windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] + \
                           random.sample(windows_nocalomatched[len(windows_calomatched):], min(nocalowNmax,len(windows_nocalomatched) - len(windows_calomatched) ))
@@ -635,5 +644,5 @@ class WindowCreator():
             # pprint(window)
 
         # if debug: print(output_data)
-        return output_data
+        return output_data, metadata
 

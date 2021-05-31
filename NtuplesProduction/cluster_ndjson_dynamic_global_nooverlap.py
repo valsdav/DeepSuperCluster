@@ -51,7 +51,7 @@ SEED_MIN_FRACTION=1e-2
 # min simFraction for the cluster to be associated with the caloparticle
 CL_MIN_FRACION=1e-4
 # threshold of simEnergy PU / simEnergy signal for each cluster and seed to be matched with a caloparticle
-SIMENERGY_PU_LIMIT=0.6667
+SIMENERGY_PU_LIMIT=2.0
 
 windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,cl_min_fraction=CL_MIN_FRACION, simenergy_pu_limit = SIMENERGY_PU_LIMIT)
 
@@ -62,6 +62,8 @@ energies_maps = []
 metadata = []
 windows_files = open(args.outputfile, "w")
 
+all_metadata = [ ] 
+
 for inputfile in inputfiles:
     f = R.TFile(inputfile);
     tree = f.Get("recosimdumper/caloTree")
@@ -69,11 +71,14 @@ for inputfile in inputfiles:
     print ("Starting")
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
-        windows_data = windows_creator.get_windows(event, args.assoc_strategy, 
+        windows_data, debug_metadata = windows_creator.get_windows(event, args.assoc_strategy, 
                 nocalowNmax= args.maxnocalow, min_et_seed= args.min_et_seed, debug= args.debug )
+        all_metadata.append(debug_metadata)
         for w in windows_data:
             windows_files.write(w)
-            windows_files.write('\n')        
-       
+            windows_files.write('\n')           
     f.Close()
+ 
+meta = pd.DataFrame(all_metadata)
+meta.to_csv("output.meta.csv", sep=';', index=False)
         
