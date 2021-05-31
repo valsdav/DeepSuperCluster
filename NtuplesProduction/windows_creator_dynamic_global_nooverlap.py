@@ -131,7 +131,7 @@ class WindowCreator():
             "n_windows_matched" : 0,
             "n_windows_nomatched" : 0,
             "n_seeds_good":0,
-            # "n_seeds_bad_calo_position": 0,
+            "n_seeds_bad_calo_position": 0,
             "n_seeds_in_other_window": 0,
         }
         # Branches

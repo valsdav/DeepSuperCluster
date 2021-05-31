@@ -82,10 +82,10 @@ def make_example_window(window):
     window_metadata = ["nVtx", "rho", "obsPU", "truePU",
                          "sim_true_eta", "sim_true_phi",  
                         "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
-                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                        "nclusters_insc",
+                        "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
+                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_recoen_PU","wtot_simen_sig" ]
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig" ]
 
     cls_features = [    "en_cluster","et_cluster",
                         "cluster_eta", "cluster_phi", 
@@ -101,7 +101,7 @@ def make_example_window(window):
                     ]
 
     cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
-    cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU","calo_recoen_PU", "cluster_PUfrac","calo_nxtals_PU" ]
+    cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU" ]
 
     seed_f = np.array( [window[f] for f in seed_features],dtype='float32')
     seed_l = np.array( [window[f] for f in seed_labels],dtype='int')

@@ -9,29 +9,29 @@ import tensorflow as tf
 ## Default features dictionary
 
 default_features_dict = {
-    "cl_features" : ["en_cluster","et_cluster",
-            "cluster_eta", "cluster_phi", 
-            "cluster_ieta","cluster_iphi","cluster_iz",
-            "cluster_deta", "cluster_dphi",
-            "cluster_den_seed","cluster_det_seed",
-            "en_cluster_calib", "et_cluster_calib",
-            "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-            "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
-            "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
-            "cl_sigmaIphiIphi","cl_swissCross",
-            "cl_nxtals", "cl_etaWidth","cl_phiWidth"],
+    "cl_features" : [ "en_cluster","et_cluster",
+                        "cluster_eta", "cluster_phi", 
+                        "cluster_ieta","cluster_iphi","cluster_iz",
+                        "cluster_deta", "cluster_dphi",
+                        "cluster_den_seed","cluster_det_seed",
+                        "en_cluster_calib", "et_cluster_calib",
+                        "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+                        "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+                        "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
+                        "cl_sigmaIphiIphi","cl_swissCross",
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth",],
 
-  "window_features" : ["max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
+  "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                          "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
                          "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
   "window_metadata": ["nVtx", "rho", "obsPU", "truePU",
                          "sim_true_eta", "sim_true_phi",  
                         "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
-                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                        "nclusters_insc",
+                        "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
+                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_recoen_PU","wtot_simen_sig"  ],
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ],
     
 
   "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
@@ -41,7 +41,11 @@ default_features_dict = {
                     "seed_r9","seed_sigmaIetaIeta", "seed_sigmaIetaIphi",
                     "seed_sigmaIphiIphi","seed_swissCross",
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
-                    ]
+                    ],
+
+    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_recoen_PU", "seed_PUfrac"],
+
+    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU" ]
 }
 
 
@@ -90,12 +94,19 @@ def get_window_metadata_indexes(feats):
 
 ####################################
 
+N_seed_features = len(default_features_dict["seed_features"])
+N_window_features = len(default_features_dict["window_features"])
+N_cl_features = len(default_features_dict["cl_features"])
+N_seed_metadata = len(default_features_dict["seed_metadata"])
+N_window_metadata = len(default_features_dict["window_metadata"])
+N_cl_metadata = len(default_features_dict["cl_metadata"])
+
 def parse_single_window(element, read_hits=False, read_metadata=False):
     context_features = {
-        's_f': tf.io.FixedLenFeature([22], tf.float32),
+        's_f': tf.io.FixedLenFeature([N_seed_features], tf.float32),
         's_l': tf.io.FixedLenFeature([3], tf.int64),
         #Window features
-        'w_f': tf.io.FixedLenFeature([18], tf.float32),
+        'w_f': tf.io.FixedLenFeature([N_window_features], tf.float32),
         # window class
         'w_cl' : tf.io.FixedLenFeature([], tf.int64),
         # number of clusters
@@ -105,17 +116,17 @@ def parse_single_window(element, read_hits=False, read_metadata=False):
     }
     
     clusters_features = {
-        "cl_f" : tf.io.FixedLenSequenceFeature([26], dtype=tf.float32),
+        "cl_f" : tf.io.FixedLenSequenceFeature([N_cl_features], dtype=tf.float32),
         "cl_l" : tf.io.FixedLenSequenceFeature([6], dtype=tf.int64),
     }
 
     if read_metadata:
         # seed metadata
-        context_features["s_m"] = tf.io.FixedLenFeature([5], tf.float32) 
+        context_features["s_m"] = tf.io.FixedLenFeature([N_seed_metadata], tf.float32) 
         # window metadata
-        context_features["w_m"] = tf.io.FixedLenFeature([22], tf.float32)
+        context_features["w_m"] = tf.io.FixedLenFeature([N_window_metadata], tf.float32)
         # Cluster metadata
-        clusters_features["cl_m"]= tf.io.FixedLenSequenceFeature([6], dtype=tf.float32)
+        clusters_features["cl_m"]= tf.io.FixedLenSequenceFeature([N_cl_metadata], dtype=tf.float32)
 
     if read_hits:
         context_features['s_h'] = tf.io.FixedLenFeature([], tf.string)
@@ -143,10 +154,10 @@ def parse_single_window(element, read_hits=False, read_metadata=False):
 ########################
 def parse_windows_batch(elements, read_hits=False, read_metadata=False):
     context_features = {
-        's_f': tf.io.FixedLenFeature([22], tf.float32),
+        's_f': tf.io.FixedLenFeature([N_seed_features], tf.float32),
         's_l': tf.io.FixedLenFeature([3], tf.int64),
         #Window features
-        'w_f': tf.io.FixedLenFeature([18], tf.float32),
+        'w_f': tf.io.FixedLenFeature([N_window_features], tf.float32),
         # window class
         'w_cl' : tf.io.FixedLenFeature([], tf.int64),
         # number of clusters
@@ -155,17 +166,17 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
         'f' :  tf.io.FixedLenFeature([], tf.int64)
     }
     clusters_features = {
-        "cl_f" : tf.io.FixedLenSequenceFeature([26], dtype=tf.float32),
+        "cl_f" : tf.io.FixedLenSequenceFeature([N_cl_features], dtype=tf.float32),
         "cl_l" : tf.io.FixedLenSequenceFeature([6], dtype=tf.int64),
     }
 
     if read_metadata:
         # seed metadata
-        context_features["s_m"] = tf.io.FixedLenFeature([5], tf.float32) 
+        context_features["s_m"] = tf.io.FixedLenFeature([N_seed_metadata], tf.float32) 
         # window metadata
-        context_features["w_m"] = tf.io.FixedLenFeature([22], tf.float32)
+        context_features["w_m"] = tf.io.FixedLenFeature([N_window_metadata], tf.float32)
         # Cluster metadata
-        clusters_features["cl_m"]= tf.io.FixedLenSequenceFeature([6], dtype=tf.float32)
+        clusters_features["cl_m"]= tf.io.FixedLenSequenceFeature([N_cl_metadata], dtype=tf.float32)
 
     if read_hits:
         # context_features['s_h'] = tf.io.FixedLenFeature([1], tf.string)
@@ -325,13 +336,13 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
         features_dict = default_features_dict
     else:
         if "cl_features" not in features_dict:
-            features_dict["cl_features"] = default_features_dict
+            features_dict["cl_features"] = default_features_dict["cl_features"]
         if "seed_features" not in features_dict:
-            features_dict["seed_features"] = default_features_dict
+            features_dict["seed_features"] = default_features_dict["seed_features"] 
         if "window_features" not in features_dict:
-            features_dict["window_features"] = default_features_dict
+            features_dict["window_features"] = default_features_dict["window_features"]
         if "window_metadata" not in features_dict:
-            features_dict["window_metadata"] = default_features_dict
+            features_dict["window_metadata"] = default_features_dict["window_metadata"]
 
     datasets = {}
     for n, p in data_paths.items():

@@ -66,7 +66,7 @@ if not os.path.exists(args.outputdir):
     os.makedirs(args.outputdir +"/training")
     os.makedirs(args.outputdir +"/testing")
 
-inputfiles = [ f for f in os.listdir(args.inputdir)]
+inputfiles = [ f for f in os.listdir(args.inputdir) if 'tar.gz' in f]
 ninputfiles = len(inputfiles)
 template_inputfile = "clusters_data_{}.ndjson.tar.gz"
 
@@ -96,7 +96,7 @@ while ifile_used < nfiles_training:
         files_groups = []
         ifile_group = 0
 
-print(files_groups)
+# print(files_groups)
 print ("N files used for training: {}, Last id file used: {}".format(ifile_used+1, ifile_curr))
 
 if len(files_groups)>0:
