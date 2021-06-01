@@ -48,7 +48,7 @@ features_dict = {
                     "nVtx", "rho", "obsPU", "truePU",
                     "sim_true_eta", "sim_true_phi",  
                     "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                    "event_tot_simen_PU","wtot_simen_PU","wtot_recoen_PU","wtot_simen_sig" ],
+                    "event_tot_simen_PU","wtot_simen_PU", "wtot_simen_sig" ],
     
     
   "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
@@ -63,7 +63,8 @@ print("N. metadata: ", N_metadata)
 print("N. seed features: ", N_seed_features)
 
 print(">> Load the dataset ")
-dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False)
+dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False, 
+                            normalization_files=['normalization_v9.npz','normalization_wind_features_v9.npz'])
 X,y = tf_data.get(dataset)
 
 print(">> Load the model")
