@@ -108,11 +108,15 @@ for ib, (X, y_true) in enumerate(dataset):
     Et_sel_mustache = tf.reduce_sum( tf.squeeze(Et) * y_mustache, axis=1)  
     Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)  
 
-    En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
+    En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)  # or maybe use en-true=sim? 
+    En_true_gen =  y_metadata[:,2]
     En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1) 
-    En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1)    
+    En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1)  
+    # En_sel_corr = En_sel * tf.squeeze(en_regr_factor*3)  
     En_sel_mustache = tf.reduce_sum( tf.squeeze(En) * y_mustache, axis=1)
     En_sel_mustache_true = tf.reduce_sum( tf.squeeze(En * y_target) * y_mustache, axis=1)
+    
+    En_true_sim = y_metadata[:,0]
     
     data['ncls'].append(n_cl.numpy())
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
@@ -128,13 +132,17 @@ for ib, (X, y_true) in enumerate(dataset):
     
     data['Et_true'].append(Et_true.numpy())
     data['Et_sel'].append(Et_sel.numpy())   
-    data['Et_sel_true'].append(Et_sel_true.numpy())   
+    data['Et_sel_true'].append(Et_sel_true.numpy()) 
+
     data['En_true'].append(En_true.numpy())
+    data['En_true_gen'].append(En_true_gen.numpy())
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_true'].append(En_sel_true.numpy()) 
+    # data['En_sel_corr'].append(En_sel_corr.numpy()) 
     
     data['Et_ovEtrue'].append((Et_sel/Et_true).numpy())   
     data['En_ovEtrue'].append((En_sel/En_true).numpy())   
+    data['En_ovEtrue_sim'].append((En_sel/En_true_sim).numpy())   
     
     #Mustache energy
     data['Et_sel_must'].append(Et_sel_mustache.numpy())        
@@ -144,7 +152,12 @@ for ib, (X, y_true) in enumerate(dataset):
     
     data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
     data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy())   
+    data['En_ovEtrue_sim_mustache'].append((En_sel_mustache/En_true_sim).numpy())   
     
+    # data["en_regr_factor"].append(tf.squeeze(en_regr_factor*3).numpy())
+    data["En_ovEtrue_gen"].append((En_sel/En_true_gen).numpy())
+    data["En_ovEtrue_gen_mustache"].append((En_sel_mustache/En_true_gen).numpy())
+    # data["En_ovEtrue_gen_corr"].append((En_sel_corr/En_true_gen).numpy())
     
     data["flavour"].append(y_metadata[:, -1].numpy())
     

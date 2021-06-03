@@ -45,7 +45,9 @@ default_features_dict = {
 
     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_recoen_PU", "seed_PUfrac"],
 
-    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU" ]
+    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU" ],
+    "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"],
+    "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
 }
 
 
