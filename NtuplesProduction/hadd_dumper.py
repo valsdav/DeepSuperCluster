@@ -15,7 +15,9 @@ def chunks(lst, n):
 
 
 def hadd(d):
-    os.system("hadd {}/output_{}.root {}".format(outputdir, d[0]+1, " ".join(d[1])))
+    output = "{}/output_{}.root".format(outputdir, d[0]+1)
+    if os.path.exists(output): return
+    os.system("hadd {} {}".format(output, " ".join(d[1])))
     
 pool = Pool()
 pool.map(hadd, chunks(files, ngroup))

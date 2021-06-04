@@ -135,6 +135,7 @@ for ib, (X, y_true) in enumerate(dataset):
     data['Et_sel_true'].append(Et_sel_true.numpy()) 
 
     data['En_true'].append(En_true.numpy())
+    data['En_true_sim'].append(En_true_sim.numpy())
     data['En_true_gen'].append(En_true_gen.numpy())
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_true'].append(En_sel_true.numpy()) 

@@ -4,6 +4,7 @@ import sys
 import os
 from pprint import pprint
 import pandas as pd
+from math import pi, sqrt, cosh
 import math
 import argparse 
 import random
@@ -20,7 +21,7 @@ parser.add_argument("-sf","--skip-files", type=int, help="Nfiles to skip", defau
 args = parser.parse_args()
 
 
-file_ele = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_Reduced_Dumper_v2/FourElectronsGunPt1_Dumper_v2_hadd/"
+file_ele = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper/hadd/"
 file_gamma = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper/hadd/"
 nfiles = args.nfiles
 
@@ -46,6 +47,22 @@ files = [file + f for f in os.listdir(file)[args.skip_files:]][:nfiles]
 simfraction_thresholds_file = R.TFile(args.simFraction)
 simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
 
+
+
+def DeltaR(phi1, eta1, phi2, eta2):
+    dphi = phi1 - phi2
+    if dphi > pi: dphi -= 2*pi
+    if dphi < -pi: dphi += 2*pi
+    deta = eta1 - eta2
+    deltaR = (deta*deta) + (dphi*dphi)
+    return sqrt(deltaR)
+
+def DeltaPhi(phi1, phi2):
+    dphi = phi1 - phi2
+    if dphi > pi: dphi -= 2*pi
+    if dphi < -pi: dphi += 2*pi
+    return dphi
+
 def pass_simfraction_threshold(seed_eta, seed_et, cluster_calo_score ):
     '''
     This functions associates a cluster as true matched if it passes a threshold in simfraction
@@ -57,12 +74,56 @@ def pass_simfraction_threshold(seed_eta, seed_et, cluster_calo_score ):
     return cluster_calo_score >= thre
 
 
+def dynamic_window(eta):
+    aeta = abs(eta)
+
+    if aeta >= 0 and aeta < 0.1:
+        deta_up = 0.075
+    if aeta >= 0.1 and aeta < 1.3:
+        deta_up = 0.0758929 -0.0178571* aeta + 0.0892857*(aeta**2) 
+    elif aeta >= 1.3 and aeta < 1.7:
+        deta_up = 0.2
+    elif aeta >=1.7 and aeta < 1.9:
+        deta_up = 0.625 -0.25*aeta
+    elif aeta >= 1.9:
+        deta_up = 0.15
+
+    if aeta < 2.1: 
+        deta_down = -0.075
+    elif aeta >= 2.1 and aeta < 2.5:
+        deta_down = -0.1875 *aeta + 0.31875
+    elif aeta >=2.5:
+        deta_down = -0.15
+        
+    if aeta < 1.9:
+        dphi = 0.6
+    elif aeta >= 1.9 and aeta < 2.7:
+        dphi = 1.075 - 0.25 * aeta
+    elif aeta >= 2.7:
+        dphi = 0.4      
+    return deta_up, deta_down, dphi
+
+def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_deta_up, windows_deta_down, window_dphi):
+    if seed_iz != iz: return False, (-1,-1)
+    # Delta Eta ordering
+    etaw = eta - seed_eta
+    if seed_eta < 0:
+        etaw = -etaw
+    phiw = DeltaPhi(seed_phi, phi)
+    if etaw >= windows_deta_down and etaw <= window_deta_up  and abs(phiw) <= window_dphi: 
+        return True, (etaw, phiw)
+    else:
+        return False,(-1,-1)
+
 def run(fi):
     scipy.random.seed()
     data_cl = [ ]
     print("Working on file: ", fi)
-    f = R.TFile(fi)
-    tree = f.Get("recosimdumper/caloTree")
+    try:
+        f = R.TFile.Open(fi)
+        tree = f.Get("recosimdumper/caloTree")
+    except:
+        return data_cl 
     for i, ev in enumerate(tree):    
         pfCluster_energy = ev.pfCluster_energy
         pfCluster_rawEnergy = ev.pfCluster_rawEnergy
@@ -114,13 +175,18 @@ def run(fi):
             seed = clusters[0][0]
             # seed_score = clusters[0][1]
             # seed_en = pfCluster_rawEnergy[seed]
-            window_index = "".join([ random.choice(string.ascii_lowercase) for _ in range(8)]),
+            window_index = "".join([ random.choice(string.ascii_lowercase) for _ in range(8)])
+            #dynamic window of the seed
+            deta_up, deta_down, dphi = dynamic_window(pfCluster_eta[seed])
 
             for icl, score in clusters:
                 simen_signal = pfcluster_calo_score[icl] * calo_simenergy[calo]
                 #check trheshold with seed eta, et and cluster score
                 pass_simfrac = pass_simfraction_threshold(pfCluster_eta[seed],pfCluster_rawEnergy[seed]/math.cosh(pfCluster_eta[seed]), score )
                 pusimen_frac = cluster_PU_simenergy[icl] / simen_signal
+                is_in_window, (detaw, dphiw) = in_window(pfCluster_eta[seed], pfCluster_phi[seed], pfCluster_iz[seed],
+                                         pfCluster_eta[icl], pfCluster_phi[icl], pfCluster_iz[icl],
+                                         deta_up, deta_down, dphi )
 
                 data_cl.append({
                     "wi": window_index,
@@ -137,10 +203,14 @@ def run(fi):
                     # "recoen_pu": cluster_PU_recoenergy[icl],
                     "simen_sig_frac": simen_signal/pfCluster_rawEnergy[icl],
                     "simen_pu_frac":  cluster_PU_simenergy[icl]/pfCluster_rawEnergy[icl],
+                    "noise_en" : pfCluster_rawEnergy[icl] - (simen_signal + cluster_PU_simenergy[icl]),
                     "PUsimen_frac": pusimen_frac ,
                     "nxtals": pfCluster_nXtals[icl],
                     "is_seed": int(seed == icl),
                     "pass_simfrac_thr": int(pass_simfrac),
+                    "in_window": int(is_in_window),
+                    "deta_seed": detaw,
+                    "dphi_seed": dphiw, 
                     "nxtals_PU": cluster_nXtalsPU[icl],
                     "nVtx": nVtx, 
                     "obsPU":obsPU,
