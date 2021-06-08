@@ -142,7 +142,12 @@ class WindowCreator():
         pfCluster_ieta = event.pfCluster_ieta
         pfCluster_iphi = event.pfCluster_iphi
         pfCluster_iz = event.pfCluster_iz
+        pfCluster_noise = event.pfCluster_noise
+        pfCluster_noise_uncalib  = event.pfCluster_noiseUncalib
+        pfCluster_noise_nofrac = event.pfCluster_noiseNoFractions
+        pfCluster_noise_uncalib_uncalib = event.pfCluster_noiseUncalibNoFractions
         calo_simenergy = event.caloParticle_simEnergy
+        calo_simenergy_goodstatus = event.caloParticle_simEnergyGoodStatus
         calo_genenergy = event.caloParticle_genEnergy
         calo_simeta = event.caloParticle_simEta
         calo_simphi = event.caloParticle_simPhi
@@ -187,6 +192,7 @@ class WindowCreator():
         # CaloParticle Pileup information
         cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
         cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
+        cluster_signal_simenergy = ev.pfCluster_simEnergy_sharedXtals
         cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
         total_PU_simenergy = event.caloParticlePU_totEnergy
 
@@ -258,7 +264,7 @@ class WindowCreator():
                     # ID of the associated caloparticle
                     caloid = pfcluster_calo_map[icl] 
                     # Do not check PU fraction on the seed
-                    PU_simenfrac = cluster_PU_simenergy[icl] / (calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl])
+                    PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][caloid]
                     #Check if the caloparticle is in the same window with GEN info
                     if in_window(calo_geneta[caloid],calo_genphi[caloid],calo_simiz[caloid], cl_eta, cl_phi, cl_iz, 
                                                     *self.dynamic_window(cl_eta)):
@@ -313,7 +319,7 @@ class WindowCreator():
                     
                     # Score of the seed cluster
                     "seed_score": pfcluster_calo_score[icl],
-                    "seed_simen_sig": calo_simenergy[calomatched] * pfcluster_calo_score[icl] if calomatched!=-1 else 0.,
+                    "seed_simen_sig": cluster_signal_simenergy[icl][calomatched] if calomatched!=-1 else 0.,
                     "seed_simen_PU":  cluster_PU_simenergy[icl],
                     "seed_recoen_PU":  cluster_PU_recoenergy[icl],
                     "seed_PUfrac" : PU_simenfrac,
@@ -338,9 +344,11 @@ class WindowCreator():
 
                     # Sim energy and Gen Enerugy of the caloparticle
                     "en_true_sim": calo_simenergy[calomatched] if calomatched!=-1 else 0, 
-                    "et_true_sim": calo_simenergy[calomatched]/cosh(calo_simeta[calomatched]) if calomatched!=-1 else 0, 
+                    "et_true_sim": calo_simenergy[calomatched]/cosh(calo_geneta[calomatched]) if calomatched!=-1 else 0, 
                     "en_true_gen": calo_genenergy[calomatched] if calomatched!=-1 else 0, 
-                    "et_true_gen": calo_genenergy[calomatched]/cosh(calo_simeta[calomatched]) if calomatched!=-1 else 0,
+                    "et_true_gen": calo_genenergy[calomatched]/cosh(calo_geneta[calomatched]) if calomatched!=-1 else 0,
+                    "en_true_sim_good": calo_simenergy_goodstatus[calomatched] if calomatched!=-1 else 0, 
+                    "et_true_sim_good": calo_simenergy_goodstatus[calomatched]/cosh(calo_geneta[calomatched]) if calomatched!=-1 else 0,
                     
                     # Energy of the mustache if present. Raw and regressed
                     "en_mustache_raw": mustache_rawEn[mustache_seed_index] if mustache_seed_index!=-1 else 0, 
@@ -422,7 +430,7 @@ class WindowCreator():
                         if is_calo_matched: 
                             # Check the fraction of sim energy and PU energy 
                             # simenergy signal == linked to the caloparticle of the SEED
-                            PU_simenfrac = cluster_PU_simenergy[icl] / (calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl])
+                            PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][window["calo_index"]]
                             # First of all check the PU sim energy limit
                             if PU_simenfrac < self.simenergy_pu_limit:
                                 #associate the cluster to the caloparticle with simfraction optimized thresholds 
@@ -469,7 +477,7 @@ class WindowCreator():
                         # Score of association with the caloparticle of the seed, if present
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster
-                        "calo_simen_sig": calo_simenergy[pfcluster_calo_map[icl]] * pfcluster_calo_score[icl] if is_calo_matched else 0.,
+                        "calo_simen_sig": cluster_signal_simenergy[icl][window["calo_index"]] if is_calo_matched else 0.,
                         "calo_simen_PU":  cluster_PU_simenergy[icl],
                         "calo_recoen_PU": cluster_PU_recoenergy[icl],
                         "calo_nxtals_PU": cluster_nXtalsPU[icl],
@@ -485,6 +493,11 @@ class WindowCreator():
                         "et_cluster": pfCluster_rawEnergy[icl] / cosh(cl_eta),
                         "en_cluster_calib": pfCluster_energy[icl],
                         "et_cluster_calib": pfCluster_energy[icl] /cosh(cl_eta),
+
+                        "noise_en" : pfCluster_noise[icl],
+                        "noise_en_uncal": pfCluster_noise_uncalib[icl],
+                        "noise_en_nofrac": pfCluster_noise_nofrac[icl],
+                        "noise_en_uncal_nofrac": pfCluster_noise_uncalib_uncalib[icl],
                         
                         # Shower shape variables
                         "cl_f5_r9": pfcl_f5_r9[icl],

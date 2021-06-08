@@ -241,7 +241,7 @@ def run(fi):
     return data_cl      
 
 
-p = Pool(5)
+p = Pool(6)
 
 data = p.map(run, files)
 

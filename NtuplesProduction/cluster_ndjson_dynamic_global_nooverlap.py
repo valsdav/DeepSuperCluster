@@ -51,7 +51,7 @@ SEED_MIN_FRACTION=1e-2
 # min simFraction for the cluster to be associated with the caloparticle
 CL_MIN_FRACION=1e-4
 # threshold of simEnergy PU / simEnergy signal for each cluster and seed to be matched with a caloparticle
-SIMENERGY_PU_LIMIT=2.0
+SIMENERGY_PU_LIMIT=1.0
 
 windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,cl_min_fraction=CL_MIN_FRACION, simenergy_pu_limit = SIMENERGY_PU_LIMIT)
 
