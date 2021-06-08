@@ -192,7 +192,7 @@ class WindowCreator():
         # CaloParticle Pileup information
         cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
         cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
-        cluster_signal_simenergy = ev.pfCluster_simEnergy_sharedXtals
+        cluster_signal_simenergy = event.pfCluster_simEnergy_sharedXtals
         cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
         total_PU_simenergy = event.caloParticlePU_totEnergy
 

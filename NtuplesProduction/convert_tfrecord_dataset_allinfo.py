@@ -82,6 +82,7 @@ def make_example_window(window):
     window_metadata = ["nVtx", "rho", "obsPU", "truePU",
                          "sim_true_eta", "sim_true_phi",  
                         "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                        "en_true_sim_good", "et_true_sim_good",
                         "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
