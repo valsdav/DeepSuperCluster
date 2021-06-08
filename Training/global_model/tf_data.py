@@ -28,6 +28,7 @@ default_features_dict = {
   "window_metadata": ["nVtx", "rho", "obsPU", "truePU",
                          "sim_true_eta", "sim_true_phi",  
                         "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                        "en_true_sim_good", "et_true_sim_good",
                         "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
@@ -45,7 +46,9 @@ default_features_dict = {
 
     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_recoen_PU", "seed_PUfrac"],
 
-    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU" ],
+    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
+                     "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
+
     "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"],
     "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
 }
@@ -339,6 +342,8 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
     else:
         if "cl_features" not in features_dict:
             features_dict["cl_features"] = default_features_dict["cl_features"]
+        if "cl_metadata" not in features_dict:
+            features_dict["cl_metadata"] = default_features_dict["cl_metadata"]
         if "seed_features" not in features_dict:
             features_dict["seed_features"] = default_features_dict["seed_features"] 
         if "window_features" not in features_dict:
