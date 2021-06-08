@@ -21,8 +21,8 @@ parser.add_argument("-sf","--skip-files", type=int, help="Nfiles to skip", defau
 args = parser.parse_args()
 
 
-file_ele = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper/hadd/"
-file_gamma = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper/hadd/"
+file_ele = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_Reduced_Dumper_FULL/hadd/"
+file_gamma = "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_Reduced_Dumper_FULL/hadd/"
 nfiles = args.nfiles
 
 
@@ -133,7 +133,9 @@ def run(fi):
         pfCluster_iphi = ev.pfCluster_iphi
         pfCluster_iz = ev.pfCluster_iz
         pfCluster_nXtals = ev.pfCluster_nXtals
+        pfCluster_simen_signal = ev.pfCluster_simEnergy_sharedXtals
         calo_simenergy = ev.caloParticle_simEnergy
+        calo_simenergy_good = ev.caloParticle_simEnergyGoodStatus
         calo_genenergy = ev.caloParticle_genEnergy
         calo_simeta = ev.caloParticle_simEta
         calo_simphi = ev.caloParticle_simPhi
@@ -156,8 +158,12 @@ def run(fi):
         # CaloParticle Pileup information
         cluster_nXtalsPU = ev.pfCluster_simPU_nSharedXtals 
         cluster_PU_simenergy = ev.pfCluster_simEnergy_sharedXtalsPU
-        # cluster_PU_recoenergy = ev.pfCluster_recoEnergy_sharedXtalsPU
-        # total_PU_simenergy = ev.caloParticlePU_totEnergy
+
+        cluster_noise = ev.pfCluster_noise
+        cluster_noise_uncalib  = ev.pfCluster_noiseUncalib
+        cluster_noise_nofrac = ev.pfCluster_noiseNoFractions
+        cluster_noise_uncalib_uncalib = ev.pfCluster_noiseUncalibNoFractions
+
 
         # print(">>> Cluster_calo map")
         # for cluster, calo in pfcluster_calo_map.items():
@@ -180,14 +186,17 @@ def run(fi):
             deta_up, deta_down, dphi = dynamic_window(pfCluster_eta[seed])
 
             for icl, score in clusters:
-                simen_signal = pfcluster_calo_score[icl] * calo_simenergy[calo]
+                # simen_signal = pfcluster_calo_score[icl] * calo_simenergy[calo]
+                simen_signal = pfCluster_simen_signal[icl][calo]
+                simen_pu = cluster_PU_simenergy[icl]
+                
                 #check trheshold with seed eta, et and cluster score
                 pass_simfrac = pass_simfraction_threshold(pfCluster_eta[seed],pfCluster_rawEnergy[seed]/math.cosh(pfCluster_eta[seed]), score )
-                pusimen_frac = cluster_PU_simenergy[icl] / simen_signal
+                pusimen_frac = simen_pu / simen_signal
+                
                 is_in_window, (detaw, dphiw) = in_window(pfCluster_eta[seed], pfCluster_phi[seed], pfCluster_iz[seed],
                                          pfCluster_eta[icl], pfCluster_phi[icl], pfCluster_iz[icl],
-                                         deta_up, deta_down, dphi )
-
+                                        deta_up, deta_down, dphi )
                 data_cl.append({
                     "wi": window_index,
                     "en": pfCluster_rawEnergy[icl],
@@ -199,12 +208,16 @@ def run(fi):
                     'iz': pfCluster_iz[icl],
                     "simfrac_sig": score, 
                     "simen_sig": simen_signal,
-                    "simen_pu": cluster_PU_simenergy[icl],
-                    # "recoen_pu": cluster_PU_recoenergy[icl],
+                    "simen_pu": simen_pu,
                     "simen_sig_frac": simen_signal/pfCluster_rawEnergy[icl],
-                    "simen_pu_frac":  cluster_PU_simenergy[icl]/pfCluster_rawEnergy[icl],
-                    "noise_en" : pfCluster_rawEnergy[icl] - (simen_signal + cluster_PU_simenergy[icl]),
+                    "simen_pu_frac":  simen_pu/pfCluster_rawEnergy[icl],
                     "PUsimen_frac": pusimen_frac ,
+                    
+                    "noise_en" : cluster_noise[icl],
+                    "noise_en_uncal": cluster_noise_uncalib[icl],
+                    "noise_en_nofrac": cluster_noise_nofrac[icl],
+                    "noise_en_uncal_nofrac": cluster_noise_uncalib_uncalib[icl],
+                    
                     "nxtals": pfCluster_nXtals[icl],
                     "is_seed": int(seed == icl),
                     "pass_simfrac_thr": int(pass_simfrac),
@@ -216,6 +229,7 @@ def run(fi):
                     "obsPU":obsPU,
                     "calo_simen": calo_simenergy[calo],
                     "calo_simet": calo_simenergy[calo]/ math.cosh(calo_simeta[calo]),
+                    "calo_simen_good": calo_simenergy_good[calo],
                     "calo_geneta": calo_geneta[calo],
                     "calo_genphi": calo_genphi[calo],
                     "calo_simeta": calo_simeta[calo],
@@ -227,7 +241,7 @@ def run(fi):
     return data_cl      
 
 
-p = Pool()
+p = Pool(5)
 
 data = p.map(run, files)
 
