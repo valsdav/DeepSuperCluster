@@ -9,9 +9,9 @@ import pandas
 import tensorflow as tf
 import tf_data
 
-data_path_train = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_v9/training/calo_matched/*.proto",
-                  "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_v9/training/calo_matched/*.proto",
-                 "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_v9/training/no_calo_matched/*.proto",
+data_path_train = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_v10/training/calo_matched/*.proto",
+                  "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_v10/training/calo_matched/*.proto",
+                 "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_v10/training/no_calo_matched/*.proto",
                   #"gamma_nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_v2/training/no_calo_matched/*.proto"
                   }
 
@@ -21,11 +21,13 @@ feat = {
             "cluster_ieta","cluster_iphi","cluster_iz",
             "cluster_deta", "cluster_dphi",
             "cluster_den_seed","cluster_det_seed",
-            "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-            "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+            
             "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
             "cl_sigmaIphiIphi","cl_swissCross",
             "cl_nxtals", "cl_etaWidth","cl_phiWidth"],
+
+            #"cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+            #"cl_f5_sigmaIphiIphi","cl_f5_swissCross",
 
  "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                     "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
@@ -41,13 +43,13 @@ feat = {
 }
 
 # Load a balanced dataset from the list of paths given to the function. Selected only the requestes features from clusters and prepare batches
-train_ds = tf_data.load_balanced_dataset_batch(data_path_train, feat, batch_size= 200, 
+train_ds = tf_data.load_balanced_dataset_batch(data_path_train, feat, batch_size= 300, 
                                                 weights={"ele_match":0.33,"gamma_match":0.33, "nomatch":0.33})
 # the indexes for energy and et are from the features list we requestes
 train_ds = tf_data.training_format(train_ds, norm=False)
 
 # Create training and validation
-ds_train = train_ds.take(10000)
+ds_train = train_ds.take(20000)
 
 def parameters(ds, features):
     '''
@@ -146,12 +148,12 @@ def parameters_wind(ds, features):
 
 ################################
 
-# m ,s , mean, sigma = parameters(ds_train, feat["cl_features"])
-# print(mean)
-# print(sigma)
-# np.savez("normalization.npz", mean=m, sigma=s)
+m ,s , mean, sigma = parameters(ds_train, feat["cl_features"])
+print(mean)
+print(sigma)
+np.savez("normalization.npz", mean=m, sigma=s)
 
-mw ,sw , meanw, sigmaw = parameters_wind(ds_train, feat["window_features"])
-print(meanw)
-print(sigmaw)
-np.savez("normalization_wind_features.npz", mean=mw, sigma=sw)
+# mw ,sw , meanw, sigmaw = parameters_wind(ds_train, feat["window_features"])
+# print(meanw)
+# print(sigmaw)
+# np.savez("normalization_wind_features.npz", mean=mw, sigma=sw)

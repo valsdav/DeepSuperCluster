@@ -44,7 +44,7 @@ default_features_dict = {
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
                     ],
 
-    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_recoen_PU", "seed_PUfrac"],
+    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
 
     "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
                      "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
@@ -176,6 +176,7 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
     }
 
     if read_metadata:
+        print(N_seed_metadata)
         # seed metadata
         context_features["s_m"] = tf.io.FixedLenFeature([N_seed_metadata], tf.float32) 
         # window metadata
@@ -360,7 +361,7 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
                                  features_dict["seed_features"], features_dict["window_metadata"])
         if training:
             # Shuffle only for training
-            df = df.shuffle(buffer_size=batch_size*30) # Shuffle elements for 15 times sample the batch size
+            df = df.shuffle(buffer_size=batch_size*30) # Shuffle elements for 30 times sample the batch size
         datasets[n] = df
     if weights:
         ws = [ ]

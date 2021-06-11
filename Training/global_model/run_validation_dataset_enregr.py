@@ -29,8 +29,8 @@ features_dict = {
             "cluster_ieta","cluster_iphi","cluster_iz",
             "cluster_deta", "cluster_dphi",
             "cluster_den_seed","cluster_det_seed",
-            "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-            "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+            # "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+            # "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
             "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
             "cl_sigmaIphiIphi","cl_swissCross",
             "cl_nxtals", "cl_etaWidth","cl_phiWidth"]
@@ -44,6 +44,7 @@ features_dict = {
 
 # Metadata about the window like true energy, true calo position, useful info
   "window_metadata": ["en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                    "en_true_sim_good", "et_true_sim_good",
                     "nclusters_insc",
                     "nVtx", "rho", "obsPU", "truePU",
                     "sim_true_eta", "sim_true_phi",  
@@ -64,7 +65,7 @@ print("N. seed features: ", N_seed_features)
 
 print(">> Load the dataset ")
 dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False, 
-                            normalization_files=['normalization_v9.npz','normalization_wind_features_v9.npz'])
+                            normalization_files=['normalization_{}.npz'.format(args.dataset_version),'normalization_wind_features_{}.npz'.format(args.dataset_version)])
 X,y = tf_data.get(dataset)
 
 print(">> Load the model")
@@ -109,6 +110,7 @@ for ib, (X, y_true) in enumerate(dataset):
     Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)
 
     En_true_sim = y_metadata[:,0]  
+    En_true_sim_good = y_metadata[:,4]
 
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
     En_true_gen =  y_metadata[:,2]
@@ -136,6 +138,7 @@ for ib, (X, y_true) in enumerate(dataset):
 
     data['En_true'].append(En_true.numpy())
     data['En_true_sim'].append(En_true_sim.numpy())
+    data['En_true_sim_good'].append(En_true_sim_good.numpy())
     data['En_true_gen'].append(En_true_gen.numpy())
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_true'].append(En_sel_true.numpy()) 
@@ -144,7 +147,12 @@ for ib, (X, y_true) in enumerate(dataset):
     data['Et_ovEtrue'].append((Et_sel/Et_true).numpy())   
     data['En_ovEtrue'].append((En_sel/En_true).numpy())   
     data['En_ovEtrue_sim'].append((En_sel/En_true_sim).numpy())  
-    
+    data['En_ovEtrue_sim_good'].append((En_sel/En_true_sim_good).numpy()) 
+
+    # Truth selected clusters energy over sim energy
+    data['EnTrue_ovEtrue_sim'].append((En_true/En_true_sim).numpy())
+    data['EnTrue_ovEtrue_sim_good'].append((En_true/En_true_sim_good).numpy())
+
     #Mustache energy
     data['Et_sel_must'].append(Et_sel_mustache.numpy())        
     data['En_sel_must'].append(En_sel_mustache.numpy())   
@@ -154,6 +162,7 @@ for ib, (X, y_true) in enumerate(dataset):
     data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
     data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy())   
     data['En_ovEtrue_sim_mustache'].append((En_sel_mustache/En_true_sim).numpy()) 
+    data['En_ovEtrue_sim_good_mustache'].append((En_sel_mustache/En_true_sim_good).numpy()) 
     
     data["en_regr_factor"].append(tf.squeeze(en_regr_factor*3).numpy())
     data["En_ovEtrue_gen"].append((En_sel/En_true_gen).numpy())
