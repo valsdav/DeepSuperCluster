@@ -575,7 +575,7 @@ class DeepClusterGN(tf.keras.Model):
                                      last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
 
         # Energy regression head
-        self.SA_enregr = SelfAttentionBlock(name="SA_enregr", input_dim=self.output_dim_gconv + self.output_dim_nodes + 1, output_dim=self.output_dim_sa_enregr,
+        self.SA_enregr = SelfAttentionBlock(name="SA_enregr", input_dim=self.graphbuild.output_dim_rechits +  self.output_dim_gconv + self.output_dim_nodes + 1, output_dim=self.output_dim_sa_enregr,
                                           reduce="sum", **kwargs)
 
         self.dense_enregr = get_dense(name="dense_enregr", spec=self.layers_enregr+[1], act=self.activation,
@@ -589,6 +589,7 @@ class DeepClusterGN(tf.keras.Model):
         self.gcn_output_layernorm = tf.keras.layers.LayerNormalization(name="gcn_output_layernorm", epsilon=1e-3)
         # self.input_SA_windclass_layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-3)
         self.SA_windclass_layernorm = tf.keras.layers.LayerNormalization(name="SA_windclass_layernorm", epsilon=1e-3)
+        self.SA_enregr_layernorm = tf.keras.layers.LayerNormalization(name="SA_enregr_layernorm", epsilon=1e-3)
         # Concatenation layers
         self.concat_wind_feats = tf.keras.layers.Concatenate(axis=-1)
         self.concat_inputs = tf.keras.layers.Concatenate(axis=-1)
@@ -655,7 +656,8 @@ class DeepClusterGN(tf.keras.Model):
 
         # Energy regression block
         # Concat the cl_X + SA_cl + classification output
-        input_en_regr = self.concat_inputs_enregr([out_SA_and_inputs, clclass_out])
+        input_en_regr = self.concat_inputs_enregr([output_rechits, out_SA_and_inputs, clclass_out])
+        input_en_regr = self.SA_enregr_layernorm(input_en_regr)
         out_SA_enregr, att_weights_enregr = self.SA_enregr(input_en_regr, mask_cls, training)
         # apply dense
         out_SA_enregr = self.dense_enregr(out_SA_enregr, training=training)
@@ -792,7 +794,7 @@ def energy_weighted_classification_loss(y_true, y_pred):
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass, dense_clclass, from_logits=True) * mask_cls
     weighted_loss = class_loss * cl_ets_weights
     # mean over the batch
-    reduced_loss = tf.reduce_mean(tf.reduce_sum(weighted_loss, axis=-1))
+    reduced_loss = tf.reduce_mean(tf.reduce_sum(weighted_loss, axis=-1)) 
     return reduced_loss
 
 
@@ -814,12 +816,11 @@ def energy_loss(y_true, y_pred):
 
     pred_prob = tf.nn.sigmoid(dense_clclass)
     diff = tf.math.abs(y_target - pred_prob)
-    En_true_sim = y_metadata[:,0]
     Et = cl_X[:,:,1:2]
-    missing_en = Et * diff * y_target / En_true_sim
-    spurious_en =  Et * diff * (1 - y_target)  / En_true_sim
-    reduced_loss_missing = tf.reduce_mean(tf.reduce_sum(missing_en, axis=1))
-    reduced_loss_spurious =  tf.reduce_mean(tf.reduce_sum(spurious_en, axis=1))
+    missing_en = Et * diff * y_target
+    spurious_en =  Et * diff * (1 - y_target)
+    reduced_loss_missing = tf.reduce_mean(tf.squeeze(tf.reduce_sum(missing_en, axis=1))) 
+    reduced_loss_spurious =  tf.reduce_mean(tf.squeeze(tf.reduce_sum(spurious_en, axis=1))) 
     return reduced_loss_missing,reduced_loss_spurious
 
 def soft_f1_score(y_true, y_pred):
@@ -834,7 +835,7 @@ def soft_f1_score(y_true, y_pred):
     fp = tf.reduce_sum(pred_prob * (1 - y_target), axis=1)
 
     soft_f1_loss = 1 - (2 * tp)/ (2*tp + fn + fp + 1e-16) 
-    reduced_f1 = tf.reduce_mean(soft_f1_loss)
+    reduced_f1 = tf.reduce_mean(tf.squeeze(soft_f1_loss)) 
     return reduced_f1
 
 
@@ -842,11 +843,10 @@ def energy_regression_loss(y_true, y_pred):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     cl_ens = cl_X[:,:,0]
-    # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
     
     pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
     corrected_en =  pred_en * tf.squeeze(en_regr_factor*3)
     true_en_gen = y_metadata[:,2]  # en_true_gen
-    MSE = tf.reduce_mean(tf.square(corrected_en - true_en_gen) )
+    MSE = tf.reduce_mean( tf.square( (corrected_en  - true_en_gen )/ (true_en_gen + 1e-6)) )
     return MSE
 

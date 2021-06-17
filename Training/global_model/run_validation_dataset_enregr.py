@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
                   "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
-                   "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/no_calo_matched/*.proto".format(args.dataset_version),
+                #    "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/no_calo_matched/*.proto".format(args.dataset_version),
                   }
 
 features_dict = {
@@ -93,9 +93,9 @@ for ib, (X, y_true) in enumerate(dataset):
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     y_target = tf.cast(y_clclass, tf.float32)
 
-    pred_prob = tf.nn.sigmoid(dense_clclass)
+    pred_prob = tf.nn.sigmoid(dense_clclass) * mask_cls[:,:,tf.newaxis]
     pred_prob_window = tf.nn.softmax(dense_windclass)
-    y_pred = tf.cast(pred_prob > 0.5, tf.float32)
+    y_pred = tf.cast(pred_prob >= 0.5, tf.float32)
     y_mustache = tf.cast(cl_labels[:,:,-2] == 1 , tf.float32)
     
     En = cl_X[:,:,0:1]    
@@ -111,6 +111,7 @@ for ib, (X, y_true) in enumerate(dataset):
 
     En_true_sim = y_metadata[:,0]  
     En_true_sim_good = y_metadata[:,4]
+    En_mustache_calib = y_metadata[:,15]
 
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
     En_true_gen =  y_metadata[:,2]
@@ -157,7 +158,8 @@ for ib, (X, y_true) in enumerate(dataset):
     data['Et_sel_must'].append(Et_sel_mustache.numpy())        
     data['En_sel_must'].append(En_sel_mustache.numpy())   
     data['Et_sel_must_true'].append(Et_sel_mustache_true.numpy())        
-    data['En_sel_must_true'].append(En_sel_mustache_true.numpy())        
+    data['En_sel_must_true'].append(En_sel_mustache_true.numpy())    
+    data['En_sel_must_calib'].append(En_mustache_calib.numpy())    
     
     data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
     data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy())   
@@ -166,11 +168,13 @@ for ib, (X, y_true) in enumerate(dataset):
     
     data["en_regr_factor"].append(tf.squeeze(en_regr_factor*3).numpy())
     data["En_ovEtrue_gen"].append((En_sel/En_true_gen).numpy())
+    data["En_ovEtrue_gen_calib"].append((En_sel_corr/En_true_gen).numpy())
+    
     data["En_ovEtrue_gen_mustache"].append((En_sel_mustache/En_true_gen).numpy())
-    data["En_ovEtrue_gen_corr"].append((En_sel_corr/En_true_gen).numpy())
-    
+    data["En_ovEtrue_gen_calib_mustache"].append((En_mustache_calib/En_true_gen).numpy())
+   
     data["flavour"].append(y_metadata[:, -1].numpy())
-    
+
     # seed features
     for iS, s in enumerate(features_dict["seed_features"]):
         data[s].append(y_metadata[:, N_metadata+iS].numpy())

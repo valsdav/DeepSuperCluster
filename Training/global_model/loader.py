@@ -36,12 +36,12 @@ def get_model(config_path, definition_path, weights_path, X):
 
     tf.keras.backend.clear_session()
     # Construction of the model
-    model = model_lib.DeepClusterGN(**args)
+    model = model_lib.DeepClusterGN( **args)
     model.set_metrics()
     #Call the model once
     y = model(X)    
     model.summary()
     #Loading weights
-    model.load_weights( weights_path)
+    model.load_weights(weights_path)
     return model 
  
