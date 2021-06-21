@@ -12,13 +12,14 @@ from tensorflow import keras
 # a minimal example (sort of)
 
 class LossPlotter(keras.callbacks.Callback):
-    def __init__(self, batch_mode=False):
-        self.batch_mode = batch_mode
+    def __init__(self, output_dir):
+        # self.batch_mode = batch_mode
+        self.output_dir = output_dir
         super(keras.callbacks.Callback, self).__init__()
 
     def on_train_begin(self, logs={}):
         self.i = 0
-        self.loss_labels = ['loss','loss_clusters', 'loss_windows','loss_softF1','loss_et_miss','loss_et_spur','loss_en_regr']
+        self.loss_labels = ['loss','loss_clusters', 'loss_windows','loss_softF1','loss_en_resol','loss_en_softF1','loss_en_regr']
         self.losses = {}
         self.val_losses ={}
         for l in self.loss_labels:
@@ -29,8 +30,8 @@ class LossPlotter(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self.performance_save(logs)
-        if not self.batch_mode:
-            self.performance_plot()
+        # if not self.batch_mode:
+        self.performance_plot()
 
     def performance_save(self, logs):
         self.logs.append(logs)
@@ -43,22 +44,23 @@ class LossPlotter(keras.callbacks.Callback):
        
     def performance_plot(self):
         self.figure, axs = plt.subplots(2, 4, figsize=(24,12), dpi=100)
+        # self.figure.tight_layout()
         for il, l in enumerate(self.loss_labels):
             ax = axs[il // 4][il %4]
             ax.set_title(l)
-            ax.plot(list(range(1,self.i+1)), self.losses[l], "o-", label="Train loss")
-            ax.plot(list(range(1,self.i+1)), self.val_losses[l], "o-", label="Val loss")
+            ax.plot(list(range(1,self.i+1)), self.losses[l], ".-", label="Train loss")
+            ax.plot(list(range(1,self.i+1)), self.val_losses[l], ".-", label="Val loss")
             ax.set_yscale("log")
             ax.set_xlabel("epochs")
             ax.legend()
         
-
-        if not self.batch_mode:
-            clear_output(wait=True)
-            plt.show()
+        # if not self.batch_mode:
+        clear_output(wait=True)
+        plt.show()
+        self.figure.savefig(self.output_dir+ "/loss_plot.png")
 
     def save_figure(self, fname):
         if self.batch_mode:
             self.performance_plot()
-        self.figure.savefig(fname)
+        self.figure.savefig(self.output_dir + '/' + fname)
         plt.close(self.figure)

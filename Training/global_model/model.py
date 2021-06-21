@@ -537,7 +537,7 @@ class DeepClusterGN(tf.keras.Model):
     - n_windclasses: number of classes for window classification
     - dropout: dropout function to apply on classification DNN
     - l2_reg: activate l2 regularization in all the Dense layers
-    - loss_weights:  dictionary "loss_clusters, loss_window, loss_etw, loss_et_miss, loss_et_spur"
+    - loss_weights:  dictionary "loss_clusters, loss_window, loss_etw, loss_en_resol, loss_en_softF1"
     '''
     def __init__(self, **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
@@ -678,8 +678,8 @@ class DeepClusterGN(tf.keras.Model):
         self.loss1_tracker = tf.keras.metrics.Mean(name="loss_clusters")
         self.loss2_tracker = tf.keras.metrics.Mean(name="loss_windows")
         self.loss3_tracker = tf.keras.metrics.Mean(name="loss_softF1")
-        self.loss4_tracker = tf.keras.metrics.Mean(name="loss_et_miss")
-        self.loss5_tracker = tf.keras.metrics.Mean(name="loss_et_spur")
+        self.loss4_tracker = tf.keras.metrics.Mean(name="loss_en_resol")
+        self.loss5_tracker = tf.keras.metrics.Mean(name="loss_en_softF1")
         self.loss6_tracker = tf.keras.metrics.Mean(name="loss_en_regr")
 
     # Customized training loop
@@ -692,14 +692,14 @@ class DeepClusterGN(tf.keras.Model):
             loss_clusters = clusters_classification_loss(y, y_pred)
             loss_softF1 =  soft_f1_score(y,y_pred)
             loss_windows = window_classification_loss(y, y_pred)
-            loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
+            loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred)
             loss_en_regr = energy_regression_loss(y, y_pred)
             # Total loss function
             loss =  self.loss_weights["clusters"] * loss_clusters +\
                     self.loss_weights["window"] * loss_windows + \
                     self.loss_weights["softF1"] * loss_softF1 + \
-                    self.loss_weights["et_miss"] * loss_et_miss + \
-                    self.loss_weights["et_spur"] *  loss_et_spur + \
+                    self.loss_weights["en_resol"] * loss_en_resol+ \
+                    self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                     self.loss_weights["en_regr"] * loss_en_regr + \
                     sum(self.losses)
 
@@ -713,16 +713,16 @@ class DeepClusterGN(tf.keras.Model):
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
         self.loss3_tracker.update_state(loss_softF1)
-        self.loss4_tracker.update_state(loss_et_miss)
-        self.loss5_tracker.update_state(loss_et_spur)
+        self.loss4_tracker.update_state(loss_en_resol)
+        self.loss5_tracker.update_state(loss_en_softF1)
         self.loss6_tracker.update_state(loss_en_regr)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_softF1": self.loss3_tracker.result(),
-                "loss_et_miss": self.loss4_tracker.result(),
-                "loss_et_spur": self.loss5_tracker.result(),
+                "loss_en_resol": self.loss4_tracker.result(),
+                "loss_en_softF1": self.loss5_tracker.result(),
                 "loss_en_regr": self.loss6_tracker.result()}
 
     def test_step(self, data):
@@ -734,14 +734,14 @@ class DeepClusterGN(tf.keras.Model):
         loss_clusters = clusters_classification_loss(y, y_pred)
         loss_softF1 =  soft_f1_score(y,y_pred)
         loss_windows = window_classification_loss(y, y_pred)
-        loss_et_miss, loss_et_spur = energy_loss(y, y_pred)
+        loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred)
         loss_en_regr = energy_regression_loss(y, y_pred)
         # Total loss function
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
                 self.loss_weights["softF1"] * loss_softF1 + \
-                self.loss_weights["et_miss"] * loss_et_miss + \
-                self.loss_weights["et_spur"] *  loss_et_spur + \
+                self.loss_weights["en_resol"] * loss_en_resol + \
+                self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                 self.loss_weights["en_regr"] * loss_en_regr + \
                 sum(self.losses)
         
@@ -750,16 +750,16 @@ class DeepClusterGN(tf.keras.Model):
         self.loss1_tracker.update_state(loss_clusters)
         self.loss2_tracker.update_state(loss_windows)
         self.loss3_tracker.update_state(loss_softF1)
-        self.loss4_tracker.update_state(loss_et_miss)
-        self.loss5_tracker.update_state(loss_et_spur)
+        self.loss4_tracker.update_state(loss_en_resol)
+        self.loss5_tracker.update_state(loss_en_softF1)
         self.loss6_tracker.update_state(loss_en_regr)
         # mae_metric.update_state(y, y_pred)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_softF1": self.loss3_tracker.result(),
-                "loss_et_miss": self.loss4_tracker.result(),
-                "loss_et_spur": self.loss5_tracker.result(),
+                "loss_en_resol": self.loss4_tracker.result(),
+                "loss_en_softF1": self.loss5_tracker.result(),
                 "loss_en_regr": self.loss6_tracker.result()}
 
     @property
@@ -784,7 +784,7 @@ def clusters_classification_loss(y_true, y_pred):
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
         
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass, dense_clclass, from_logits=True) * mask_cls
-    reduced_loss = tf.reduce_mean(tf.reduce_sum(class_loss, axis=-1))
+    reduced_loss = tf.reduce_mean(tf.reduce_mean(class_loss, axis=-1))
     return reduced_loss 
 
 
@@ -812,20 +812,39 @@ def window_classification_loss(y_true, y_pred):
     return reduced_loss
 
 
+# def energy_loss(y_true, y_pred):
+#     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
+#     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
+#     y_target = tf.cast(y_clclass, tf.float32) 
+#     # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
+
+#     pred_prob = tf.nn.sigmoid(dense_clclass)
+#     diff = tf.math.abs(y_target - pred_prob)
+#     Et = cl_X[:,:,1:2]
+#     missing_en = Et * diff * y_target
+#     spurious_en =  Et * diff * (1 - y_target)
+#     reduced_loss_missing = tf.reduce_mean(tf.squeeze(tf.reduce_sum(missing_en, axis=1))) 
+#     reduced_loss_spurious =  tf.reduce_mean(tf.squeeze(tf.reduce_sum(spurious_en, axis=1))) 
+#     return reduced_loss_missing,reduced_loss_spurious
+
 def energy_loss(y_true, y_pred):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     y_target = tf.cast(y_clclass, tf.float32) 
-    # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
-
+    cl_en = Et = cl_X[:,:,0:1]
+    En_sim_good = y_metadata[:,4]
     pred_prob = tf.nn.sigmoid(dense_clclass)
-    diff = tf.math.abs(y_target - pred_prob)
-    Et = cl_X[:,:,1:2]
-    missing_en = Et * diff * y_target
-    spurious_en =  Et * diff * (1 - y_target)
-    reduced_loss_missing = tf.reduce_mean(tf.squeeze(tf.reduce_sum(missing_en, axis=1))) 
-    reduced_loss_spurious =  tf.reduce_mean(tf.squeeze(tf.reduce_sum(spurious_en, axis=1))) 
-    return reduced_loss_missing,reduced_loss_spurious
+
+    sel_en = tf.squeeze(tf.reduce_sum(cl_en * pred_prob , axis=1))
+    en_resolution_loss =  tf.reduce_mean(tf.square( (sel_en/En_sim_good) - 1) ) 
+    #soft f1 style loss
+    tp = tf.reduce_sum(cl_en* pred_prob * y_target, axis=1)
+    fn = tf.reduce_sum(cl_en* (1 - pred_prob) * y_target, axis=1)
+    fp = tf.reduce_sum(cl_en* pred_prob * (1 - y_target), axis=1)
+    soft_f1_loss = 1 - (2 * tp)/ (2*tp + fn + fp + 1e-16) 
+    reduced_f1 = tf.reduce_mean(tf.squeeze(soft_f1_loss)) 
+
+    return en_resolution_loss , reduced_f1
 
 def soft_f1_score(y_true, y_pred):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred

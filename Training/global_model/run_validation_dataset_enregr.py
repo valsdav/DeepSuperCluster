@@ -117,14 +117,47 @@ for ib, (X, y_true) in enumerate(dataset):
     En_true_gen =  y_metadata[:,2]
     En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1) 
     En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1)  
-    En_sel_corr = En_sel * tf.squeeze(en_regr_factor*3)  
+    En_sel_corr = En_sel * tf.squeeze(en_regr_factor)  
     En_sel_mustache = tf.reduce_sum( tf.squeeze(En) * y_mustache, axis=1)
     En_sel_mustache_true = tf.reduce_sum( tf.squeeze(En * y_target) * y_mustache, axis=1)
+
+    fn_sum = tf.math.cumsum(y_target*(1 -  y_pred), axis=-2)
+    fp_sum = tf.math.cumsum(y_pred*(1-y_target), axis=-2)
+    true_sum = tf.math.cumsum(y_target, axis=-2)
+    mask_first_false_negative =  (fn_sum == 1) & (y_target == 1)
+    mask_first_false_positive =   (fp_sum ==1) & (y_target == 0)
+    mask_second_false_negative =   (fn_sum==2) & (y_target == 1)
+    mask_second_false_positive =  (fp_sum ==2) & (y_target == 0)
+    mask_second = (true_sum == 2) & (y_target ==1)
+    mask_third = (true_sum == 3) & (y_target ==1)
+    mask_fourth = (true_sum == 4) & (y_target ==1)
+    mask_fifth = (true_sum == 5) & (y_target ==1)
+
+    En_zero = tf.zeros(En.shape)
+    En_first_false_negative = tf.squeeze(tf.reduce_sum(tf.where(mask_first_false_negative, En, En_zero), axis=-2))
+    En_first_false_positive  = tf.squeeze(tf.reduce_sum(tf.where(mask_first_false_positive, En, En_zero), axis=-2))
+    En_second_false_negative = tf.squeeze(tf.reduce_sum(tf.where(mask_second_false_negative, En, En_zero), axis=-2))
+    En_second_false_positive  = tf.squeeze(tf.reduce_sum(tf.where(mask_second_false_positive, En, En_zero), axis=-2))
+
+    En_second_true = tf.squeeze(tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=-2))
+    En_third_true = tf.squeeze(tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=-2))
+    En_fourth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=-2))
+    En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
     
     data['ncls'].append(n_cl.numpy())
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(tf.squeeze(y_pred), axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(tf.squeeze(y_pred*y_target), axis=-1).numpy())
+    
+    data["En_cl_first_fn"].append(En_first_false_negative.numpy())
+    data["En_cl_first_fp"].append(En_first_false_positive.numpy())
+    data["En_cl_second_fn"].append(En_second_false_negative.numpy())
+    data["En_cl_second_fp"].append(En_second_false_positive.numpy())
+
+    data["En_cl_true_2"].append(En_second_true.numpy())
+    data["En_cl_true_3"].append(En_third_true.numpy())
+    data["En_cl_true_4"].append(En_fourth_true.numpy())
+    data["En_cl_true_5"].append(En_fifth_true.numpy())
     
     #Mustache selection
     data['ncls_sel_must'].append(tf.reduce_sum(y_mustache, axis=-1).numpy())
@@ -166,7 +199,7 @@ for ib, (X, y_true) in enumerate(dataset):
     data['En_ovEtrue_sim_mustache'].append((En_sel_mustache/En_true_sim).numpy()) 
     data['En_ovEtrue_sim_good_mustache'].append((En_sel_mustache/En_true_sim_good).numpy()) 
     
-    data["en_regr_factor"].append(tf.squeeze(en_regr_factor*3).numpy())
+    data["en_regr_factor"].append(tf.squeeze(en_regr_factor).numpy())
     data["En_ovEtrue_gen"].append((En_sel/En_true_gen).numpy())
     data["En_ovEtrue_gen_calib"].append((En_sel_corr/En_true_gen).numpy())
     
@@ -210,6 +243,6 @@ print("Saving on disk")
 os.makedirs(args.outputdir, exist_ok=True)
 df_ele.to_csv(args.outputdir +"/validation_dataset_{}_ele.csv".format(args.dataset_version), sep=";",index=False)
 df_gamma.to_csv(args.outputdir +"/validation_dataset_{}_gamma.csv".format(args.dataset_version), sep=";",index=False)
-df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
+# df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
 
 print("DONE!")

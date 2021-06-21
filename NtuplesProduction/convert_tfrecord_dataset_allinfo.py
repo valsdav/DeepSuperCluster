@@ -9,11 +9,13 @@ import sys
 import glob
 import gzip
 import argparse 
+import ROOT as R
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n","--name", type=str, help="Job name", required=True)
 parser.add_argument("-i","--inputfiles", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputdir", type=str, help="Outputdirectory",required=True)
+parser.add_argument("-w","--weights", type=str, help="Weights",required=True)
 parser.add_argument("-f","--flag", type=int, help="flag to add")
 args = parser.parse_args()
 
@@ -59,7 +61,7 @@ def _tensor_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.io.serialize_tensor(value).numpy()]))
 
 
-def make_example_window(window):
+def make_example_window(window, weights=None):
     
     seed_features = ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
@@ -120,6 +122,10 @@ def make_example_window(window):
     elif window['is_seed_calo_matched'] and window["is_seed_calo_seed"]:
         class_ = 2
 
+    weight = 1.0
+    if weights != None:
+        weight = weights.GetBinContent(weights.FindBin(window["et_seed"], window["ncls"]))
+
     #print(_int64_feature(window["ncls"])
     #Using short labels because they are repeated a lot of times
     context_features = {
@@ -139,6 +145,8 @@ def make_example_window(window):
         'w_cl' : _int64_feature(class_),
         # number of clusters
         'n_cl' : _int64_feature(window["ncls"]),
+        # Weight
+        'wi' =  _float_feature(weight)
     }
     # flag for flavour 
     if args.flag != None:
@@ -202,10 +210,18 @@ if __name__ == "__main__":
     t0 = time.time()
     counter = {0:0,1:0,2:0}
 
+    weights = None
+    if args.weights:
+        f = R.TFile(args.weights,"READ")
+        weights= f.Get("weight")
+        weights.SetDirectory(0)
+        f.Close()
+    
+
     try:
         for i, row in enumerate(it_files):
             # print(row)
-            example, class_ = make_example_window(row)
+            example, class_ = make_example_window(row, weights)
             writers[class_].write(example.SerializeToString())
             counter[class_] += 1
 
