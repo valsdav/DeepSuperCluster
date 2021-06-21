@@ -69,7 +69,7 @@ if not os.path.exists(args.outputdir):
 
 if args.weights:
     script = script.replace("{WEIGHTS}","-w "+args.weights)
-    condor = condor.replace("{WEIGHTS}","-w "+args.weights)
+    condor = condor.replace("{WEIGHTS}",", "+args.weights)
 else:
     script = script.replace("{WEIGHTS}","")
     condor = condor.replace("{WEIGHTS}","")

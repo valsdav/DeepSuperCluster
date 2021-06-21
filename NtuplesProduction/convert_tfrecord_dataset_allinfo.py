@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-n","--name", type=str, help="Job name", required=True)
 parser.add_argument("-i","--inputfiles", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputdir", type=str, help="Outputdirectory",required=True)
-parser.add_argument("-w","--weights", type=str, help="Weights",required=True)
+parser.add_argument("-w","--weights", type=str, help="Weights",required=False)
 parser.add_argument("-f","--flag", type=int, help="flag to add")
 args = parser.parse_args()
 
@@ -146,7 +146,7 @@ def make_example_window(window, weights=None):
         # number of clusters
         'n_cl' : _int64_feature(window["ncls"]),
         # Weight
-        'wi' =  _float_feature(weight)
+        'wi' :  _float_feature(weight)
     }
     # flag for flavour 
     if args.flag != None:
