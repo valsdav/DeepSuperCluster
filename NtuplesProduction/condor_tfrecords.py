@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--inputdir", type=str, help="Inputdir", required=True)
 parser.add_argument("-nfg", "--nfile-group", type=int, help="How many files per tfrecord file", required=True)
 parser.add_argument("-tf", "--test-fraction", type=float, help="Fraction of files for testing", required=True)
+parser.add_argument("-w", "--weights", type=str, help="Weights file", required=False)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-f", "--flag", type=str, help="Flag",required=True )
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
@@ -28,7 +29,7 @@ condor = '''executable              = run_tfrecord_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../convert_tfrecord_dataset_allinfo.py
+transfer_input_files    = ../convert_tfrecord_dataset_allinfo.py {WEIGHTS}
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -51,7 +52,7 @@ FLAG=$4;
 echo -e "Running tfrecord dumper.."
 
 mkdir output;
-python convert_tfrecord_dataset_allinfo.py -i ${INPUTFILE} -o ./output -n records_$JOBID -f $FLAG;
+python convert_tfrecord_dataset_allinfo.py -i ${INPUTFILE} -o ./output -n records_$JOBID -f $FLAG {WEIGHTS};
 
 echo -e "Copying result to: $OUTPUTDIR";
 rsync -avz output/ ${OUTPUTDIR}
@@ -65,6 +66,13 @@ if not os.path.exists(args.outputdir):
     os.makedirs(args.outputdir)
     os.makedirs(args.outputdir +"/training")
     os.makedirs(args.outputdir +"/testing")
+
+if args.weights:
+    script = script.replace("{WEIGHTS}","-w "+args.weights)
+    condor = condor.replace("{WEIGHTS}","-w "+args.weights)
+else:
+    script = script.replace("{WEIGHTS}","")
+    condor = condor.replace("{WEIGHTS}","")
 
 inputfiles = [ f for f in os.listdir(args.inputdir) if 'tar.gz' in f]
 ninputfiles = len(inputfiles)
