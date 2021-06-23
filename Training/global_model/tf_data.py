@@ -117,7 +117,9 @@ def parse_single_window(element, read_hits=False, read_metadata=False):
         # number of clusters
         'n_cl' : tf.io.FixedLenFeature([], tf.int64),
         # flag (pdgid id)
-        'f' :  tf.io.FixedLenFeature([], tf.int64)
+        'f' :  tf.io.FixedLenFeature([], tf.int64),
+        #weight
+        'wi': tf.io.FixedLenFeature([], tf.float32)
     }
     
     clusters_features = {
@@ -168,7 +170,10 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
         # number of clusters
         'n_cl' : tf.io.FixedLenFeature([], tf.int64),
         # flag (pdgid id)
-        'f' :  tf.io.FixedLenFeature([], tf.int64)
+        'f' :  tf.io.FixedLenFeature([], tf.int64),
+        # weight
+        #weight
+        'wi': tf.io.FixedLenFeature([], tf.float32)
     }
     clusters_features = {
         "cl_f" : tf.io.FixedLenSequenceFeature([N_cl_features], dtype=tf.float32),
@@ -219,7 +224,7 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
         cl_l = kargs[1]['cl_l']
-         # get requested cluster features
+        # get requested cluster features
         cl_X = tf.gather(cl_f, indices=feat_index,axis=-1)
         cl_hits = kargs[1]['cl_h']
         is_seed = tf.gather(cl_l,indices=[0],axis=-1)
@@ -227,6 +232,7 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
         # HACK to include in the supercluster all the seeds also for unmatched windows
         #in_sc = tf.cast( tf.math.logical_or(tf.cast(is_seed, tf.bool), tf.cast(in_sc, tf.bool)), tf.int64)
         n_cl = kargs[0]["n_cl"]
+        weight = kargs[0]['wi']
         # get requested window metadata
         seed_feat = tf.gather(kargs[0]["s_f"], indices=seed_feat_index,axis=-1)
         wind_X =    tf.gather(kargs[0]["w_f"], indices=window_feat_index, axis=-1)
@@ -238,7 +244,7 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
                                   tf.stack( [ tf.cast(kargs[0]['w_cl'],tf.float32),
                                               tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
                                ], axis=-1) 
-        return  cl_X, wind_X, cl_hits, is_seed, n_cl, in_sc, wind_meta, cl_l
+        return  cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_l
 
     return dataset.map( process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
@@ -292,18 +298,18 @@ def training_format(dataset, norm=True):
     if norm:
         def process(*kargs):
             ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
-            cl_X, cl_X_norm, wind_X, wind_X_norm, cl_hits, is_seed, n_cl, in_sc, wind_meta, cl_labels = kargs
+            cl_X, cl_X_norm, wind_X, wind_X_norm, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = kargs
             # get window classification target, total number of true clusters, total simenergy and genenergy
             w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
-            return (cl_X_norm, wind_X_norm, cl_hits, is_seed, n_cl), (in_sc, w_flavour, cl_X, wind_X, wind_meta, cl_labels)
+            return (cl_X_norm, wind_X_norm, cl_hits, is_seed, n_cl), (in_sc, w_flavour, cl_X, wind_X, wind_meta, cl_labels), weight
         return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
     else:
         def process(*kargs):
             ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
-            cl_X, wind_X, cl_hits, is_seed, n_cl, in_sc, wind_meta, cl_labels = kargs
+            cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = kargs
             # get window classification target, total number of true clusters, total simenergy and genenergy
             w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
-            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels)
+            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels), weight
         return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
@@ -371,13 +377,14 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
     else:
         total_ds = tf.data.experimental.sample_from_datasets(list(datasets.values()), weights=[1/len(datasets)]*len(datasets))
     # Now we can shuffle and batch
-    def batch_features(cl_X, wind_X, cl_hits, is_seed, n_cl, in_sc, wind_meta, cl_labels):
+    def batch_features(cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels):
         '''This function is used to create padded batches together for dense features and ragged ones'''
         return tf.data.Dataset.zip((cl_X.padded_batch(batch_size), 
                                 wind_X.batch(batch_size),
                                 cl_hits.batch(batch_size), 
                                 is_seed.padded_batch(batch_size), 
                                 n_cl.padded_batch(batch_size),
+                                weight.padded_batch(batch_size),
                                 in_sc.padded_batch(batch_size),
                                 wind_meta.padded_batch(batch_size),
                                 cl_labels.padded_batch(batch_size)))

@@ -66,7 +66,7 @@ print("N. seed features: ", N_seed_features)
 print(">> Load the dataset ")
 dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False, 
                             normalization_files=['normalization_{}.npz'.format(args.dataset_version),'normalization_wind_features_{}.npz'.format(args.dataset_version)])
-X,y = tf_data.get(dataset)
+X,y,w = tf_data.get(dataset)
 
 print(">> Load the model")
 model = loader.get_model(args.model_dir + '/args_load.json', 
@@ -78,7 +78,7 @@ print(">> Model successfully loaded")
 print(">> Starting to run on events: ")
 data = defaultdict(list)
 lastT = time()
-for ib, (X, y_true) in enumerate(dataset):
+for ib, (X, y_true, weight) in enumerate(dataset):
     if ib % 10 == 0: 
         now = time()
         rate = 10* args.batch_size / (now-lastT)
@@ -131,7 +131,7 @@ for ib, (X, y_true) in enumerate(dataset):
     mask_second = (true_sum == 2) & (y_target ==1)
     mask_third = (true_sum == 3) & (y_target ==1)
     mask_fourth = (true_sum == 4) & (y_target ==1)
-    mask_fifth = (true_sum == 5) & (y_target ==1)
+    # mask_fifth = (true_sum == 5) & (y_target ==1)
 
     En_zero = tf.zeros(En.shape)
     En_first_false_negative = tf.squeeze(tf.reduce_sum(tf.where(mask_first_false_negative, En, En_zero), axis=-2))
@@ -142,7 +142,7 @@ for ib, (X, y_true) in enumerate(dataset):
     En_second_true = tf.squeeze(tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=-2))
     En_third_true = tf.squeeze(tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=-2))
     En_fourth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=-2))
-    En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
+    # En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
     
     data['ncls'].append(n_cl.numpy())
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
@@ -157,7 +157,7 @@ for ib, (X, y_true) in enumerate(dataset):
     data["En_cl_true_2"].append(En_second_true.numpy())
     data["En_cl_true_3"].append(En_third_true.numpy())
     data["En_cl_true_4"].append(En_fourth_true.numpy())
-    data["En_cl_true_5"].append(En_fifth_true.numpy())
+    # data["En_cl_true_5"].append(En_fifth_true.numpy())
     
     #Mustache selection
     data['ncls_sel_must'].append(tf.reduce_sum(y_mustache, axis=-1).numpy())

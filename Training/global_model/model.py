@@ -553,7 +553,7 @@ class DeepClusterGN(tf.keras.Model):
         self.n_windclasses = kwargs.pop("n_windclasses", 1)
         self.dropout = kwargs.get("dropout",0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1.})
+        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1., "softF1_beta":1})
         
         super(DeepClusterGN, self).__init__()
         
@@ -685,15 +685,15 @@ class DeepClusterGN(tf.keras.Model):
     # Customized training loop
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
     def train_step(self, data):
-        x, y = data 
+        x, y, w = data 
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute our own loss
-            loss_clusters = clusters_classification_loss(y, y_pred)
-            loss_softF1 =  soft_f1_score(y,y_pred)
-            loss_windows = window_classification_loss(y, y_pred)
-            loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred)
-            loss_en_regr = energy_regression_loss(y, y_pred)
+            loss_clusters = clusters_classification_loss(y, y_pred, w)
+            loss_softF1 =  soft_f1_score(y,y_pred, w, self.loss_weights["softF1_beta"])
+            loss_windows = window_classification_loss(y, y_pred, w)
+            loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w, self.loss_weights["softF1_beta"])
+            loss_en_regr = energy_regression_loss(y, y_pred, w)
             # Total loss function
             loss =  self.loss_weights["clusters"] * loss_clusters +\
                     self.loss_weights["window"] * loss_windows + \
@@ -727,15 +727,15 @@ class DeepClusterGN(tf.keras.Model):
 
     def test_step(self, data):
         # Unpack the data
-        x, y = data
+        x, y, w  = data
         # Compute predictions
         y_pred = self(x, training=False)
         # Updates the metrics tracking the loss
-        loss_clusters = clusters_classification_loss(y, y_pred)
-        loss_softF1 =  soft_f1_score(y,y_pred)
-        loss_windows = window_classification_loss(y, y_pred)
-        loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred)
-        loss_en_regr = energy_regression_loss(y, y_pred)
+        loss_clusters = clusters_classification_loss(y, y_pred, w )
+        loss_softF1 =  soft_f1_score(y,y_pred, w, self.loss_weights["softF1_beta"])
+        loss_windows = window_classification_loss(y, y_pred, w)
+        loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w, self.loss_weights["softF1_beta"])
+        loss_en_regr = energy_regression_loss(y, y_pred, w)
         # Total loss function
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
@@ -779,16 +779,16 @@ class DeepClusterGN(tf.keras.Model):
 ############################################
 ## Loss functions
 
-def clusters_classification_loss(y_true, y_pred):
+def clusters_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor),  mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
         
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass, dense_clclass, from_logits=True) * mask_cls
-    reduced_loss = tf.reduce_mean(tf.reduce_mean(class_loss, axis=-1))
+    reduced_loss = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1) * weight) / tf.reduce_sum(weight)
     return reduced_loss 
 
 
-def energy_weighted_classification_loss(y_true, y_pred):
+def energy_weighted_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     cl_ets = cl_X[:,:,1]
@@ -798,17 +798,17 @@ def energy_weighted_classification_loss(y_true, y_pred):
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass, dense_clclass, from_logits=True) * mask_cls
     weighted_loss = class_loss * cl_ets_weights
     # mean over the batch
-    reduced_loss = tf.reduce_mean(tf.reduce_sum(weighted_loss, axis=-1)) 
+    reduced_loss = tf.reduce_sum(tf.reduce_sum(weighted_loss, axis=-1) * weight) / tf.reduce_sum(weight) 
     return reduced_loss
 
 
-def window_classification_loss(y_true, y_pred):
+def window_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
 
     # Only window multi-class classification
     windclass_loss = tf.keras.losses.categorical_crossentropy(y_windclass, dense_windclass, from_logits=True)
-    reduced_loss =   tf.reduce_mean(windclass_loss)
+    reduced_loss =   tf.reduce_sum(windclass_loss * weight) / tf.reduce_sum(weight)
     return reduced_loss
 
 
@@ -827,7 +827,7 @@ def window_classification_loss(y_true, y_pred):
 #     reduced_loss_spurious =  tf.reduce_mean(tf.squeeze(tf.reduce_sum(spurious_en, axis=1))) 
 #     return reduced_loss_missing,reduced_loss_spurious
 
-def energy_loss(y_true, y_pred):
+def energy_loss(y_true, y_pred, weight, beta=1):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     y_target = tf.cast(y_clclass, tf.float32) 
@@ -836,17 +836,17 @@ def energy_loss(y_true, y_pred):
     pred_prob = tf.nn.sigmoid(dense_clclass)
 
     sel_en = tf.squeeze(tf.reduce_sum(cl_en * pred_prob , axis=1))
-    en_resolution_loss =  tf.reduce_mean(tf.square( (sel_en/En_sim_good) - 1) ) 
+    en_resolution_loss =  tf.reduce_sum(tf.square( (sel_en/En_sim_good) - 1) * weight ) / tf.reduce_sum(weight) 
     #soft f1 style loss
     tp = tf.reduce_sum(cl_en* pred_prob * y_target, axis=1)
     fn = tf.reduce_sum(cl_en* (1 - pred_prob) * y_target, axis=1)
     fp = tf.reduce_sum(cl_en* pred_prob * (1 - y_target), axis=1)
-    soft_f1_loss = 1 - (2 * tp)/ (2*tp + fn + fp + 1e-16) 
-    reduced_f1 = tf.reduce_mean(tf.squeeze(soft_f1_loss)) 
+    soft_f1_loss = 1 - ((1 + beta**2) * tp)/ ( (1+beta**2)*tp + beta* fn + fp + 1e-16)
+    reduced_f1 = tf.reduce_sum(tf.squeeze(soft_f1_loss) * weight)  / tf.reduce_sum(weight) 
 
     return en_resolution_loss , reduced_f1
 
-def soft_f1_score(y_true, y_pred):
+def soft_f1_score(y_true, y_pred, weight, beta=1):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     y_target = tf.cast(y_clclass, tf.float32) 
@@ -857,24 +857,24 @@ def soft_f1_score(y_true, y_pred):
     fn = tf.reduce_sum((1 - pred_prob) * y_target, axis=1)
     fp = tf.reduce_sum(pred_prob * (1 - y_target), axis=1)
 
-    soft_f1_loss = 1 - (2 * tp)/ (2*tp + fn + fp + 1e-16) 
-    reduced_f1 = tf.reduce_mean(tf.squeeze(soft_f1_loss)) 
+    soft_f1_loss = 1 - ((1 + beta**2) * tp)/ ( (1+beta**2)*tp + beta* fn + fp + 1e-16) 
+    reduced_f1 = tf.reduce_sum(tf.squeeze(soft_f1_loss) * weight) / tf.reduce_sum(weight) 
     return reduced_f1
 
 
-def huber_loss(y_true, y_pred, delta):
+def huber_loss(y_true, y_pred, delta, weight):
     z = tf.math.abs(y_true - y_pred)
     mask = tf.cast(z < delta,tf.float32)
-    return   0.5*mask*tf.square(z) + (1.-mask)*(delta*z - 0.5*delta**2) 
+    return  tf.reduce_sum( (0.5*mask*tf.square(z) + (1.-mask)*(delta*z - 0.5*delta**2))*weight)/tf.reduce_sum(weight)
 
 quantiles = tf.constant([ 0.25, 0.75])[:,tf.newaxis]
-def quantile_loss(y_true, y_pred):
+def quantile_loss(y_true, y_pred, weight):
     e = y_true - y_pred
-    l =  tf.reduce_mean( quantiles*e + tf.clip_by_value(-e, tf.keras.backend.epsilon(), np.inf) )
+    l =  tf.reduce_sum( ( quantiles*e + tf.clip_by_value(-e, tf.keras.backend.epsilon(), np.inf) ) * weight) / tf.reduce_sum(weight)
     return l
 
 
-def energy_regression_loss(y_true, y_pred):
+def energy_regression_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     cl_ens = cl_X[:,:,0]
@@ -882,6 +882,6 @@ def energy_regression_loss(y_true, y_pred):
     calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
     true_en_gen = y_metadata[:,2]  # en_true_gen
 
-    loss = huber_loss(true_en_gen, calib_pred_en, 5) + quantile_loss(true_en_gen, calib_pred_en )
+    loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
     return loss
 
