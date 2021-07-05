@@ -221,6 +221,7 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
     seed_feat_index = get_seed_features_indexes(seed_features)
     window_feat_index = get_window_features_indexes(window_features)
     metadata_index = get_window_metadata_indexes(window_metadata)
+    calib_index = get_cluster_features_indexes(["en_cluster_calib"])
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
         cl_l = kargs[1]['cl_l']
@@ -244,7 +245,11 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
                                   tf.stack( [ tf.cast(kargs[0]['w_cl'],tf.float32),
                                               tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
                                ], axis=-1) 
-        return  cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_l
+        #calibrated clusters energy in the labels
+        cl_en_calib = tf.gather(cl_f, indices=calib_index,axis=-1)
+        cl_labels = tf.concat([tf.cast(cl_l, tf.float32), cl_en_calib], axis=-1)
+
+        return  cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels
 
     return dataset.map( process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
