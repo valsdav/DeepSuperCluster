@@ -276,13 +276,20 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
 
 ###########
 ## Features normalization, to be applied at the same level as the normalization parameters have been calculated
-def normalize_features(dataset, file, file_win):
+def normalize_features(dataset, file, file_win, cl_features,window_features):
+    cl_feat_index = get_cluster_features_indexes(cl_features)
+    window_feat_index = get_window_features_indexes(window_features)
+
     params = np.load(file)
     m = tf.convert_to_tensor(params["mean"], dtype=tf.float32)
     s = tf.convert_to_tensor(params["sigma"], dtype=tf.float32)
+    m = tf.gather(m, indices=cl_feat_index,axis=-1)
+    s = tf.gather(s, indeces=window_feat_index, axis=-1)
     paramsW = np.load(file_win)
     mw = tf.convert_to_tensor(paramsW["mean"], dtype=tf.float32)
     sw = tf.convert_to_tensor(paramsW["sigma"], dtype=tf.float32)
+    mw = tf.gather(mw, indices=cl_feat_index,axis=-1)
+    sw = tf.gather(sw, indeces=window_feat_index, axis=-1)
 
     def process(cl_X, wind_W, *kargs):
         # Remove mean and divide by sigma

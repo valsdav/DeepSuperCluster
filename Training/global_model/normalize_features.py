@@ -17,30 +17,21 @@ data_path_train = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepclus
 
 feat = {
  "cl_features" : [ "en_cluster","et_cluster",
-            "cluster_eta", "cluster_phi", 
-            "cluster_ieta","cluster_iphi","cluster_iz",
-            "cluster_deta", "cluster_dphi",
-            "cluster_den_seed","cluster_det_seed",
-            
-#             "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
-#             "cl_sigmaIphiIphi","cl_swissCross",
-            "cl_nxtals", ],
-                  #"cl_etaWidth","cl_phiWidth"],
-
-            #"cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-            #"cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+                        "cluster_eta", "cluster_phi", 
+                        "cluster_ieta","cluster_iphi","cluster_iz",
+                        "cluster_deta", "cluster_dphi",
+                        "cluster_den_seed","cluster_det_seed",
+                        "en_cluster_calib", "et_cluster_calib",
+                        "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+                        "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+                        "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
+                        "cl_sigmaIphiIphi","cl_swissCross",
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth"],
 
  "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                     "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
                     "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
-# Metadata about the window like true energy, true calo position, useful info
- "window_metadata" :  ["en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
-                    "nclusters_insc",
-                    "nVtx", "rho", "obsPU", "truePU",
-                    "sim_true_eta", "sim_true_phi",  
-                    "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                    "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ]    
 }
 
 # Load a balanced dataset from the list of paths given to the function. Selected only the requestes features from clusters and prepare batches
