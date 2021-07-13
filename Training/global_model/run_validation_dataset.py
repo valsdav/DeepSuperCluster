@@ -237,8 +237,8 @@ df_nomatch = df[df.flavour ==0]
 print("Saving on disk")
 
 os.makedirs(args.outputdir, exist_ok=True)
-df_ele.to_csv(args.outputdir +"/validation_dataset_{}_ele.csv".format(args.dataset_version), sep=";",index=False)
-df_gamma.to_csv(args.outputdir +"/validation_dataset_{}_gamma.csv".format(args.dataset_version), sep=";",index=False)
+df_ele.to_csv(args.outputdir +"/validation_dataset_ele.csv", sep=";",index=False)
+df_gamma.to_csv(args.outputdir +"/validation_dataset_gamma.csv", sep=";",index=False)
 # df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
 
 print("DONE!")
