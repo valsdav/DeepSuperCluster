@@ -181,7 +181,7 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     data['Et_sel_must_true'].append(Et_sel_mustache_true.numpy())        
     data['En_sel_must_true'].append(En_sel_mustache_true.numpy()) 
     # calib == sum of pfClusters calibrated energy
-    data['En_sel_must_calib'].append(En_sel_mustache_true_calib.numpy())    
+    data['En_sel_must_true_calib'].append(En_sel_mustache_true_calib.numpy())    
     #central regression of the mustache
     data['En_sel_must_regr'].append(En_mustache_regr.numpy())    
     
