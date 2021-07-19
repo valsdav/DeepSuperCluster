@@ -154,6 +154,11 @@ class WindowCreator():
         calo_geneta = event.caloParticle_genEta
         calo_genphi = event.caloParticle_genPhi
         calo_simiz = event.caloParticle_simIz
+        
+        parton_PdgId = event.caloParticle_partonPdgId
+        parton_eta = event.caloParticle_partonEta
+        parton_phi = event.caloParticle_partonPhi
+        parton_Pt = event.caloParticle_partonPt
         # calo_geniz = event.caloParticle_genIz
         # calo_isPU = event.caloParticle_isPU
         # calo_isOOTPU = event.caloParticle_isOOTPU
@@ -191,7 +196,7 @@ class WindowCreator():
                                 calo_association.get_calo_association(clusters_scores, sort_calo_cl=True, debug=False, min_sim_fraction=self.cluster_min_fraction)
         
         # Association map between pfclusters and corresponding parton
-        pfcluster_parton_map = {k:event.caloParticle_partonIndex[i-1] if i!=-1 else i for k,i in enumerate(pfcluster_calo_map.values())}
+        pfcluster_parton_map = {k:event.caloParticle_partonIndex[i] if i!=-1 else i for k,i in enumerate(pfcluster_calo_map.values())}
         
         # CaloParticle Pileup information
         cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
@@ -199,7 +204,8 @@ class WindowCreator():
         cluster_signal_simenergy = event.pfCluster_simEnergy_sharedXtals
         cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
         total_PU_simenergy = event.caloParticlePU_totEnergy
-
+        
+        gen_mother = event.caloParticle_genMotherPdgId
         # #total PU simenergy in all clusters in the event
         # total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
 
@@ -321,6 +327,10 @@ class WindowCreator():
                     "calo_index": calomatched,
                     # index of the associated parton
                     "parton_index": partonmatched,
+                    "parton_pdg": parton_PdgId[partonmatched] if partonmatched!=-1 else 0,
+                    "parton_phi": parton_phi[partonmatched] if partonmatched!=-1 else 0,
+                    "parton_eta": parton_eta[partonmatched] if partonmatched!=-1 else 0,
+                    "parton_pt": parton_Pt[partonmatched] if partonmatched!=-1 else 0,
                     # The seed is the cluster associated with the particle with the largest fraction
                     "is_seed_calo_seed": caloseed,
                     # Mustache info
@@ -440,12 +450,13 @@ class WindowCreator():
                         is_parton_matched = pfcluster_parton_map[icl] == window["parton_index"]
                         # If the cluster is associated to the SAME CALO of the seed 
                         # the simfraction threshold by seed eta/et is used
+                        PU_simenfrac = 0.
                         if is_parton_matched: 
                             # Check the fraction of sim energy and PU energy 
                             # simenergy signal == linked to the caloparticle of the SEED
                             if is_calo_matched:
                                 PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][window["calo_index"]]
-                            PU_simenfrac = 0.
+                 
                             # First of all check the PU sim energy limit
                             if PU_simenfrac < self.simenergy_pu_limit:
                                 #associate the cluster to the caloparticle with simfraction optimized thresholds 
@@ -495,6 +506,7 @@ class WindowCreator():
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster
                         "calo_simen_sig": cluster_signal_simenergy[icl][window["calo_index"]] if is_calo_matched else 0.,
+                        "gen_mother": gen_mother[calomatched] if is_calo_matched else 0.,
                         "calo_simen_PU":  cluster_PU_simenergy[icl],
                         "calo_recoen_PU": cluster_PU_recoenergy[icl],
                         "calo_nxtals_PU": cluster_nXtalsPU[icl],
