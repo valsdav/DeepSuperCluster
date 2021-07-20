@@ -37,7 +37,7 @@ condor = '''executable              = run_ndjson_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../cluster_ndjson_dynamic_global_nooverlap.py, ../windows_creator_dynamic_global_nooverlap_jet.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
+transfer_input_files    = ../cluster_ndjson_dynamic_global_nooverlap_jet.py, ../windows_creator_dynamic_global_nooverlap_jet.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -63,7 +63,7 @@ ET_SEED=$7;
 
 echo -e "Running ndjson dumper.."
 
-python cluster_ndjson_dynamic_global_nooverlap.py -i ${INPUTFILE} -o output.ndjson \
+python cluster_ndjson_dynamic_global_nooverlap_jet.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO  {debug};
 
 {compress}

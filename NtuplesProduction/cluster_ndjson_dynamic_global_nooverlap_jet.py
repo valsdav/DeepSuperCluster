@@ -18,7 +18,7 @@ import pandas as pd
 from windows_creator_dynamic_global_nooverlap_jet import WindowCreator
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i","--inputdir", type=str, help="inputdir", required=True)
+parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
 parser.add_argument("-o","--outputfile", type=str, help="outputfile", default="clusters_data.pkl")
 parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction")
 parser.add_argument("--wp-file", type=str,  help="File with sim fraction thresholds")
@@ -28,12 +28,11 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 args = parser.parse_args()
 
-# if "#_#" in args.inputfile: 
-#     inputfiles = args.inputfile.split("#_#")
-# else:
-#     inputfiles = [args.inputfile]
-inputfiles = [ f for f in os.listdir(args.inputdir)]
-print(inputfiles)
+
+if "#_#" in args.inputfile: 
+    inputfiles = args.inputfile.split("#_#")
+else:
+    inputfiles = [args.inputfile]
 # if args.nevents and len(args.nevents) >= 1:
 #     nevent = args.nevents[0]
 #     if len(args.nevents) == 2:
@@ -66,7 +65,7 @@ windows_files = open(args.outputfile, "w")
 all_metadata = [ ] 
 
 for inputfile in inputfiles:
-    f = R.TFile(args.inputdir+inputfile);
+    f = R.TFile(inputfile);
     tree = f.Get("recosimdumper/caloTree")
 
     print ("Starting")
