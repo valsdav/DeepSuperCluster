@@ -390,15 +390,25 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
     # Now we can shuffle and batch
     def batch_features(cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels):
         '''This function is used to create padded batches together for dense features and ragged ones'''
-        return tf.data.Dataset.zip((cl_X.padded_batch(batch_size, padded_shapes=[30,None]), 
+        # return tf.data.Dataset.zip((cl_X.padded_batch(batch_size, padded_shapes=[35,None]), 
+        #                         wind_X.batch(batch_size),
+        #                         cl_hits.map(lambda x:x.to_tensor() ).padded_batch(batch_size, padded_shapes=[35,64,4]), 
+        #                         is_seed.padded_batch(batch_size,padded_shapes=[35,None]), 
+        #                         n_cl.batch(batch_size),
+        #                         weight.batch(batch_size),
+        #                         in_sc.padded_batch(batch_size,padded_shapes=[35,None]),
+        #                         wind_meta.batch(batch_size),
+        #                         cl_labels.padded_batch(batch_size, padded_shapes=[35,None]))
+        #                     )
+        return tf.data.Dataset.zip((cl_X.padded_batch(batch_size), 
                                 wind_X.batch(batch_size),
-                                cl_hits.map(lambda x:x.to_tensor() ).padded_batch(batch_size, padded_shapes=[30,64,4]), 
-                                is_seed.padded_batch(batch_size,padded_shapes=[30,None]), 
+                                cl_hits.batch(batch_size), 
+                                is_seed.padded_batch(batch_size), 
                                 n_cl.batch(batch_size),
                                 weight.batch(batch_size),
-                                in_sc.padded_batch(batch_size,padded_shapes=[30,None]),
+                                in_sc.padded_batch(batch_size),
                                 wind_meta.batch(batch_size),
-                                cl_labels.padded_batch(batch_size, padded_shapes=[30,None]))
+                                cl_labels.padded_batch(batch_size))
                             )
     total_ds_batched = total_ds.window(batch_size).flat_map(batch_features)
     return total_ds_batched

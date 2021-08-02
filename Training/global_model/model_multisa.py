@@ -30,7 +30,7 @@ def point_wise_feed_forward_network(d_model, dff, name="fff"):
 #                 tf.keras.layers.Conv1D(filters=out,   kernel_size=1, activation=last_act, name=name+"_1"),
 #             , name=name)
 
-
+#
 def get_dense(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"):
     layers = [] 
     for i, d in enumerate(spec[:-1]):
@@ -67,6 +67,7 @@ def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"
 ###########################
 #Distance
 
+@tf.function
 def dist(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
     nb = tf.reduce_sum(tf.square(B), -1)
@@ -77,6 +78,7 @@ def dist(A,B):
     D = tf.sqrt(Dsq)
     return D
 
+@tf.function
 def dist_batch2(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
     nb = tf.reduce_sum(tf.square(B), -1)
@@ -387,10 +389,17 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
     self.depth = d_model // self.num_heads
 
-    self.wq = tf.keras.layers.Conv1D(filters=self.depth,kernel_size=1, use_bias=False)
-    self.wk = tf.keras.layers.Conv1D(filters=self.depth,kernel_size=1, use_bias=False)
-    self.wv = tf.keras.layers.Conv1D(filters=self.depth,kernel_size=1, use_bias=False)
-    self.dense = tf.keras.layers.Conv1D(filters=self.depth,kernel_size=1, use_bias=False)
+    self.Wq = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+    self.Wk = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+    self.Wv = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+    self.dense = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+
+  def get_config():
+        return {
+            "num_heads" : self.num_heads,
+            "d_model": self.d_model,
+            "name": self.name
+        }
 
   def split_heads(self, x, batch_size):
     """Split the last dimension into (num_heads, depth).
@@ -404,9 +413,9 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
     mask_att = mask[:,tf.newaxis,tf.newaxis,:]
     
-    q = self.wq(q)  # (batch_size, seq_len, d_model)
-    k = self.wk(k)  # (batch_size, seq_len, d_model)
-    v = self.wv(v)  # (batch_size, seq_len, d_model)
+    q = self.Wq(q)  # (batch_size, seq_len, d_model)
+    k = self.Wk(k)  # (batch_size, seq_len, d_model)
+    v = self.Wv(v)  # (batch_size, seq_len, d_model)
 
     q = self.split_heads(q, batch_size)  # (batch_size, num_heads, seq_len_q, depth)
     k = self.split_heads(k, batch_size)  # (batch_size, num_heads, seq_len_k, depth)
@@ -430,17 +439,20 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 #######################################################################################
 
 class MultiSelfAttentionBlock(tf.keras.layers.Layer):
-  def __init__(self, output_dim, num_heads, ff_dim, dropout=0.1,reduce=None, **kwargs):
+  def __init__(self, output_dim, num_heads, ff_dim,reduce=None, **kwargs):
     name = kwargs.pop("name", None)
     super(MultiSelfAttentionBlock, self).__init__(name=name)
     self.output_dim = output_dim
     self.ff_dim = ff_dim
     self.num_heads = num_heads
-    self.dropout = dropout
     self.reduce = reduce # it can be None, sum, mean, max
+    self.activation = kwargs.pop("activation", "relu")
+    self.dropout = kwargs.get("dropout", 0.)
+    self.l2_reg = kwargs.get("l2_reg", False)
 
+    self.inputW = tf.keras.layers.Conv1D(filters=self.output_dim, kernel_size=1, use_bias=False)
     self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_msa", )
-   .self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
+    self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
                                     L2=self.l2_reg, dropout=self.dropout, name=self.name+"_ff")
       
 
@@ -461,9 +473,11 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
     
   def call(self, x, mask, training):
     mask_out = mask[:,:,tf.newaxis]
-    attn_output, attn_weights = self.mha(x, x, x, mask)    # (batch_size, input_seq_len, d_model)
+    #projecting the input on the MSA dim
+    msa_input = self.inputW(x)
+    attn_output, attn_weights = self.mha(msa_input,msa_input,msa_input, mask)    # (batch_size, input_seq_len, d_model)
     attn_output = self.dropout1(attn_output, training=training)
-    out1 = self.layernorm1(x + attn_output)  # (batch_size, input_seq_len, d_model)
+    out1 = self.layernorm1(msa_input + attn_output)  # (batch_size, input_seq_len, d_model)
 
     ffn_output = self.ffn(out1)  # (batch_size, input_seq_len, d_model)
     ffn_output = self.dropout2(ffn_output, training=training)
@@ -474,12 +488,12 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
         return  tf.reduce_sum(output_block, -2), attn_weights
     if self.reduce == "mean":
         N_nodes = tf.reduce_sum(mask,-1)[:,tf.newaxis]
-        return tf.math.divide_no_nan( tf.reduce_sum(output_block, -2), N_nodes), attention_weights
+        return tf.math.divide_no_nan( tf.reduce_sum(output_block, -2), N_nodes), attn_weights
     if self.reduce == "max":
         return tf.reduce_max(output_block, axis=-2), attn_weights
     else:
         #just return all the nodes
-        return output_block, attn_weightss
+        return output_block, attn_weights
 
     return out2, attn_weights
 
@@ -508,7 +522,7 @@ class RechitsGCN(tf.keras.layers.Layer):
         
         # Self-attention matrices
         self.Q = tf.keras.layers.Conv1D(filters=self.output_dim,kernel_size=1, use_bias=False, name="Q_sa_rechits")
-        self.K = tf.keras.layers.Conv1D(filters=self.depoutput_dimth,kernel_size=1, use_bias=False, name="K_sa_rechits")
+        self.K = tf.keras.layers.Conv1D(filters=self.output_dim,kernel_size=1, use_bias=False, name="K_sa_rechits")
         self.V = tf.keras.layers.Conv1D(filters=self.output_dim,kernel_size=1, use_bias=False, name="V_sa_rechits")
         #  Dense 
         # Feed-forward output (1 hidden layer)
@@ -616,7 +630,7 @@ class GraphBuilding(tf.keras.layers.Layer):
 
     def call(self, cl_features, rechits, training):
         # Conversion from RaggedTensor to dense tensor
-        # rechits = rechits_features.to_tensor()
+        rechits = rechits.to_tensor()
         mask_rechits, mask_cls = create_padding_masks(rechits)
         # Cal the rechitGCN and get out 1 vector for each cluster 
         output_rechits, (debug) = self.rechitsGCN(rechits, mask_rechits, training=training)
@@ -843,6 +857,7 @@ class DeepClusterGN(tf.keras.Model):
 
     # Customized training loop
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
+    @tf.function
     def train_step(self, data):
         x, y, w = data 
         with tf.GradientTape() as tape:
@@ -884,6 +899,7 @@ class DeepClusterGN(tf.keras.Model):
                 "loss_en_softF1": self.loss5_tracker.result(),
                 "loss_en_regr": self.loss6_tracker.result()}
 
+    @tf.function
     def test_step(self, data):
         # Unpack the data
         x, y, w  = data
@@ -937,7 +953,7 @@ class DeepClusterGN(tf.keras.Model):
 ############################################
 ############################################
 ## Loss functions
-
+@tf.function
 def clusters_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor),  mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
@@ -946,7 +962,7 @@ def clusters_classification_loss(y_true, y_pred, weight):
     reduced_loss = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1) * weight) / tf.reduce_sum(weight)
     return reduced_loss 
 
-
+@tf.function
 def energy_weighted_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
@@ -960,7 +976,7 @@ def energy_weighted_classification_loss(y_true, y_pred, weight):
     reduced_loss = tf.reduce_sum(tf.reduce_sum(weighted_loss, axis=-1) * weight) / tf.reduce_sum(weight) 
     return reduced_loss
 
-
+@tf.function
 def window_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
@@ -984,7 +1000,7 @@ def window_classification_loss(y_true, y_pred, weight):
 #     reduced_loss_missing = tf.reduce_mean(tf.squeeze(tf.reduce_sum(missing_en, axis=1))) 
 #     reduced_loss_spurious =  tf.reduce_mean(tf.squeeze(tf.reduce_sum(spurious_en, axis=1))) 
 #     return reduced_loss_missing,reduced_loss_spurious
-
+@tf.function
 def energy_loss(y_true, y_pred, weight, beta=1):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
@@ -1004,6 +1020,7 @@ def energy_loss(y_true, y_pred, weight, beta=1):
 
     return en_resolution_loss , reduced_f1
 
+@tf.function
 def soft_f1_score(y_true, y_pred, weight, beta=1):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
@@ -1019,19 +1036,21 @@ def soft_f1_score(y_true, y_pred, weight, beta=1):
     reduced_f1 = tf.reduce_sum(tf.squeeze(soft_f1_loss) * weight) / tf.reduce_sum(weight) 
     return reduced_f1
 
-
+@tf.function
 def huber_loss(y_true, y_pred, delta, weight):
     z = tf.math.abs(y_true - y_pred)
     mask = tf.cast(z < delta,tf.float32)
     return  tf.reduce_sum( (0.5*mask*tf.square(z) + (1.-mask)*(delta*z - 0.5*delta**2))*weight)/tf.reduce_sum(weight)
 
 quantiles = tf.constant([ 0.25, 0.75])[:,tf.newaxis]
+@tf.function
 def quantile_loss(y_true, y_pred, weight):
     e = y_true - y_pred
     l =  tf.reduce_sum( ( quantiles*e + tf.clip_by_value(-e, tf.keras.backend.epsilon(), np.inf) ) * weight) / tf.reduce_sum(weight)
     return l
 
 
+@tf.function
 def energy_regression_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
