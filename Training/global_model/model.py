@@ -684,6 +684,7 @@ class DeepClusterGN(tf.keras.Model):
 
     # Customized training loop
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
+    @tf.function
     def train_step(self, data):
         x, y, w = data 
         with tf.GradientTape() as tape:

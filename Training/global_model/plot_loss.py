@@ -12,8 +12,8 @@ from tensorflow import keras
 # a minimal example (sort of)
 
 class LossPlotter(keras.callbacks.Callback):
-    def __init__(self, output_dir):
-        # self.batch_mode = batch_mode
+    def __init__(self, output_dir, batch_mode=False):
+        self.batch_mode = batch_mode
         self.output_dir = output_dir
         super(keras.callbacks.Callback, self).__init__()
 
@@ -54,9 +54,9 @@ class LossPlotter(keras.callbacks.Callback):
             ax.set_xlabel("epochs")
             ax.legend()
         
-        # if not self.batch_mode:
-        clear_output(wait=True)
-        plt.show()
+        if not self.batch_mode:
+            clear_output(wait=True)
+            plt.show()
         self.figure.savefig(self.output_dir+ "/loss_plot.png")
 
     def save_figure(self, fname):

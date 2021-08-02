@@ -7,19 +7,18 @@ import json
 import tf_data
 
     
-
-def load_dataset(path_dict, batch_size, normalization_files, nevents=None, features_dict=None, weights=None,  training=False ):
+def load_dataset(path_dict, batch_size, normalization_files, nevents=None, features_dict=None, weights=None, training=False):
     # Load a balanced dataset from the list of paths given to the function. Selected only the requestes features from clusters and prepare batches
-    test_ds = tf_data.load_balanced_dataset_batch(path_dict, features_dict, batch_size, weights=weights, training=training)
+    dataset = tf_data.load_balanced_dataset_batch(path_dict, features_dict, batch_size, weights=weights, training=training)
     # the indexes for energy and et are from the features list we requestes
-    test_ds = tf_data.normalize_features(test_ds, normalization_files[0], normalization_files[1],
+    dataset = tf_data.normalize_features(dataset, normalization_files[0], normalization_files[1],
                                          features_dict["cl_features"], features_dict["window_features"])
-    test_ds = tf_data.training_format(test_ds)
+    dataset = tf_data.training_format(dataset)
     # Create training and validation
-    ds_test  = test_ds.prefetch(100)
+    dataset  = dataset.prefetch(300)
     if nevents:
-        ds_test = ds_test.take(nevents// batch_size)
-    return ds_test
+        dataset = dataset.take(nevents// batch_size)
+    return dataset
 
 
 def get_model(config_path, definition_path, weights_path, X):
