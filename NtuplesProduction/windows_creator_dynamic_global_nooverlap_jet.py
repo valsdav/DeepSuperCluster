@@ -197,15 +197,17 @@ class WindowCreator():
         
         # Association map between pfclusters and corresponding parton
         pfcluster_parton_map = {k:event.caloParticle_partonIndex[i] if i!=-1 else i for k,i in enumerate(pfcluster_calo_map.values())}
-        
+        # Association map between pfclusters and genmother (e.g. photons with pi0)
+        pfcluster_genmother_map = {k:event.caloParticle_genMotherIndex[i] if i!=-1 else i for k,i in enumerate(pfcluster_calo_map.values())}
+        gen_mother_pdgid = event.caloParticle_genMotherPdgId
+
         # CaloParticle Pileup information
         cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
         cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
         cluster_signal_simenergy = event.pfCluster_simEnergy_sharedXtals
         cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
         total_PU_simenergy = event.caloParticlePU_totEnergy
-        
-        gen_mother = event.caloParticle_genMotherPdgId
+       
         # #total PU simenergy in all clusters in the event
         # total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
 
@@ -325,17 +327,21 @@ class WindowCreator():
                     "is_seed_calo_matched": calomatched != -1,
                     # index of the associated caloparticle
                     "calo_index": calomatched,
+                    # The seed is the cluster associated with the particle with the largest fraction
+                    "is_seed_calo_seed": caloseed,
+                    # Mustache info
+                    "is_seed_mustache_matched": mustache_seed_index != -1,
+                    "mustache_seed_index": mustache_seed_index,
+
                     # index of the associated parton
                     "parton_index": partonmatched,
                     "parton_pdg": parton_PdgId[partonmatched] if partonmatched!=-1 else 0,
                     "parton_phi": parton_phi[partonmatched] if partonmatched!=-1 else 0,
                     "parton_eta": parton_eta[partonmatched] if partonmatched!=-1 else 0,
                     "parton_pt": parton_Pt[partonmatched] if partonmatched!=-1 else 0,
-                    # The seed is the cluster associated with the particle with the largest fraction
-                    "is_seed_calo_seed": caloseed,
-                    # Mustache info
-                    "is_seed_mustache_matched": mustache_seed_index != -1,
-                    "mustache_seed_index": mustache_seed_index,
+                    # Index of associated genMother
+                    "genmother_index": pfcluster_genmother_map[icl],
+                    "genmother_pdgId": gen_mother_pdgid[calomatched] if calomatched!=-1 else 0,
                     
                     # Score of the seed cluster
                     "seed_score": pfcluster_calo_score[icl],
@@ -439,6 +445,7 @@ class WindowCreator():
                     if not window["is_seed_calo_matched"]:
                         is_calo_matched = False
                         is_parton_matched = False
+                        is_genmother_matched = False
                         pass_simfrac_thres = False
                         is_calo_seed = False
                         PU_simenfrac = -1.
@@ -448,6 +455,9 @@ class WindowCreator():
                         is_calo_matched =  pfcluster_calo_map[icl] == window["calo_index"]  # we know at this point it is not -1
                         # Check if the cluster is associated to the SAME parton as the seed
                         is_parton_matched = pfcluster_parton_map[icl] == window["parton_index"]
+                        # Chceck if the cluster is associated to the same genMother as the seed
+                        is_genmother_matched = pfcluster_genmother_map[icl] == window["genmother_index"] #never -1 because the seed is matched
+
                         # If the cluster is associated to the SAME CALO of the seed 
                         # the simfraction threshold by seed eta/et is used
                         PU_simenfrac = 0.
@@ -496,6 +506,8 @@ class WindowCreator():
                         "is_calo_matched": is_calo_matched,
                         # True if the seed has a parton and the cluster is associated to the same calo
                         "is_parton_matched": is_parton_matched,
+                        # True if the cluster is associated to the same genMother caloparticle as the seed
+                        "is_genmother_matched": is_genmother_matched,
                         # True if the cluster is the main cluster of the calo associated with the seed
                         "is_calo_seed": is_calo_seed,
                         # is_calo_matched & (sim fraction optimized threshold) || cl it is the seed of the window 
@@ -506,7 +518,6 @@ class WindowCreator():
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster
                         "calo_simen_sig": cluster_signal_simenergy[icl][window["calo_index"]] if is_calo_matched else 0.,
-                        "gen_mother": gen_mother[calomatched] if is_calo_matched else 0.,
                         "calo_simen_PU":  cluster_PU_simenergy[icl],
                         "calo_recoen_PU": cluster_PU_recoenergy[icl],
                         "calo_nxtals_PU": cluster_nXtalsPU[icl],

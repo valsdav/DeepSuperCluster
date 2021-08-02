@@ -20,4 +20,4 @@ def hadd(d):
     os.system("hadd {} {}".format(output, " ".join(d[1])))
     
 pool = Pool()
-pool.map(hadd, chunks(files, ngroup))
+pool.map(hadd, chunks(files, ngroup))``
