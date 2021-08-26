@@ -73,7 +73,8 @@ def make_example_window(window, weights=None):
                     ]
 
     seed_labels =   [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
-    seed_metadata = [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"]
+    seed_metadata = [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac",
+                      "genmother_index","genmother_pdgId", ]
 
     
     # features that can be used in the training
@@ -88,8 +89,9 @@ def make_example_window(window, weights=None):
                         "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                       "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig", "parton_index", 
-                      "parton_pdg", "parton_phi", "parton_eta", "parton_pt"]
+                       "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig", 
+                       "parton_index", "parton_pdg", "parton_phi", "parton_eta", "parton_pt",
+                       ]
 
     cls_features = [    "en_cluster","et_cluster",
                         "cluster_eta", "cluster_phi", 
@@ -101,10 +103,12 @@ def make_example_window(window, weights=None):
                         "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
                         "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
                         "cl_sigmaIphiIphi","cl_swissCross",
-                        "cl_nxtals", "cl_etaWidth","cl_phiWidth", "gen_mother"
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth"
                     ]
 
-    cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache", "is_parton_matched"]
+    cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache", 
+                    "is_parton_matched", "is_genmother_matched"]
+                    
     cls_metadata = [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
                     "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac"]
 
