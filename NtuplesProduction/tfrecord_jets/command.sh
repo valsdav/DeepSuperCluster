@@ -1,0 +1,1 @@
+python condor_tfrecords_jet.py -i /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/jets/ndjson_v11/training -nfg 3 -tf 0.5 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/jets/recordio_allinfo_v11 -q microcentury -f 33
