@@ -4,7 +4,12 @@ import multiprocessing
 import os
 import numpy as np
 import tensorflow as tf
+import pandas as pd
 
+df_weight = pd.read_csv('jet_weights.csv', index_col=0)
+bins = df_weight.start_bin.values
+df = tf.convert_to_tensor(df_weight)[:,2]
+ 
 ###################################
 ## Default features dictionary
 
@@ -125,10 +130,10 @@ def parse_single_window(element, read_hits=False, read_metadata=False, jet=False
     N_cl_labels = len(default_features_dict["cl_labels"])
     
     if jet: 
-        N_seed_metadata = 6
+        N_seed_metadata = 5
         N_window_metadata = 32
-        N_cl_labels = 8
-   
+        N_cl_labels = 7
+
     context_features = {
         's_f': tf.io.FixedLenFeature([N_seed_features], tf.float32),
         's_l': tf.io.FixedLenFeature([N_seed_labels], tf.int64),
@@ -193,7 +198,6 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
         'n_cl' : tf.io.FixedLenFeature([], tf.int64),
         # flag (pdgid id)
         'f' :  tf.io.FixedLenFeature([], tf.int64),
-        # weight
         #weight
         'wi': tf.io.FixedLenFeature([], tf.float32)
     }
@@ -203,7 +207,6 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
     }
 
     if read_metadata:
-        print(N_seed_metadata)
         # seed metadata
         context_features["s_m"] = tf.io.FixedLenFeature([N_seed_metadata], tf.float32) 
         # window metadata
@@ -271,17 +274,22 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
         
         if jet: 
             w_metadata =  tf.gather(kargs[0]["w_m"], indices=metadata_index[:-1], axis=-1)
+            
             if (kargs[0]["w_m"][metadata_index[-1]]==6) | (kargs[0]["w_m"][metadata_index[-1]]==-6):
-                wind_meta = tf.concat( [  w_metadata , 
-                          seed_feat,
-                          tf.stack( [ tf.cast(kargs[0]['w_cl'],tf.float32),
+                wind_meta = tf.concat([w_metadata, seed_feat,
+                                      tf.stack([tf.cast(kargs[0]['w_cl'],tf.float32),
                                       tf.cast(kargs[0]["w_m"][metadata_index[-1]],tf.float32)], axis=-1),
-                       ], axis=-1)
+                                      ], axis=-1)
             else: 
-                wind_meta = tf.concat( [w_metadata, seed_feat,
-              tf.stack( [ tf.cast(kargs[0]['w_cl'],tf.float32),
-                          tf.cast(0,tf.float32)], axis=-1),
-           ], axis=-1)
+                wind_meta = tf.concat([w_metadata, seed_feat,
+                                      tf.stack([tf.cast(kargs[0]['w_cl'],tf.float32),
+                                      tf.cast(0,tf.float32)], axis=-1),
+                                      ], axis=-1)
+            et = tf.gather(cl_f, indices=feat_index[1], axis=-1)
+            energy_window = tf.reduce_sum(et * tf.cast(in_sc[:,0], tf.float32), axis=0, keepdims=True)
+
+            w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
+            weight = tf.gather(df, w_bins)[0]
                 
         #calibrated clusters energy in the labels
         cl_en_calib = tf.gather(cl_f, indices=calib_index,axis=-1)
@@ -314,12 +322,15 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
 
 ###########
 ## Features normalization, to be applied at the same level as the normalization parameters have been calculated
-def normalize_features(dataset, file, file_win, cl_features,window_features):
+def normalize_features(dataset, file, file_win, cl_features, window_features):
     cl_feat_index = get_cluster_features_indexes(cl_features)
+    print(cl_feat_index)
     window_feat_index = get_window_features_indexes(window_features)
+    print(window_feat_index)
     params = np.load(file)
     m = tf.convert_to_tensor(params["mean"], dtype=tf.float32)
     s = tf.convert_to_tensor(params["sigma"], dtype=tf.float32)
+    print(m)
     m = tf.gather(m, indices=cl_feat_index,axis=-1)
     s = tf.gather(s, indices=cl_feat_index, axis=-1)
     paramsW = np.load(file_win)
@@ -356,9 +367,11 @@ def training_format(dataset, norm=True):
         def process(*kargs):
             ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
             cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = kargs
+            #print(weight.values)
             # get window classification target, total number of true clusters, total simenergy and genenergy
             w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
-            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels), weight
+            w_test = tf.searchsorted(bins.astype(np.float32), w_flavour)-1
+            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels), w_flavour
         return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
@@ -381,6 +394,7 @@ def load_dataset_single(path, options, jet=False):
     options = { "read_hits" }
     '''
     dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
+    #dataset = tf.data.TFRecordDataset((path))
     dataset = dataset.map(
                 lambda el: parse_single_window(el, options.get('read_hits', False), options.get('read_metadata', False), jet),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
@@ -393,6 +407,7 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
                              options={"read_hits":True, "read_metadata":True}, 
                              training=True, jet=False, jet_meta=None):
     # check the features dictionary
+    print(jet)
     if not features_dict:
         features_dict = default_features_dict
     else:
@@ -420,9 +435,9 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
         df = prepare_features(df, features_dict["cl_features"], features_dict["window_features"],
                                  features_dict["seed_features"], wind_meta, jet)
         
-        if jet: 
-            df = df.filter(lambda cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels:
-                          (wind_meta[-1]!=-6) & (wind_meta[-1]!=6))
+#         if jet: 
+#             df = df.filter(lambda cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels:
+#                           (wind_meta[-1]!=-6) & (wind_meta[-1]!=6))
                 
         if training:
             # Shuffle only for training
