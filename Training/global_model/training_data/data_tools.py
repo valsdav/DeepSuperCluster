@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 sys.path.append('..')
 import tf_data
+from tqdm import tqdm
 
 def parameters(ds, features):
     '''
@@ -28,7 +29,7 @@ def parameters(ds, features):
     
     # iterate through dataset to calculate mean 
     for el in ds:
-        (cl_X, _, _, n_cl), (*_) = el
+       #(cl_X, _, _, n_cl), (*_) = el
         cl_X = cl_X[:,:,0:n_features] 
 
         m += tf.reduce_sum(cl_X, axis=(0,1)).numpy()
@@ -42,7 +43,7 @@ def parameters(ds, features):
     
     # iterate through dataset to calculate sigma
     for el in ds: 
-        (cl_X, _, _, n_cl), (*_) = el
+     #   (cl_X, _, _, n_cl), (*_) = el
         cl_X = cl_X[:,:,0:n_features]
         # create mask to eliminate the padded values from calculation
         mask = tf.expand_dims(tf.cast(tf.reduce_sum(cl_X, axis=-1) != 0., tf.float32), axis=-1)
@@ -71,8 +72,8 @@ def convert_df(data_path, features, n_samples=100):
     features_ext = features["cl_features"]
     
     # iterate through the dataset
-    for el in ds: 
-        cl_X, _,_, is_seed, n_cl, in_sc, wind_meta,_ = el
+    for el in tqdm(ds): 
+        cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = el
         # choose only features that were passed to the function
         X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
         d = dict(zip(features_ext, X_features))
@@ -82,6 +83,7 @@ def convert_df(data_path, features, n_samples=100):
         df_el['is_seed'] = is_seed[0].numpy()
         df_el['n_cl'] = n_cl[0].numpy()
         df_el['in_sc'] = in_sc[0].numpy()
+        df_el['weight'] = weight[0].numpy()
         
         # window metadata info  
         for i, meta in enumerate(features['window_metadata']):

@@ -4,17 +4,7 @@ import multiprocessing
 import os
 import numpy as np
 import tensorflow as tf
-import pandas as pd
 
-df_weight = pd.read_csv('training_data/jet_weights.csv', index_col=0)
-bins = df_weight.start_bin.values
-
-df_weight_low = pd.read_csv('training_data/jet_weights_low.csv', index_col=0)
-df_low = tf.convert_to_tensor(df_weight_low)[:,2]
-
-df_weight_high = pd.read_csv('training_data/jet_weights_high.csv', index_col=0)
-df_high = tf.convert_to_tensor(df_weight_high)[:,2]
- 
 ###################################
 ## Default features dictionary
 
@@ -29,9 +19,9 @@ default_features_dict = {
                         "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
                         "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
                         "cl_sigmaIphiIphi","cl_swissCross",
-                        "cl_nxtals", "cl_etaWidth","cl_phiWidth",],
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth" ],
 
-  "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
+  "window_features" : [  "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                          "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
                          "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
@@ -42,7 +32,8 @@ default_features_dict = {
                         "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ],
+                       "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig", 
+                       "parton_index", "parton_pdg", "parton_phi", "parton_eta", "parton_pt"],
     
 
   "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
@@ -54,23 +45,16 @@ default_features_dict = {
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
                     ],
 
-    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
+    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac",
+                      "genmother_pdgId",],
 
     "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
-                     "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
+                    "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
 
-    "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"],
-    "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
+    "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache", 
+                    "is_parton_matched"],
     
-      "window_metadata_jet": ["nVtx", "rho", "obsPU", "truePU",
-                         "sim_true_eta", "sim_true_phi",  
-                        "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
-                        "en_true_sim_good", "et_true_sim_good",
-                        "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
-                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
-                        "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                       "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig", 
-                       "parton_index", "parton_pdg", "parton_phi", "parton_eta", "parton_pt"],
+    "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
 }
 
 
@@ -112,8 +96,6 @@ def get_window_metadata_indexes(feats):
     for f in feats:
         if f in default_features_dict['window_metadata']:
             output.append(default_features_dict['window_metadata'].index(f))
-        elif f in default_features_dict['window_metadata_jet']:
-            output.append(default_features_dict['window_metadata_jet'].index(f))
         else:
             print("Missing branch! ", f)
     return output
@@ -124,24 +106,14 @@ def get_window_metadata_indexes(feats):
 N_seed_features = len(default_features_dict["seed_features"])
 N_window_features = len(default_features_dict["window_features"])
 N_cl_features = len(default_features_dict["cl_features"])
+N_seed_metadata = len(default_features_dict["seed_metadata"])
+N_window_metadata = len(default_features_dict["window_metadata"])
 N_cl_metadata = len(default_features_dict["cl_metadata"])
-N_seed_labels = len(default_features_dict["seed_labels"])
 
-
-def parse_single_window(element, read_hits=False, read_metadata=False, jet=False):
-    
-    N_seed_metadata = len(default_features_dict["seed_metadata"])
-    N_window_metadata = len(default_features_dict["window_metadata"])
-    N_cl_labels = len(default_features_dict["cl_labels"])
-    
-    if jet: 
-        N_seed_metadata = 5
-        N_window_metadata = 32
-        N_cl_labels = 7
-
+def parse_single_window(element, read_hits=False, read_metadata=False):
     context_features = {
         's_f': tf.io.FixedLenFeature([N_seed_features], tf.float32),
-        's_l': tf.io.FixedLenFeature([N_seed_labels], tf.int64),
+        's_l': tf.io.FixedLenFeature([3], tf.int64),
         #Window features
         'w_f': tf.io.FixedLenFeature([N_window_features], tf.float32),
         # window class
@@ -156,7 +128,7 @@ def parse_single_window(element, read_hits=False, read_metadata=False, jet=False
     
     clusters_features = {
         "cl_f" : tf.io.FixedLenSequenceFeature([N_cl_features], dtype=tf.float32),
-        "cl_l" : tf.io.FixedLenSequenceFeature([N_cl_labels], dtype=tf.int64),
+        "cl_l" : tf.io.FixedLenSequenceFeature([7], dtype=tf.int64),
     }
 
     if read_metadata:
@@ -194,7 +166,7 @@ def parse_single_window(element, read_hits=False, read_metadata=False, jet=False
 def parse_windows_batch(elements, read_hits=False, read_metadata=False):
     context_features = {
         's_f': tf.io.FixedLenFeature([N_seed_features], tf.float32),
-        's_l': tf.io.FixedLenFeature([N_seed_labels], tf.int64),
+        's_l': tf.io.FixedLenFeature([3], tf.int64),
         #Window features
         'w_f': tf.io.FixedLenFeature([N_window_features], tf.float32),
         # window class
@@ -203,14 +175,15 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
         'n_cl' : tf.io.FixedLenFeature([], tf.int64),
         # flag (pdgid id)
         'f' :  tf.io.FixedLenFeature([], tf.int64),
+        # weight
         #weight
         'wi': tf.io.FixedLenFeature([], tf.float32)
     }
     clusters_features = {
         "cl_f" : tf.io.FixedLenSequenceFeature([N_cl_features], dtype=tf.float32),
-        "cl_l" : tf.io.FixedLenSequenceFeature([N_cl_labels], dtype=tf.int64),
+        "cl_l" : tf.io.FixedLenSequenceFeature([8], dtype=tf.int64),
     }
-
+    
     if read_metadata:
         # seed metadata
         context_features["s_m"] = tf.io.FixedLenFeature([N_seed_metadata], tf.float32) 
@@ -225,7 +198,7 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
         clusters_features["cl_h1"] = tf.io.RaggedFeature(dtype=tf.float32)
         clusters_features["cl_h2"] = tf.io.RaggedFeature(dtype=tf.float32)
         clusters_features["cl_h4"] = tf.io.RaggedFeature(dtype=tf.float32)
-
+    
     ex = tf.io.parse_sequence_example(elements, context_features=context_features, sequence_features=clusters_features,name="input")
     
     if read_hits:
@@ -245,14 +218,13 @@ def parse_windows_batch(elements, read_hits=False, read_metadata=False):
 ####################################################
 # Function to prepare tensors for training 
 
-def prepare_features(dataset,  cl_features, window_features, seed_features, window_metadata, jet): 
+def prepare_features(dataset,  cl_features, window_features, seed_features, window_metadata): 
     ''' The tensor containing the requested featues follow the requested order '''
     feat_index = get_cluster_features_indexes(cl_features)
     seed_feat_index = get_seed_features_indexes(seed_features)
     window_feat_index = get_window_features_indexes(window_features)
     metadata_index = get_window_metadata_indexes(window_metadata)
     calib_index = get_cluster_features_indexes(["en_cluster_calib"])
-    
     def process(*kargs):
         cl_f = kargs[1]['cl_f']
         cl_l = kargs[1]['cl_l']
@@ -275,39 +247,7 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
                                   seed_feat,
                                   tf.stack( [ tf.cast(kargs[0]['w_cl'],tf.float32),
                                               tf.cast(kargs[0]['f'],tf.float32)], axis=-1),
-                               ], axis=-1)
-        
-        # calculate Et energy in the window
-        et = tf.gather(cl_f, indices=feat_index[1], axis=-1) 
-        energy_window = tf.reduce_sum(et * tf.cast(in_sc[:,0], tf.float32), axis=0, keepdims=True)
-        
-        if jet: 
-            w_metadata =  tf.gather(kargs[0]["w_m"], indices=metadata_index[:-2], axis=-1)
-            
-            if (kargs[0]["w_m"][metadata_index[-2]]==6) | (kargs[0]["w_m"][metadata_index[-2]]==-6):
-                wind_meta = tf.concat([w_metadata, seed_feat,
-                                      tf.stack([tf.cast(kargs[0]['w_cl'],tf.float32),
-                                      tf.cast(kargs[0]["w_m"][metadata_index[-2]],tf.float32)], axis=-1),
-                                      ], axis=-1)
-            else: 
-                wind_meta = tf.concat([w_metadata, seed_feat,
-                                      tf.stack([tf.cast(kargs[0]['w_cl'],tf.float32),
-                                      tf.cast(0,tf.float32)], axis=-1),
-                                      ], axis=-1)
-            
-            if kargs[0]["w_m"][metadata_index[-1]] < 100: 
-                df = df_low
-            else: df = df_high
-                
-            w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
-            weight = tf.cast(tf.gather(df, w_bins)[0], dtype=tf.float32)
-            
-            if kargs[0]["w_m"][metadata_index[-1]] < 50: 
-                weight = tf.constant(-1., dtype=tf.float32) 
-            
-        if energy_window > 100:
-            weight = tf.constant(-1., dtype=tf.float32)   
-                
+                               ], axis=-1) 
         #calibrated clusters energy in the labels
         cl_en_calib = tf.gather(cl_f, indices=calib_index,axis=-1)
         cl_labels = tf.concat([tf.cast(cl_l, tf.float32), cl_en_calib], axis=-1)
@@ -317,37 +257,14 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
     return dataset.map( process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
 
-# def delta_energy_seed(dataset, en_index, et_index):
-#     '''
-#     Add to the cluster featrues the delta energy and Et wrt the seed cluster.
-#     N.B. to be applied on batched dataset
-#     '''
-#     def process(*kargs):
-#         # The expected kargs are: cl_X, cl_hits, is_seed, n_cl, in_sc, wind_meta
-#         # but we stay generic in order to be able to add more elements without changing this code
-#         mask_seed = tf.squeeze(kargs[2])
-#         mask_seed.set_shape([None,None])
-#         seed_en = tf.boolean_mask(kargs[0][:,:,en_index], mask_seed)[:,tf.newaxis]
-#         seed_et = tf.boolean_mask(kargs[0][:,:,et_index], mask_seed)[:,tf.newaxis]
-#         delta_seed_en = ((seed_en - kargs[0][:,:,en_index]) * tf.cast(kargs[0][:,:,en_index]!=0, tf.float32))[:,:,tf.newaxis]
-#         delta_seed_et = ((seed_et - kargs[0][:,:,et_index]) * tf.cast(kargs[0][:,:,et_index]!=0, tf.float32))[:,:,tf.newaxis]
-#         cl_X = tf.concat([kargs[0], delta_seed_en, delta_seed_et], axis=-1)
-#         output = [cl_X] 
-#         for k in kargs[1:]: output.append(k)
-#         return output
-#     return dataset.map(process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
-
 ###########
 ## Features normalization, to be applied at the same level as the normalization parameters have been calculated
-def normalize_features(dataset, file, file_win, cl_features, window_features):
+def normalize_features(dataset, file, file_win, cl_features,window_features):
     cl_feat_index = get_cluster_features_indexes(cl_features)
-    print(cl_feat_index)
     window_feat_index = get_window_features_indexes(window_features)
-    print(window_feat_index)
     params = np.load(file)
     m = tf.convert_to_tensor(params["mean"], dtype=tf.float32)
     s = tf.convert_to_tensor(params["sigma"], dtype=tf.float32)
-    print(m)
     m = tf.gather(m, indices=cl_feat_index,axis=-1)
     s = tf.gather(s, indices=cl_feat_index, axis=-1)
     paramsW = np.load(file_win)
@@ -384,10 +301,9 @@ def training_format(dataset, norm=True):
         def process(*kargs):
             ''' Function needed to divide the dataset tensors in X,Y for the training loop'''
             cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = kargs
-            #print(weight.values)
             # get window classification target, total number of true clusters, total simenergy and genenergy
             w_flavour = tf.one_hot( tf.cast(wind_meta[:,-1] / 11, tf.int32) , depth=3)
-            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels), w_flavour
+            return (cl_X, wind_X, cl_hits, is_seed, n_cl), (in_sc, w_flavour, wind_meta, cl_labels), weight
         return dataset.map(process,num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
 
 
@@ -399,20 +315,21 @@ def load_dataset_batch(path, batch_size, options):
     '''
     options = { "read_hits" }
     '''
+    
     dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
     dataset = dataset.batch(batch_size).map(
                 lambda el: parse_windows_batch(el, options.get('read_hits', False), options.get('read_metadata', False)),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
+    
     return dataset
 
-def load_dataset_single(path, options, jet=False):
+def load_dataset_single(path, options):
     '''
     options = { "read_hits" }
     '''
     dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
-    #dataset = tf.data.TFRecordDataset((path))
     dataset = dataset.map(
-                lambda el: parse_single_window(el, options.get('read_hits', False), options.get('read_metadata', False), jet),
+                lambda el: parse_single_window(el, options.get('read_hits', False), options.get('read_metadata', False)),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)
     return dataset
 
@@ -421,9 +338,8 @@ def load_dataset_single(path, options, jet=False):
 def load_balanced_dataset_batch(data_paths, features_dict=None,
                              batch_size=1, filter=None, weights=None, 
                              options={"read_hits":True, "read_metadata":True}, 
-                             training=True, jet=False, jet_meta=None):
+                             training=True):
     # check the features dictionary
-    print(jet)
     if not features_dict:
         features_dict = default_features_dict
     else:
@@ -436,28 +352,15 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
         if "window_features" not in features_dict:
             features_dict["window_features"] = default_features_dict["window_features"]
         if "window_metadata" not in features_dict:
-            wind_meta = default_features_dict["window_metadata"]
+            features_dict["window_metadata"] = default_features_dict["window_metadata"]
 
     datasets = {}
     for n, p in data_paths.items():
-        if n == 'jet_match': jet=True
-        wind_meta = features_dict["window_metadata"].copy()
-        df = load_dataset_single(p, options, jet)
-        
-        if jet: 
-            wind_meta.extend(('parton_pdg', 'parton_pt'))
+        df = load_dataset_single(p, options)
         if filter:
             df = df.filter(filter)
         df = prepare_features(df, features_dict["cl_features"], features_dict["window_features"],
-                                 features_dict["seed_features"], wind_meta, jet)
-        
-        df = df.filter(lambda cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels:
-                      weight >= 0.)
-        
-        if jet: 
-            df = df.filter(lambda cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels:
-                          (wind_meta[-1]!=-6) & (wind_meta[-1]!=6))
-                
+                                 features_dict["seed_features"], features_dict["window_metadata"])
         if training:
             # Shuffle only for training
             df = df.shuffle(buffer_size=batch_size*30) # Shuffle elements for 30 times sample the batch size
@@ -472,15 +375,26 @@ def load_balanced_dataset_batch(data_paths, features_dict=None,
     # Now we can shuffle and batch
     def batch_features(cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels):
         '''This function is used to create padded batches together for dense features and ragged ones'''
+        # return tf.data.Dataset.zip((cl_X.padded_batch(batch_size, padded_shapes=[35,None]), 
+        #                         wind_X.batch(batch_size),
+        #                         cl_hits.map(lambda x:x.to_tensor() ).padded_batch(batch_size, padded_shapes=[35,64,4]), 
+        #                         is_seed.padded_batch(batch_size,padded_shapes=[35,None]), 
+        #                         n_cl.batch(batch_size),
+        #                         weight.batch(batch_size),
+        #                         in_sc.padded_batch(batch_size,padded_shapes=[35,None]),
+        #                         wind_meta.batch(batch_size),
+        #                         cl_labels.padded_batch(batch_size, padded_shapes=[35,None]))
+        #                     )
         return tf.data.Dataset.zip((cl_X.padded_batch(batch_size), 
                                 wind_X.batch(batch_size),
                                 cl_hits.batch(batch_size), 
                                 is_seed.padded_batch(batch_size), 
-                                n_cl.padded_batch(batch_size),
-                                weight.padded_batch(batch_size),
+                                n_cl.batch(batch_size),
+                                weight.batch(batch_size),
                                 in_sc.padded_batch(batch_size),
-                                wind_meta.padded_batch(batch_size),
-                                cl_labels.padded_batch(batch_size)))
+                                wind_meta.batch(batch_size),
+                                cl_labels.padded_batch(batch_size))
+                            )
     total_ds_batched = total_ds.window(batch_size).flat_map(batch_features)
     return total_ds_batched
 

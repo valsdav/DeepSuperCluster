@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
                   "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
-                    "jet_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/jets/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
+                    "jet_match": "/eos/user/p/psimkina/jets_newds/testing/calo_matched/*.proto",
                   }
 
 features_dict = {
@@ -211,6 +211,7 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     data["En_ovEtrue_gen_calib_mustache"].append((En_mustache_calib/En_true_gen).numpy())
    
     data["flavour"].append(y_metadata[:, -1].numpy())
+    data["weight"].append(weight.numpy())
 
     # seed features
     for iS, s in enumerate(features_dict["seed_features"]):
@@ -245,8 +246,8 @@ df_nomatch = df[df.flavour == 0]
 print("Saving on disk")
 
 os.makedirs(args.outputdir, exist_ok=True)
-df_ele.to_csv(args.outputdir +"/validation_dataset_{}_ele.csv".format(args.dataset_version), sep=";",index=False)
-df_gamma.to_csv(args.outputdir +"/validation_dataset_{}_gamma.csv".format(args.dataset_version), sep=";",index=False)
-df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_jetmatch.csv".format(args.dataset_version), sep=";",index=False)
+df_ele.to_csv(args.outputdir +"/validation_dataset_{}_ele_newds.csv".format(args.dataset_version), sep=";",index=False)
+df_gamma.to_csv(args.outputdir +"/validation_dataset_{}_gamma_newds.csv".format(args.dataset_version), sep=";",index=False)
+df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_jetmatch_newds.csv".format(args.dataset_version), sep=";",index=False)
 
 print("DONE!")

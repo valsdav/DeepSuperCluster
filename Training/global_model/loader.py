@@ -4,7 +4,7 @@ import tensorflow as tf
 from collections import namedtuple
 from pprint import pprint
 import json
-import tf_data
+import tf_data_jet as tf_data
 
     
 
@@ -12,7 +12,8 @@ def load_dataset(path_dict, batch_size, normalization_files, nevents=None, featu
     # Load a balanced dataset from the list of paths given to the function. Selected only the requestes features from clusters and prepare batches
     test_ds = tf_data.load_balanced_dataset_batch(path_dict, features_dict, batch_size, weights=weights, training=training)
     # the indexes for energy and et are from the features list we requestes
-    test_ds = tf_data.normalize_features(test_ds, normalization_files[0], normalization_files[1])
+    test_ds = tf_data.normalize_features(test_ds, normalization_files[0], normalization_files[1], 
+                                         features_dict['cl_features'], features_dict['window_features'])
     test_ds = tf_data.training_format(test_ds)
     # Create training and validation
     ds_test  = test_ds.prefetch(100)
@@ -28,7 +29,7 @@ def get_model(config_path, definition_path, weights_path, X):
     pprint(args)
     # Convert the activation function
     args['activation'] = tf.keras.activations.get(args['activation'])
-
+    
     # Load model modules
     spec = importlib.util.spec_from_file_location("model", definition_path)
     model_lib = importlib.util.module_from_spec(spec)

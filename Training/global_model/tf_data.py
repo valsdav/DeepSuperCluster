@@ -333,6 +333,8 @@ def load_dataset_batch(path, batch_size, options):
     options = { "read_hits" }
     '''
     dataset = tf.data.TFRecordDataset(tf.io.gfile.glob(path))
+    #dataset = tf.data.TFRecordDataset((path))
+    
     dataset = dataset.batch(batch_size).map(
                 lambda el: parse_windows_batch(el, options.get('read_hits', False), options.get('read_metadata', False)),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False)

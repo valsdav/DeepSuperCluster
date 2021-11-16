@@ -18,9 +18,9 @@ parser.add_argument("-b", "--batch-size", type=int, help="Batch size", default=1
 args = parser.parse_args()
 
 
-data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
+data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto"".format(args.dataset_version),
                   "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
-                   "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/no_calo_matched/*.proto".format(args.dataset_version),
+                  # "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/no_calo_matched/*.proto".format(args.dataset_version),
                   }
 
 features_dict = {

@@ -20,41 +20,45 @@ args = parser.parse_args()
 
 data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
                   "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
-                #    "nomatch": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/no_calo_matched/*.proto".format(args.dataset_version),
+                    "jet_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/jets/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
                   }
 
 features_dict = {
-    "cl_features" : [ "en_cluster","et_cluster",
+"cl_features" : [ "en_cluster","et_cluster",
             "cluster_eta", "cluster_phi", 
             "cluster_ieta","cluster_iphi","cluster_iz",
             "cluster_deta", "cluster_dphi",
-            "cluster_den_seed","cluster_det_seed",
-            # "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-            # "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
-            "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
-            "cl_sigmaIphiIphi","cl_swissCross",
-            "cl_nxtals", "cl_etaWidth","cl_phiWidth"]
-    ,
+             "cluster_den_seed","cluster_det_seed",
+            
+#             "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
+#             "cl_sigmaIphiIphi","cl_swissCross","cl_etaWidth","cl_phiWidth"
+                 
+            "cl_nxtals" ],
 
-  "window_features" : [  "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
+ "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                     "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
                     "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
 # DO NOT CHANGE the list above, it is the one used for the training
 
 # Metadata about the window like true energy, true calo position, useful info
-  "window_metadata": ["en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+ "window_metadata" :  ["en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
                     "en_true_sim_good", "et_true_sim_good",
                     "nclusters_insc",
                     "nVtx", "rho", "obsPU", "truePU",
                     "sim_true_eta", "sim_true_phi",  
                     "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
-                    "event_tot_simen_PU","wtot_simen_PU", "wtot_simen_sig" ],
+                    "event_tot_simen_PU","wtot_simen_PU", "wtot_simen_sig" ]   ,
     
     
   "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
-                "en_seed", "et_seed","en_seed_calib","et_seed_calib",
-                    "seed_r9","seed_swissCross","seed_nxtals"]
+                     "en_seed", "et_seed","en_seed_calib","et_seed_calib",
+                    "seed_f5_r9","seed_f5_sigmaIetaIeta", "seed_f5_sigmaIetaIphi",
+                    "seed_f5_sigmaIphiIphi","seed_f5_swissCross",
+                    "seed_r9","seed_sigmaIetaIeta", "seed_sigmaIetaIphi",
+                    "seed_sigmaIphiIphi","seed_swissCross",
+                    "seed_nxtals","seed_etaWidth","seed_phiWidth",
+                    ],
 }
 
 N_metadata = len(features_dict['window_metadata'])
@@ -65,7 +69,7 @@ print("N. seed features: ", N_seed_features)
 
 print(">> Load the dataset ")
 dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batch_size=args.batch_size, nevents=args.nevents, training=False, 
-                            normalization_files=['normalization_{}.npz'.format(args.dataset_version),'normalization_wind_features_{}.npz'.format(args.dataset_version)])
+                            normalization_files=['normalization_{}_all.npz'.format(args.dataset_version),'normalization_wind_features_{}_all.npz'.format(args.dataset_version)])
 X,y,w = tf_data.get(dataset)
 
 print(">> Load the model")
@@ -236,13 +240,13 @@ df  = pd.DataFrame(data_final)
 
 df_ele = df[df.flavour == 11]
 df_gamma = df[df.flavour == 22]
-df_nomatch = df[df.flavour ==0]
+df_nomatch = df[df.flavour == 0]
 
 print("Saving on disk")
 
 os.makedirs(args.outputdir, exist_ok=True)
 df_ele.to_csv(args.outputdir +"/validation_dataset_{}_ele.csv".format(args.dataset_version), sep=";",index=False)
 df_gamma.to_csv(args.outputdir +"/validation_dataset_{}_gamma.csv".format(args.dataset_version), sep=";",index=False)
-# df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
+df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_jetmatch.csv".format(args.dataset_version), sep=";",index=False)
 
 print("DONE!")
