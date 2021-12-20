@@ -26,6 +26,12 @@ for name,path in config["data_path"].items():
     data_path_test[name] = path.replace("training","testing")
 
 
+def DeltaPhi(phi1, phi2):
+    dphi = phi1 - phi2
+    if dphi > pi: dphi -= 2*pi
+    if dphi < -pi: dphi += 2*pi
+    return dphi
+    
 N_metadata = len(features_dict['window_metadata'])
 N_seed_features = len(features_dict['seed_features'])
 
@@ -39,9 +45,9 @@ dataset = loader.load_dataset(data_path_test, features_dict=features_dict,  batc
 X,y,w = tf_data.get(dataset)
 
 print(">> Load the model")
-model = loader.get_model(args.model_dir + '/args_load.json', 
-                        args.model_dir + '/model.py',
-             weights_path=args.model_dir+ "/" + args.model_weights, X=X)
+conf_model = json.load(open(args.model_dir + '/args_load.json'))
+model = loader.get_model(conf_model,  args.model_dir + '/model.py',
+                        weights_path=args.model_dir+ "/" + args.model_weights, X=X)
 
 print(">> Model successfully loaded")
 
@@ -81,13 +87,17 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     Et_sel_mustache = tf.reduce_sum( tf.squeeze(Et) * y_mustache, axis=1)  
     Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)
 
+    ## Todo implement a mapping of variables name to indexes
     En_true_sim = y_metadata[:,0]  
     En_true_sim_good = y_metadata[:,4]
+    Et_true_sim_good = y_metadata[:,5]
     En_mustache_regr = y_metadata[:,15]
+    En_true_gen =  y_metadata[:,2]
+    Et_true_gen =  y_metadata[:,3]
 
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
     En_true_calib = tf.reduce_sum( tf.squeeze(En_calib * y_target),axis=1)
-    En_true_gen =  y_metadata[:,2]
+
     En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1) 
     En_sel_calib = tf.reduce_sum( tf.squeeze(En_calib * y_pred),axis=1) 
     En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1) 
@@ -122,7 +132,6 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     En_fourth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=-2))
     # En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
     
-    data['ncls'].append(n_cl.numpy())
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(tf.squeeze(y_pred), axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(tf.squeeze(y_pred*y_target), axis=-1).numpy())
@@ -152,7 +161,9 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     data['En_true'].append(En_true.numpy())
     data['En_true_sim'].append(En_true_sim.numpy())
     data['En_true_sim_good'].append(En_true_sim_good.numpy())
+    data['Et_true_sim_good'].append(Et_true_sim_good.numpy())
     data['En_true_gen'].append(En_true_gen.numpy())
+    data['Et_true_gen'].append(Et_true_gen.numpy())
 
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_calib'].append(En_sel_calib.numpy()) 

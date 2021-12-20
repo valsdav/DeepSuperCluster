@@ -42,11 +42,14 @@ def get_model(args, model_definition_path, weights_path, X):
     return model 
  
 
-def get_model_and_dataset(config_path, weights_path, training=False, fixed_X=None):
+def get_model_and_dataset(config_path, weights_path, training=False, fixed_X=None, overwrite=None):
     # Load configs
     args = json.load(open(config_path))
     print("Model options: ")
+    if overwrite!=None:
+        args.update(overwrite)
     pprint(args)
+    
     # Load the tf_data lib
     spec = importlib.util.spec_from_file_location("tf_data", args["data_definition_path"])
     tf_data_lib = importlib.util.module_from_spec(spec)
@@ -76,5 +79,5 @@ def get_model_and_dataset(config_path, weights_path, training=False, fixed_X=Non
                 weights_path=weights_path, X=fixed_X)
 
 
-    return model, dataset
+    return model, dataset, tf_data_lib
 
