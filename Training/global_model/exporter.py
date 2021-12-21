@@ -27,6 +27,6 @@ X = (
   tf.zeros((50)),
   )
 
-model,dataset = loader.get_model_and_dataset(args.config,  args.model_weights, training=False, fixed_X=X)
+model,dataset, _ = loader.get_model_and_dataset(args.config,  args.model_weights, training=False, fixed_X=X)
 
 cmsml.tensorflow.save_graph("graph.pb.txt", model, variables_to_constants=True)
