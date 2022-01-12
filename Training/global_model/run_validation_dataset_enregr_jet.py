@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 data_path_test = {"ele_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
                   "gamma_match": "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/recordio_allinfo_{}/testing/calo_matched/*.proto".format(args.dataset_version),
-                    "jet_match": "/eos/user/p/psimkina/jets_newds/testing/calo_matched/*.proto",
+                    "jet_match": "/eos/user/p/psimkina/SuperClustering/jets_newds/testing/calo_matched/*.proto",
                   }
 
 features_dict = {
@@ -116,6 +116,10 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     En_true_sim = y_metadata[:,0]  
     En_true_sim_good = y_metadata[:,4]
     En_mustache_calib = y_metadata[:,15]
+    
+    parton_pt = y_metadata[:,-1]
+    
+    #print(y_metadata.shape)
 
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
     En_true_gen =  y_metadata[:,2]
@@ -152,6 +156,8 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(tf.squeeze(y_pred), axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(tf.squeeze(y_pred*y_target), axis=-1).numpy())
+   
+    data['parton_pt'].append(parton_pt.numpy())
     
     data["En_cl_first_fn"].append(En_first_false_negative.numpy())
     data["En_cl_first_fp"].append(En_first_false_positive.numpy())
@@ -224,7 +230,7 @@ for ib, (X, y_true, weight) in enumerate(dataset):
         data[m].append(y_metadata[:, iM].numpy())
         
     # Now mustache selection
-    data["w_nomatch"].append(pred_prob_window[:,0].numpy())
+    data["w_jet"].append(pred_prob_window[:,0].numpy())
     data["w_ele"].append(pred_prob_window[:,1].numpy())
     data["w_gamma"].append(pred_prob_window[:,2].numpy())
     

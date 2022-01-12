@@ -4,8 +4,11 @@ import pandas as pd
 
 import sys
 sys.path.append('..')
-import tf_data
+import tf_data_jet as tf_data
 from tqdm import tqdm
+import time
+
+from collections import defaultdict
 
 def parameters(ds, features):
     '''
@@ -67,32 +70,80 @@ def convert_df(data_path, features, n_samples=100):
     - n_samples (default=100): number of samples to save. 
     '''
     # prepare the required variables
-    dataframes = []
-    ds = tf_data.load_balanced_dataset_batch(data_path, features, 1).take(n_samples)
+    df = defaultdict(list)
+    ind = []
+    
+    ds = tf_data.load_balanced_dataset_batch(data_path, features, 300, jet=True).take(n_samples)
     features_ext = features["cl_features"]
     
+    t = 0
     # iterate through the dataset
     for el in tqdm(ds): 
-        cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = el
-        # choose only features that were passed to the function
-        X_features = [cl_X[0,:,features_ext.index(feature)] for feature in features_ext]
-        d = dict(zip(features_ext, X_features))
         
-        # save each entry in dataset
-        df_el = pd.DataFrame(data=d)
-        df_el['is_seed'] = is_seed[0].numpy()
-        df_el['n_cl'] = n_cl[0].numpy()
-        df_el['in_sc'] = in_sc[0].numpy()
-        df_el['weight'] = weight[0].numpy()
+        # define dictionary to collect the features
+        data = defaultdict(list)
+        
+        cl_X, wind_X, cl_hits, is_seed, n_cl, weight, in_sc, wind_meta, cl_labels = el
+        
+        # create a multiindex for the dataset
+        index_1 = np.repeat(np.arange(t+0, t+cl_X.shape[0]), cl_X.shape[1])
+        index_2 = np.array([np.arange(0, cl_X.shape[1])] * cl_X.shape[0]).flatten()
+        mindex = list(zip(index_1, index_2))
+        
+        t += cl_X.shape[0]
+        
+        index = pd.MultiIndex.from_tuples(mindex)
+        
+        # choose only features that were passed to the function
+        X_features = [cl_X[:,:,features_ext.index(feature)].numpy().flatten() for feature in features_ext]
+        
+        
+        for k, v in zip(features_ext, X_features): 
+            data[k].append(v)
+        
+
+        # add extra info
+        data['is_seed'].append(is_seed.numpy().flatten())
+        data['in_sc'].append(in_sc.numpy().flatten())
+        
+        data['n_cl'].append(np.repeat(n_cl.numpy().flatten(), cl_X.shape[1]))
+
+        data['weight'].append(np.repeat(weight.numpy().flatten(), cl_X.shape[1]))
         
         # window metadata info  
         for i, meta in enumerate(features['window_metadata']):
-            df_el[meta] = wind_meta[0,i].numpy()
+            data[meta].append(np.repeat(wind_meta[:,i].numpy().flatten(), cl_X.shape[1]))
            
-        df_el['seed_eta'] = wind_meta[0,-3].numpy()
+        data['seed_eta'].append(np.repeat(wind_meta[:,-3].numpy().flatten(), cl_X.shape[1]))
+
+        data_final = {}  
         
-        dataframes.append(df_el)
+        
+        data_final = {k:np.concatenate(v) for (k,v) in data.items()}
+#         for k,v in data.items():
+#             data_final[k] = np.concatenate(v)
+        #t1 = time.time()
+        #batch_df = pd.DataFrame(index=index, data=data_final)
+        #batch_df = batch_df.loc[batch_df['en_cluster'] != 0]
+        #t2 = time.time()
+        #print(batch_df)
+        for k, v in data_final.items():
+            df[k].append(v)
+        #df.append(data_final)
+        ind.extend(index)
+#     # aggregate all the samples
+    #df = {}
+    #print(df)
+    #df = {k:np.concatenate(v) for (k,v) in df.items()}
+    df = {k:np.concatenate(v) for (k,v) in df.items()}
+
+    ind = pd.MultiIndex.from_tuples(ind)
+    df_final = pd.DataFrame(data=df, index=ind)
     
-    # aggregate all the samples
-    df = pd.concat(dataframes, keys=np.arange(0,n_samples))
-    return df
+    df_final = df_final.loc[df_final['en_cluster'] != 0]
+    
+#     if len(df) != 1: 
+#         df_final = pd.concat(df)
+#     else: 
+#         df_final = df
+    return df_final
