@@ -572,7 +572,7 @@ class DeepClusterGN(tf.keras.Model):
         self.SA_windclass = SelfAttentionBlock(name="SA_windclass", input_dim=self.output_dim_gconv + self.output_dim_nodes, output_dim=self.output_dim_sa_windclass,
                                          reduce="sum", **kwargs)
         self.dense_windclass = get_dense(name="dense_windclass", spec=self.layers_windclass+[self.n_windclasses], act=self.activation,
-                                     last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
+                                     last_act=tf.keras.activations.sigmoid, dropout=self.dropout, L2=self.l2_reg)
 
         # Energy regression head
         self.SA_enregr = SelfAttentionBlock(name="SA_enregr", input_dim=self.graphbuild.output_dim_rechits +  self.output_dim_gconv + self.output_dim_nodes, output_dim=self.output_dim_sa_enregr,

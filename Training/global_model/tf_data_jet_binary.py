@@ -304,9 +304,9 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
             # take only high-pt sample
 #             if kargs[0]["w_m"][metadata_index[-1]] < 100: 
 #                 weight = tf.constant(-1., dtype=tf.float32)
-#         else: 
-#             w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
-#             weight = tf.cast(tf.gather(df, w_bins)[0], dtype=tf.float32)
+        else: 
+            w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
+            weight = tf.cast(tf.gather(df, w_bins)[0], dtype=tf.float32)
             
         if energy_window > 100:
             weight = tf.constant(-1., dtype=tf.float32)   

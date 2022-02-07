@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 
-df_weight = pd.read_csv('training_data/Et_weights.csv', index_col=0)
+df_weight = pd.read_csv('training_data/Et_weights_gamma_ele.csv', index_col=0)
 bins = df_weight.start_bin.values
 df = tf.convert_to_tensor(df_weight)[:,2]
 
@@ -297,19 +297,16 @@ def prepare_features(dataset,  cl_features, window_features, seed_features, wind
             
             # genpt weights for the jet
             gen_pt = kargs[0]["w_m"][metadata_index[-1]]
-            print(energy_window, tf.expand_dims(gen_pt, axis=0), kargs[0]["w_m"][metadata_index[-2]])
+            #print(energy_window, tf.expand_dims(gen_pt, axis=0), kargs[0]["w_m"][metadata_index[-2]])
             w_bins_pt = tf.searchsorted(genpt_bins.astype(np.float32), tf.expand_dims(gen_pt, axis=0)) - 1
-            weight_gen = tf.cast(tf.gather(genpt_df, w_bins_pt)[0], dtype=tf.float32)
+            weight = tf.cast(tf.gather(genpt_df, w_bins_pt)[0], dtype=tf.float32)
             
-            # take only high-pt sample
-#             if kargs[0]["w_m"][metadata_index[-1]] < 100: 
-#                 weight = tf.constant(-1., dtype=tf.float32)
-
-            w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
-            weight = tf.cast(tf.gather(df, w_bins)[0], dtype=tf.float32) + weight_gen
+#         else: 
+#             w_bins = tf.searchsorted(bins.astype(np.float32), energy_window) - 1
+#             weight = tf.cast(tf.gather(df, w_bins)[0], dtype=tf.float32)
             
-        if energy_window > 100:
-            weight = tf.constant(-1., dtype=tf.float32)   
+#         if energy_window > 100:
+#             weight = tf.constant(-1., dtype=tf.float32)   
                 
         #calibrated clusters energy in the labels
         cl_en_calib = tf.gather(cl_f, indices=calib_index,axis=-1)
