@@ -301,6 +301,25 @@ def normalize_features(dataset, file, file_win, cl_features,window_features):
 
     return dataset.map(process, num_parallel_calls=tf.data.experimental.AUTOTUNE, deterministic=False )
 
+
+def get_normalizing_matrix(file, file_win, cl_features,window_features):
+    out = {}
+    cl_feat_index = get_cluster_features_indexes(cl_features)
+    window_feat_index = get_window_features_indexes(window_features)
+    params = np.load(file)
+    m = tf.convert_to_tensor(params["mean"], dtype=tf.float32)
+    s = tf.convert_to_tensor(params["sigma"], dtype=tf.float32)
+    m = tf.gather(m, indices=cl_feat_index,axis=-1)
+    s = tf.gather(s, indices=cl_feat_index, axis=-1)
+    out["cl_features"] = (m,s)
+    paramsW = np.load(file_win)
+    mw = tf.convert_to_tensor(paramsW["mean"], dtype=tf.float32)
+    sw = tf.convert_to_tensor(paramsW["sigma"], dtype=tf.float32)
+    mw = tf.gather(mw, indices=window_feat_index,axis=-1)
+    sw = tf.gather(sw, indices=window_feat_index, axis=-1)
+    out["wind_features"] = (mw,sw)
+    return out
+
 ########################################
 # Final shapes that are used in the training loop
 # Split the tensors in X and Y tuples

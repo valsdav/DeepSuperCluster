@@ -17,7 +17,11 @@ def load_dataset(tf_data_lib, path_dict, batch_size, normalization_files, featur
     dataset  = dataset.prefetch(300)
     if nevents:
         dataset = dataset.take(nevents// batch_size)
-    return dataset
+
+    norm_tensors = tf_data_lib.get_normalizing_matrix(normalization_files[0], normalization_files[1],
+                                         features_dict["cl_features"], features_dict["window_features"])
+
+    return dataset, norm_tensors
 
 
 def get_model(args, model_definition_path, weights_path, X):
@@ -64,7 +68,7 @@ def get_model_and_dataset(config_path, weights_path, training=False, fixed_X=Non
     
 
     print(">> Load the dataset ")
-    dataset = load_dataset(tf_data_lib, data_path, args["batch_size"], args["normalizations"],
+    dataset, norm_tensors = load_dataset(tf_data_lib, data_path, args["batch_size"], args["normalizations"],
                              args["features_dict"], training=training, weights=None, nevents=None )
 
     # Get one instance
@@ -79,5 +83,7 @@ def get_model_and_dataset(config_path, weights_path, training=False, fixed_X=Non
                 weights_path=weights_path, X=fixed_X)
 
 
-    return model, dataset, tf_data_lib
+    return model, dataset, tf_data_lib, norm_tensors
+
+
 
