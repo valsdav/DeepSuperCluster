@@ -409,7 +409,7 @@ class WindowCreator():
             # Fill all the windows
             for window in windows_map.values():
                 isin, (etaw, phiw) = in_window(*window["seed"], cl_eta, cl_phi, cl_iz,
-                                                *self.dynamic_window(window["seed"][0])) 
+                                                *self.dynamic_window(window["seed"][0]))
                 #print("\t w: ", window['window_index'], isin)
                 if isin:
                     # First of all check is the cluster is geometrically in the mustache of the seed

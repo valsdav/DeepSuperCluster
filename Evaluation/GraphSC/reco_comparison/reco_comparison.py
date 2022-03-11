@@ -103,8 +103,7 @@ class WindowCreator():
 
     def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1, debug=False):
         ## output
-        output_seeds = []
-        output_event = []
+        output = [] 
         # Branches
         pfCluster_energy = event.pfCluster_energy
         pfCluster_rawEnergy = event.pfCluster_rawEnergy
@@ -113,6 +112,10 @@ class WindowCreator():
         pfCluster_ieta = event.pfCluster_ieta
         pfCluster_iphi = event.pfCluster_iphi
         pfCluster_iz = event.pfCluster_iz
+        pfCluster_noise = event.pfCluster_noise
+        pfCluster_noise_uncalib  = event.pfCluster_noiseUncalib
+        pfCluster_noise_nofrac = event.pfCluster_noiseNoFractions
+        pfCluster_noise_uncalib_uncalib = event.pfCluster_noiseUncalibNoFractions
         calo_simenergy = event.caloParticle_simEnergy
         calo_simenergy_goodstatus = event.caloParticle_simEnergyGoodStatus
         calo_genenergy = event.caloParticle_genEnergy
@@ -180,30 +183,15 @@ class WindowCreator():
             print("mustache seeds", mustache_seedindex)
         
         # Look at the caloparticles 
-        # Get only the seed
-        calomatched_seeds = [ ]
-        deepsc_calomatched_seeds = [ ]
-        mustache_calomatched_seeds = [ ]
+        # Get only the seed 
         for calo, clusters in calo_pfcluster_map.items():
             seed = clusters[0][0]
-            calomatched_seeds.append(seed)
             seed_score = clusters[0][1]
-            seed_eta = pfCluster_eta[seed]
-            seed_phi = pfCluster_phi[seed]
-            seed_iz = pfCluster_iz[seed]
             seed_en = pfCluster_rawEnergy[seed]
-            seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
-            
-            if seed_score < self.seed_min_fraction:
-                if debug: print("SEED SCORE too small")
-                continue
+            # print(calo, seed, seed_score, seed_en, clusters)
 
-            calo_inwindow = in_window(calo_geneta[calo],calo_genphi[calo],
-                                      calo_simiz[calo], seed_eta, seed_phi, seed_iz,
-                                      *self.dynamic_window(seed_eta))
-            if not calo_inwindow:
-                print("SEED NOT IN CALO WINDOW")
-                continue
+            # Check minimal requirements on seeds
+            if seed_score < self.seed_min_fraction: continue
 
             # Now check the basic quantities for DeepSc and Mustache
             deepsc_found = seed in deepsc_seedindex
@@ -211,79 +199,38 @@ class WindowCreator():
             deepsc_index = -1
             mustache_index = -1
             m_cls = []
-            d_cls = []
+            d_cls = [ ]
             if deepsc_found:
-                deepsc_calomatched_seeds.append(seed)
                 deepsc_index = deepsc_seedindex.index(seed)
                 d_cls = pfcl_in_deepsc[deepsc_index] 
             if mustache_found:
-                mustache_calomatched_seeds.append(seed)
                 mustache_index = mustache_seedindex.index(seed)
                 m_cls = pfcl_in_mustache[mustache_index]
 
             if debug:
                 print("Calo ({}), Seed ({}), DeepSC clusters {}".format(calo,seed,d_cls))
                 print("Calo ({}), Seed ({}), Mustache clusters {}".format(calo,seed,m_cls))                
-
-            true_cls = []
-            cls_in_window = [ ]
-
-            #######
-            # Loop on all the clusters to find the ones in the windows and count the total and the true ones
-            ######
-            for icl in range(len(pfCluster_eta)):
-                cl_eta = pfCluster_eta[icl]
-                cl_phi = pfCluster_phi[icl]
-                cl_iz = pfCluster_iz[icl]
-
-                isin, (etaw, phiw) = in_window(seed_eta,seed_phi,seed_iz, cl_eta, cl_phi, cl_iz,
-                                                *self.dynamic_window(seed_eta))
-                if isin:
-                    cls_in_window.append(icl)
-                    is_calo_matched =  pfcluster_calo_map[icl] == calo  # we know at this point it is not -1
-                    if is_calo_matched:
-                        PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][calo]
-                        # First of all check the PU sim energy limit
-                        if PU_simenfrac < self.simenergy_pu_limit:
-                            #associate the cluster to the caloparticle with simfraction optimized thresholds 
-                            pass_simfrac_thres = self.pass_simfraction_threshold(seed_eta, 
-                                                                                 seed_et, pfcluster_calo_score[icl] )
-                            if pass_simfrac_thres:
-                                true_cls.append(icl)
-
-            if debug:
-                print("True cls: ", true_cls)
-                print("All cls:", cls_in_window)
-                
             out = {
-                "calomatched" : 1,
+                "matched" : 1,
                 "en_seed": pfCluster_rawEnergy[seed],
-                "et_seed": seed_et,
+                "et_seed": pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed]),
                 "en_seed_calib": pfCluster_energy[seed],
                 "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]),
-                "seed_eta": seed_eta,
-                "seed_phi": seed_phi,
-                "seed_iz": seed_iz, 
-
+                
                 "in_deepsc" : int(deepsc_found),
                 "in_mustache": int(mustache_found),
-
-                "ncls_tot": len(cls_in_window),
-                "ncls_true": len(true_cls),
-                "ncls_mustache" : mustache_ncls[mustache_index] if mustache_index != -1 else 0,                
-                "ncls_deepsc" : deepsc_ncls[deepsc_index] if deepsc_index!=-1 else 0,
-                "cls_must" : [c for c in m_cls],
-                "cls_deepsc" : [c for c in d_cls],
-                                
+                
                 "en_mustache_raw": mustache_rawEn[mustache_index] if mustache_index!=-1 else 0, 
                 "et_mustache_raw": mustache_rawEn[mustache_index]/cosh(mustache_eta[mustache_index]) if mustache_index!=-1 else 0, 
                 "en_mustache_calib": mustache_calibEn[mustache_index]  if mustache_index!=-1 else 0, 
                 "et_mustache_calib": mustache_calibEn[mustache_index]/cosh(mustache_eta[mustache_index]) if mustache_index!=-1 else 0,
-
+                "mustache_ncls" : mustache_ncls[mustache_index] if mustache_index != -1 else 0,
+                
                 "en_deepsc_raw": deepsc_rawEn[deepsc_index] if deepsc_index!=-1 else 0, 
                 "et_deepsc_raw": deepsc_rawEn[deepsc_index]/cosh(deepsc_eta[deepsc_index]) if deepsc_index!=-1 else 0, 
                 "en_deepsc_calib": deepsc_calibEn[deepsc_index]  if deepsc_index!=-1 else 0, 
                 "et_deepsc_calib": deepsc_calibEn[deepsc_index]/cosh(deepsc_eta[deepsc_index]) if deepsc_index!=-1 else 0,
+                "deepsc_ncls" : deepsc_ncls[deepsc_index] if deepsc_index!=-1 else 0, 
                 
                 # Sim energy and Gen Enerugy of the caloparticle
                 "calo_en_true_gen": calo_genenergy[calo], 
@@ -302,99 +249,6 @@ class WindowCreator():
                 "truePU": truePU,
                 "event_tot_simen_PU": total_PU_simenergy,
             }
-            output_seeds.append(out)
-
-        # Now analyze not calomatched seeds just looking at all the seeds of the Mustache and DeepSC
-        nocalomatched_seeds = [ ]
-        for seed in mustache_seedindex + deepsc_seedindex:
-            if seed in nocalomatched_seeds: continue
-            if seed in calomatched_seeds: continue
-            nocalomatched_seeds.append(seed)
-            seed_eta = pfCluster_eta[seed]
-            seed_phi = pfCluster_phi[seed]
-            seed_iz = pfCluster_iz[seed]
-            seed_en = pfCluster_rawEnergy[seed]
-            seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
-            
-            deepsc_found = seed in deepsc_seedindex
-            mustache_found = seed in mustache_seedindex
-            deepsc_index = -1
-            mustache_index = -1
-            m_cls = []
-            d_cls = []
-            if deepsc_found:
-                deepsc_index = deepsc_seedindex.index(seed)
-                d_cls = pfcl_in_deepsc[deepsc_index] 
-            if mustache_found:
-                mustache_index = mustache_seedindex.index(seed)
-                m_cls = pfcl_in_mustache[mustache_index]
-
-                
-            out = {
-                "calomatched" : 0,
-                "en_seed": pfCluster_rawEnergy[seed],
-                "et_seed": seed_et,
-                "en_seed_calib": pfCluster_energy[seed],
-                "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]),
-                "seed_eta": seed_eta,
-                "seed_phi": seed_phi,
-                "seed_iz": seed_iz, 
-
-                "in_deepsc" : int(xdeepsc_found),
-                "in_mustache": int(mustache_found),
-
-                "ncls_mustache" : mustache_ncls[mustache_index] if mustache_index != -1 else 0,                
-                "ncls_deepsc" : deepsc_ncls[deepsc_index] if deepsc_index!=-1 else 0,
-                "cls_must" : [c for c in m_cls],
-                "cls_deepsc" : [c for c in d_cls],
-                
-                "en_mustache_raw": mustache_rawEn[mustache_index] if mustache_index!=-1 else 0, 
-                "et_mustache_raw": mustache_rawEn[mustache_index]/cosh(mustache_eta[mustache_index]) if mustache_index!=-1 else 0, 
-                "en_mustache_calib": mustache_calibEn[mustache_index]  if mustache_index!=-1 else 0, 
-                "et_mustache_calib": mustache_calibEn[mustache_index]/cosh(mustache_eta[mustache_index]) if mustache_index!=-1 else 0,
-
-                "en_deepsc_raw": deepsc_rawEn[deepsc_index] if deepsc_index!=-1 else 0, 
-                "et_deepsc_raw": deepsc_rawEn[deepsc_index]/cosh(deepsc_eta[deepsc_index]) if deepsc_index!=-1 else 0, 
-                "en_deepsc_calib": deepsc_calibEn[deepsc_index]  if deepsc_index!=-1 else 0, 
-                "et_deepsc_calib": deepsc_calibEn[deepsc_index]/cosh(deepsc_eta[deepsc_index]) if deepsc_index!=-1 else 0,
-
-                # Sim energy and Gen Enerugy of the caloparticle
-                "calo_en_true_gen": -1, 
-                "calo_et_true_gen": -1,
-                "calo_en_true_sim": -1,
-                "calo_et_true_sim": -1,
-                "calo_geneta": -1,
-                "calo_genphi": -1,
-                "calo_simeta": -1,
-                "calo_simphi": -1,
-                
-
-                # PU information
-                "nVtx": nVtx, 
-                "rho": rho,
-                "obsPU": obsPU, 
-                "truePU": truePU,
-                "event_tot_simen_PU": total_PU_simenergy,
-            }
-            output_seeds.append(out)
-            
-        ## Now save event-wise information
-        out = {
-            "nseeds_must" : len(mustache_seedindex),
-            "nseeds_deepsc" : len(deepsc_seedindex),
-            "nseeds_calomatched" : len(calomatched_seeds),
-            "nseeds_nocalomatched" : len(nocalomatched_seeds),
-            "nseeds_calomatched_must" : len(mustache_calomatched_seeds),
-            "nseeds_calomatched_deepsc" : len(deepsc_calomatched_seeds),
-            "seeds_must" : mustache_seedindex,
-            "seeds_deepsc" : deepsc_seedindex,
-            "seeds_calomatched_must": mustache_calomatched_seeds,
-            "seeds_calomatched_deepsc" : deepsc_calomatched_seeds,
-            "ncls_tot_must" : sum([len(m) for m in pfcl_in_mustache ]),
-            "ncls_tot_deepsc" : sum([len(m) for m in pfcl_in_deepsc ]),
-            "ncls_tot" : len(pfCluster_energy),
-            
-        }
-        output_event.append(out)
+            output.append(out)
         
-        return output_seeds, output_event
+        return output

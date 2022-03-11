@@ -29,13 +29,8 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 args = parser.parse_args()
 
-
-
-if "#_#" in args.inputfile: 
-    inputfiles = args.inputfile.split("#_#")
-else:
-    inputfiles = [args.inputfile]
-
+import glob
+inputfiles = glob.glob(args.inputfile)
 
 simfraction_thresholds_file = R.TFile(args.wp_file)
 simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
@@ -67,36 +62,26 @@ def run(inputfile):
         tree = islice(tree, nevent, nevent2)
 
     print ("Starting")
-    output_events = []
-    output_seeds = [] 
+    output = []
     for iev, event in enumerate(tree):
-        seed, ev = windows_creator.get_windows(event, args.assoc_strategy, 
+        output += windows_creator.get_windows(event, args.assoc_strategy, 
                                     nocalowNmax= args.maxnocalow,
                                     min_et_seed= args.min_et_seed,
                                     debug= args.debug)
-        output_seeds += seed
-        output_events += ev
     f.Close()
-    return output_seeds, output_events
+    return output
  
 
-# p = Pool()
-# data = p.map(run, inputfiles)
-data_events = []
-data_seeds = [ ]
-for inputfile in inputfiles:
-    seed,ev = run(inputfile)
-    data_seeds += seed
-    data_events += ev
+p = Pool(6)
 
+data = p.map(run, inputfiles)
 
-#data_join = pd.concat([ pd.DataFrame(data_cl) for data_cl in data ])
-data_seeds_join = pd.DataFrame(data_seeds)
-data_event_join = pd.DataFrame(data_events)
-data_seeds_join.to_csv(args.outputfile.replace("{type}", "seeds"), sep=";", index=False)
-data_event_join.to_csv(args.outputfile.replace("{type}", "event"), sep=";", index=False)
+data_join = pd.concat([ pd.DataFrame(data_cl) for data_cl in data ])
+
+print(data_join)
 # df_en.to_csv(args.out+"/output_PUfrac_en.txt", sep=';', index=False)
 # df_cl.to_csv(args.out+"/output_PUfrac_cls.txt", sep=';', index=False)
-# store = pd.HDFStore(args.outputfile)
-# store['df'] = data_join  # save it
-# store.close()        
+store = pd.HDFStore(args.outputfile)
+store['df'] = data_join  # save it
+
+store.close()        
