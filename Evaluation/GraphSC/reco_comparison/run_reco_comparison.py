@@ -67,25 +67,34 @@ def run(inputfile):
         tree = islice(tree, nevent, nevent2)
 
     print ("Starting")
-    output = []
+    output_events = []
+    output_seeds = [] 
     for iev, event in enumerate(tree):
-        output += windows_creator.get_windows(event, args.assoc_strategy, 
+        seed, ev = windows_creator.get_windows(event, args.assoc_strategy, 
                                     nocalowNmax= args.maxnocalow,
                                     min_et_seed= args.min_et_seed,
                                     debug= args.debug)
+        output_seeds += seed
+        output_events += ev
     f.Close()
-    return output
+    return output_seeds, output_events
  
 
 # p = Pool()
 # data = p.map(run, inputfiles)
-data = []
+data_events = []
+data_seeds = [ ]
 for inputfile in inputfiles:
-    data += run(inputfile)
+    seed,ev = run(inputfile)
+    data_seeds += seed
+    data_events += ev
+
 
 #data_join = pd.concat([ pd.DataFrame(data_cl) for data_cl in data ])
-data_join = pd.DataFrame(data)
-data_join.to_csv(args.outputfile, sep=";", index=False)
+data_seeds_join = pd.DataFrame(data_seeds)
+data_event_join = pd.DataFrame(data_events)
+data_seeds_join.to_csv(args.outputfile.replace("{type}", "seeds"), sep=";", index=False)
+data_event_join.to_csv(args.outputfile.replace("{type}", "event"), sep=";", index=False)
 # df_en.to_csv(args.out+"/output_PUfrac_en.txt", sep=';', index=False)
 # df_cl.to_csv(args.out+"/output_PUfrac_cls.txt", sep=';', index=False)
 # store = pd.HDFStore(args.outputfile)
