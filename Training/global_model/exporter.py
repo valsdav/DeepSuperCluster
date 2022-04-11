@@ -26,7 +26,23 @@ X = (
 
 model,dataset, _, norm_tensors = loader.get_model_and_dataset(args.config,  args.model_weights, training=False, fixed_X=X)
 
-cmsml.tensorflow.save_graph(args.output, model, variables_to_constants=True)
+#cmsml.tensorflow.save_graph(args.output, model, variables_to_constants=True)
+
+# Doing the export by hand since we have to change the names
+from tensorflow.python.keras.saving import saving_utils
+model_func = saving_utils.trace_model_call(model)
+obj = model_func.get_concrete_function()
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+frozen_func = convert_variables_to_constants_v2(obj)
+graph_def = frozen_func.graph.as_graph_def()
+
+for node in graph_def.node:
+  if node.name == "Identity":
+    node.name = "cl_class"
+  if node.name == "Identity_1":
+    node.name = "wind_class"
+
+tf.io.write_graph(graph_def, "./", args.output, as_text=".txt" in args.output)
 
 # Export scaler files
 m ,s = norm_tensors["cl_features"]
