@@ -16,7 +16,7 @@ import argparse
 import pickle
 import pandas as pd
 from multiprocessing import Pool
-from reco_comparison import WindowCreator
+from reco_dumper import WindowCreator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
@@ -29,8 +29,6 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
 args = parser.parse_args()
-
-
 
 if "#_#" in args.inputfile: 
     inputfiles = args.inputfile.split("#_#")
@@ -69,32 +67,33 @@ def run(inputfile):
 
     print ("Starting")
     output_events = []
-    output_seeds = [] 
+    output_objects = [] 
     for iev, event in enumerate(tree):
-        seed, ev = windows_creator.get_windows(event, args.assoc_strategy, 
+        obj, ev = windows_creator.get_windows(event, args.assoc_strategy, 
                                     nocalowNmax= args.maxnocalow,
                                     min_et_seed= args.min_et_seed,
+                                    loop_on_calo=args.loop_on_calo,
                                     debug= args.debug)
-        output_seeds += seed
+        output_objects += obj
         output_events += ev
     f.Close()
-    return output_seeds, output_events
+    return  output_objects, output_events
  
 
-# p = Pool()
+# p = Pool2()
 # data = p.map(run, inputfiles)
 data_events = []
-data_seeds = [ ]
+data_obj = [ ]
 for inputfile in inputfiles:
-    seed,ev = run(inputfile)
-    data_seeds += seed
+    obj,ev = run(inputfile)
+    data_obj += obj
     data_events += ev
 
 
 #data_join = pd.concat([ pd.DataFrame(data_cl) for data_cl in data ])
-data_seeds_join = pd.DataFrame(data_seeds)
+data_obj_join = pd.DataFrame(data_obj)
 data_event_join = pd.DataFrame(data_events)
-data_seeds_join.to_csv(args.outputfile.replace("{type}", "seeds"), sep=";", index=False)
+data_obj_join.to_csv(args.outputfile.replace("{type}", "object"), sep=";", index=False)
 data_event_join.to_csv(args.outputfile.replace("{type}", "event"), sep=";", index=False)
 # df_en.to_csv(args.out+"/output_PUfrac_en.txt", sep=';', index=False)
 # df_cl.to_csv(args.out+"/output_PUfrac_cls.txt", sep=';', index=False)
