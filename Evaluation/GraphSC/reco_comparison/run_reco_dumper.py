@@ -28,6 +28,7 @@ parser.add_argument("-d","--debug", action="store_true",  help="debug", default=
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
+parser.add_argument("-s","--sc-collection", type=str, help="SuperCluster collection", default="superCluster")
 args = parser.parse_args()
 
 if "#_#" in args.inputfile: 
@@ -72,6 +73,7 @@ def run(inputfile):
         obj, ev = windows_creator.get_windows(event, args.assoc_strategy, 
                                     nocalowNmax= args.maxnocalow,
                                     min_et_seed= args.min_et_seed,
+                                    sc_collection=args.sc_collection,
                                     loop_on_calo=args.loop_on_calo,
                                     debug= args.debug)
         output_objects += obj
@@ -95,8 +97,4 @@ data_obj_join = pd.DataFrame(data_obj)
 data_event_join = pd.DataFrame(data_events)
 data_obj_join.to_csv(args.outputfile.replace("{type}", "object"), sep=";", index=False)
 data_event_join.to_csv(args.outputfile.replace("{type}", "event"), sep=";", index=False)
-# df_en.to_csv(args.out+"/output_PUfrac_en.txt", sep=';', index=False)
-# df_cl.to_csv(args.out+"/output_PUfrac_cls.txt", sep=';', index=False)
-# store = pd.HDFStore(args.outputfile)
-# store['df'] = data_join  # save it
-# store.close()        
+

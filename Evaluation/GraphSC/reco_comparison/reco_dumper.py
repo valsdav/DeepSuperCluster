@@ -45,9 +45,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_deta_up, windows
         return True, (etaw, phiw)
     else:
         return False,(-1,-1)
-
     return data
-
 
 class WindowCreator():
 
@@ -69,6 +67,30 @@ class WindowCreator():
         return cluster_calo_score >= thre
 
 
+    def get_clusters_inside_window(self,seed_et, seed_eta, seed_phi, seed_iz, cls_eta, cls_phi, cls_iz,
+                                   pfcluster_calo_map, pfcluster_calo_score, caloindex):
+        true_cls = []
+        cls_in_window = [ ]
+        #######
+        # Loop on all the clusters to find the ones in the windows and count the total and the true ones
+        ######
+        for icl in range(len(cls_eta)):
+            cl_eta = cls_eta[icl]
+            cl_phi = cls_phi[icl]
+            cl_iz = cls_iz[icl] 
+            isin, (etaw, phiw) = in_window(seed_eta,seed_phi,seed_iz, cl_eta, cl_phi, cl_iz,
+                                           *self.dynamic_window(seed_eta))
+            if isin:
+                cls_in_window.append(icl)
+                is_calo_matched =  pfcluster_calo_map[icl] == caloindex  # we know at this point it is not -1
+                if is_calo_matched:
+                    #associate the cluster to the caloparticle with simfraction optimized thresholds 
+                    pass_simfrac_thres = self.pass_simfraction_threshold(seed_eta, 
+                                                                         seed_et, pfcluster_calo_score[icl] )
+                    if pass_simfrac_thres:
+                        true_cls.append(icl)
+        return cls_in_window, true_cls
+                    
     def dynamic_window(self,eta):
         aeta = abs(eta)
 
@@ -101,7 +123,8 @@ class WindowCreator():
 
 
 
-    def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1, loop_on_calo=False,  debug=False):
+    def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1,
+                    sc_collection="superCluster", loop_on_calo=False,  debug=False):
         ## output
         output_object = []
         output_event = []
@@ -132,14 +155,14 @@ class WindowCreator():
         truePU = event.truePU
 
         #SuperCluster branches
-        sc_rawEn = event.superCluster_rawEnergy
-        sc_rawESEn = event.superCluster_rawESEnergy
-        sc_corrEn = event.superCluster_energy
-        sc_eta = event.superCluster_eta
-        sc_phi = event.superCluster_phi
-        sc_nCls = event.superCluster_nPFClusters
-        sc_seedIndex = [s for s in event.superCluster_seedIndex]
-        pfcl_in_sc = event.superCluster_pfClustersIndex
+        sc_rawEn = getattr(event, f"{sc_collection}_rawEnergy")
+        #sc_rawESEn = event.superCluster_rawESEnergy
+        sc_corrEn = getattr(event,f"{sc_collection}_energy")
+        sc_eta = getattr(event,f"{sc_collection}_eta")
+        sc_phi = getattr(event,f"{sc_collection}_phi")
+        sc_nCls = getattr(event,f"{sc_collection}_nPFClusters")
+        sc_seedIndex = [s for s in getattr(event,f"{sc_collection}_seedIndex")]
+        pfcl_in_sc = getattr(event,f"{sc_collection}_pfClustersIndex")
         
         # GenParticle info
         genpart_energy = event.genParticle_energy
@@ -148,8 +171,8 @@ class WindowCreator():
         genpart_pt = event.genParticle_pt
         
 
-        superCluster_genParticle_dR = event.superCluster_dR_genScore
-        genParticle_superCluster_dR_list = event.genParticle_superCluster_dR_genScore_MatchedIndex
+        superCluster_genParticle_dR = getattr(event,f"{sc_collection}_dR_genScore")
+        genParticle_superCluster_dR_list = getattr(event,f"genParticle_{sc_collection}_dR_genScore_MatchedIndex")
         genParticle_superCluster_matching = {}
         superCluster_genParticle_matching = {}
 
@@ -213,13 +236,28 @@ class WindowCreator():
                 seed_en = pfCluster_rawEnergy[seed]
                 seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
                 
-                
+                cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                     pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                          pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                missing_cls, correct_cls, spurious_cls = [],[],[]
+                for icl in cls_in_window:
+                    if icl in true_cls:
+                        if icl in pfcl_in_sc[iSC]:
+                            correct_cls.append(icl)
+                        else:
+                            missing_cls.append(icl)
+                    else:
+                        if icl in pfcl_in_sc[iSC]:
+                            spurious_cls.append(icl)
+
+                            
                 out = {
                     "calomatched" : int(calomatched),
                     "caloindex": caloindex,
                     "genmatched" : int(genmatched),
                     "genindex": genindex ,
                     "sc_index": iSC,
+                    "seed_index": seed,
                     
                     "en_seed": pfCluster_rawEnergy[seed],
                     "et_seed": seed_et,
@@ -230,11 +268,16 @@ class WindowCreator():
                     "seed_iz": seed_iz, 
                     
                     "ncls_sel": sc_nCls[iSC],
+                    "ncls_sel_true": len(correct_cls),
+                    "ncls_sel_false": len(spurious_cls),
+                    "ncls_true": len(true_cls),
+                    "ncls_tot": len(cls_in_window),
+                    "ncls_missing": len(missing_cls),
                     
                     "en_sc_raw": sc_rawEn[iSC], 
                     "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]),
-                    "en_sc_raw_ES" : sc_rawESEn[iSC],
-                    "et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                    #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                    #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
                     "en_sc_calib": sc_corrEn[iSC], 
                     "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]), 
                     
@@ -281,7 +324,7 @@ class WindowCreator():
                 iSC = sc_seedIndex.index(seed)
                 
                 caloindex = pfcluster_calo_map[seed]
-                genmatched = iSC in  superCluster_genParticle_matching
+                genmatched = iSC in superCluster_genParticle_matching
                 genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
                 
                 seed_eta = pfCluster_eta[seed]
@@ -290,12 +333,28 @@ class WindowCreator():
                 seed_en = pfCluster_rawEnergy[seed]
                 seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
                 
+                cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                     pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                          pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                missing_cls, correct_cls, spurious_cls = [],[],[]
+                for icl in cls_in_window:
+                    if icl in true_cls:
+                        if icl in pfcl_in_sc[iSC]:
+                            correct_cls.append(icl)
+                        else:
+                            missing_cls.append(icl)
+                    else:
+                        if icl in pfcl_in_sc[iSC]:
+                            spurious_cls.append(icl)
+                print(true_cls, correct_cls, spurious_cls, missing_cls)
+                            
                 out = {
                     "calomatched" : 1,
                     "caloindex": caloindex,
                     "genmatched" : int(genmatched),
                     "genindex": genindex,
                     "sc_index": iSC,
+                    "seed_index": seed,
                     
                     "en_seed": pfCluster_rawEnergy[seed],
                     "et_seed": seed_et,
@@ -304,13 +363,18 @@ class WindowCreator():
                     "seed_eta": seed_eta,
                     "seed_phi": seed_phi,
                     "seed_iz": seed_iz, 
-                    
+                                        
                     "ncls_sel": sc_nCls[iSC],
+                    "ncls_sel_true": len(correct_cls),
+                    "ncls_sel_false": len(spurious_cls),
+                    "ncls_true": len(true_cls),
+                    "ncls_tot": len(cls_in_window),
+                    "ncls_missing": len(missing_cls),
                     
                     "en_sc_raw": sc_rawEn[iSC], 
                     "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]),
-                    "en_sc_raw_ES" : sc_rawESEn[iSC],
-                    "et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                    #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                    #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
                     "en_sc_calib": sc_corrEn[iSC], 
                     "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]), 
                     
