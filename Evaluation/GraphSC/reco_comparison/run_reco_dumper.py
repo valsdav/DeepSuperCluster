@@ -29,6 +29,7 @@ parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window pe
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
 parser.add_argument("-s","--sc-collection", type=str, help="SuperCluster collection", default="superCluster")
+parser.add_argument("-r","--reco-collection", type=str, help="Reco collection (none/electron/photon)", default="none")
 args = parser.parse_args()
 
 if "#_#" in args.inputfile: 
@@ -74,6 +75,7 @@ def run(inputfile):
                                     nocalowNmax= args.maxnocalow,
                                     min_et_seed= args.min_et_seed,
                                     sc_collection=args.sc_collection,
+                                    reco_collection=args.reco_collection,
                                     loop_on_calo=args.loop_on_calo,
                                     debug= args.debug)
         output_objects += obj

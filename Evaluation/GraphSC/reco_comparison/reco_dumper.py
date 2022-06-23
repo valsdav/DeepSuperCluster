@@ -124,7 +124,7 @@ class WindowCreator():
 
 
     def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1,
-                    sc_collection="superCluster", loop_on_calo=False,  debug=False):
+                    sc_collection="superCluster", reco_collection="none", loop_on_calo=False,  debug=False):
         ## output
         output_object = []
         output_event = []
@@ -176,6 +176,11 @@ class WindowCreator():
         genParticle_superCluster_matching = {}
         superCluster_genParticle_matching = {}
 
+        # Map of seedRawId neeed to match electron/photon with SC
+        superCluster_seedRawId_map = {}
+        for sc, rawid in enumerate(event.superCluster_seedRawId):
+            superCluster_seedRawId_map[rawid] = sc
+
         #Gen association
         for igen , sc_vec in enumerate(genParticle_superCluster_dR_list):
             # getting the list (iSC,deltaR  ) to the iGen particle
@@ -220,100 +225,338 @@ class WindowCreator():
         ## Object level info
         # Loop on the superCluster and check if they are genMatched or caloMatched
         if not loop_on_calo:
-            # Look on all the SuperClusters and check if the seed is a calo-seed
-            for iSC in range(len(sc_rawEn)):
-                seed = sc_seedIndex[iSC]
-                calomatched = seed in calo_seeds
-                if calomatched: calomatched_final_sc.append(seed)
-                caloindex = pfcluster_calo_map[seed] if calomatched else -999
-                genmatched = iSC in  superCluster_genParticle_matching
-                genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
-                #print(seed, calomatched, genmatched)
-                
-                seed_eta = pfCluster_eta[seed]
-                seed_phi = pfCluster_phi[seed]
-                seed_iz = pfCluster_iz[seed]
-                seed_en = pfCluster_rawEnergy[seed]
-                seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
-                
-                cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
-                                                                     pfCluster_eta,  pfCluster_phi, pfCluster_iz,
-                                                                          pfcluster_calo_map, pfcluster_calo_score, caloindex)
-                missing_cls, correct_cls, spurious_cls = [],[],[]
-                for icl in cls_in_window:
-                    if icl in true_cls:
-                        if icl in pfcl_in_sc[iSC]:
-                            correct_cls.append(icl)
+
+            # Analyze the superCluster if not reco_collection
+            if reco_collection == "none":
+                # Look on all the SuperClusters and check if the seed is a calo-seed
+                for iSC in range(len(sc_rawEn)):
+                    seed = sc_seedIndex[iSC]
+                    calomatched = seed in calo_seeds
+                    if calomatched: calomatched_final_sc.append(seed)
+                    caloindex = pfcluster_calo_map[seed] if calomatched else -999
+                    genmatched = iSC in  superCluster_genParticle_matching
+                    genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
+                    #print(seed, calomatched, genmatched)
+
+                    seed_eta = pfCluster_eta[seed]
+
+                    seed_phi = pfCluster_phi[seed]
+                    seed_iz = pfCluster_iz[seed]
+                    seed_en = pfCluster_rawEnergy[seed]
+                    seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
+
+                    cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                              pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                              pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                    missing_cls, correct_cls, spurious_cls = [],[],[]
+                    for icl in cls_in_window:
+                        if icl in true_cls:
+                            if icl in pfcl_in_sc[iSC]:
+                                correct_cls.append(icl)
+                            else:
+                                missing_cls.append(icl)
                         else:
-                            missing_cls.append(icl)
+                            if icl in pfcl_in_sc[iSC]:
+                                spurious_cls.append(icl)
+
+                    out = {
+                        "calomatched" : int(calomatched),
+                        "caloindex": caloindex,
+                        "genmatched" : int(genmatched),
+                        "genindex": genindex ,
+                        "sc_index": iSC,
+                        "seed_index": seed,
+
+                        "en_seed": pfCluster_rawEnergy[seed],
+                        "et_seed": seed_et,
+                        "en_seed_calib": pfCluster_energy[seed],
+                        "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]),
+                        "seed_eta": seed_eta,
+                        "seed_phi": seed_phi,
+                        "seed_iz": seed_iz, 
+
+                        "ncls_sel": sc_nCls[iSC],
+                        "ncls_sel_true": len(correct_cls),
+                        "ncls_sel_false": len(spurious_cls),
+                        "ncls_true": len(true_cls),
+                        "ncls_tot": len(cls_in_window),
+                        "ncls_missing": len(missing_cls),
+
+                        "en_sc_raw": sc_rawEn[iSC], 
+                        "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]),
+                        #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                        #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                        "en_sc_calib": sc_corrEn[iSC], 
+                        "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]), 
+
+                        # Sim energy and Gen Enerugy of the caloparticle
+                        "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
+                        "calo_et_gen": calo_genenergy[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_en_sim": calo_simenergy_goodstatus[caloindex] if calomatched else -1, 
+                        "calo_et_sim": calo_simenergy_goodstatus[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_geneta": calo_geneta[caloindex] if calomatched else -1,
+                        "calo_genphi": calo_genphi[caloindex] if calomatched else -1,
+                        "calo_simeta": calo_simeta[caloindex] if calomatched else -1,
+                        "calo_simphi": calo_simphi[caloindex] if calomatched else -1,
+                        "calo_genpt": calo_genpt[caloindex] if calomatched else -1,
+
+                        # GenParticle info
+                        "genpart_en": genpart_energy[genindex] if genmatched else -1,
+                        "genpart_et": genpart_energy[genindex]/cosh(genpart_eta[genindex]) if genmatched else -1,
+                        "gen_eta": genpart_eta[genindex] if genmatched else -1,
+                        "gen_phi": genpart_phi[genindex] if genmatched else -1,
+                        "gen_pt": genpart_pt[genindex] if genmatched else -1,
+
+
+                        # PU information
+                        "nVtx": nVtx, 
+                        "rho": rho,
+                        "obsPU": obsPU, 
+                        "truePU": truePU,
+
+                        #Evt number
+                        "eventId" : event.eventId,
+                        "runId": event.runId
+
+                    }
+                    output_object.append(out)
+
+            ## Analyze the reco_collection
+            elif reco_collection == "electron":
+                for iEle in range(len(event.electron_index)):
+                    seedRawId = event.electron_seedRawId[iEle]
+                    cls_in_window, missing_cls, correct_cls, spurious_cls, true_cls = [],[],[],[],[]
+                    calomatched = False
+                    genmatched = False
+                    if seedRawId in superCluster_seedRawId_map:
+                        sc_matched = True
+                        iSC = superCluster_seedRawId_map[seedRawId]
+                        seed = sc_seedIndex[iSC]
+                        calomatched = seed in calo_seeds
+                        caloindex = pfcluster_calo_map[seed] if calomatched else -999
+
+                        genmatched = iSC in superCluster_genParticle_matching
+                        genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
+                    
+                        seed_eta = pfCluster_eta[seed]
+                        seed_phi = pfCluster_phi[seed]
+                        seed_iz = pfCluster_iz[seed]
+                        seed_en = pfCluster_rawEnergy[seed]
+                        seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
+
+                        cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                              pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                              pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                        for icl in cls_in_window:
+                            if icl in true_cls:
+                                if icl in pfcl_in_sc[iSC]:
+                                    correct_cls.append(icl)
+                                else:
+                                    missing_cls.append(icl)
+                            else:
+                                if icl in pfcl_in_sc[iSC]:
+                                    spurious_cls.append(icl)
                     else:
-                        if icl in pfcl_in_sc[iSC]:
-                            spurious_cls.append(icl)
+                        # There is no matched supercluster
+                        sc_matched = False
+                        print(f"Unmatched electron: {seedRawId}, eta: {event.electron_eta[iEle]}, et: { event.electron_et[iEle]}, trackerseeded: {event.electron_ecalDrivenSeed[iEle]}")
+                                    
 
+                    out = {
+                        "ele_index" : iEle,
+                        "sc_matched" : sc_matched, 
+                        "calomatched" : int(calomatched) if sc_matched else -999,
+                        "caloindex": caloindex if sc_matched else -999,
+                        "genmatched" : int(genmatched) if sc_matched else -999,
+                        "genindex": genindex if sc_matched else -999,
+                        "sc_index": iSC if sc_matched else -199,
+                        "seed_index": seed if sc_matched else -999,
+                
+                        "en_seed": pfCluster_rawEnergy[seed] if sc_matched else -999,
+                        "et_seed": seed_et if sc_matched else -999,
+                        "en_seed_calib": pfCluster_energy[seed] if sc_matched else -999,
+                        "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]) if sc_matched else -999,
+                        "seed_eta": seed_eta if sc_matched else -999,
+                        "seed_phi": seed_phi if sc_matched else -999,
+                        "seed_iz": seed_iz if sc_matched else -999, 
+
+                        "ele_eta" : event.electron_eta[iEle],
+                        "ele_phi" : event.electron_phi[iEle],
+                        "ele_energy": event.electron_energy[iEle],
+                        "ele_et": event.electron_et[iEle],
+                        "ele_ecalEnergy": event.electron_ecalEnergy[iEle],
+                        "ele_scRawEnergy": event.electron_scRawEnergy[iEle],
+                        "ele_scRawESEnergy": event.electron_scRawESEnergy[iEle],
+                        "ele_fbrem" : event.electron_fbrem[iEle],
+                        "ele_e5x5": event.electron_e5x5[iEle],
+                        "ele_e3x3": event.electron_e3x3[iEle],
+                        "ele_sigmaIEtaIEta": event.electron_sigmaIEtaIEta[iEle],
+                        "ele_sigmaIEtaIPhi" : event.electron_sigmaIEtaIPhi[iEle],
+                        "ele_sigmaIPhiIPhi" : event.electron_sigmaIPhiIPhi[iEle],
+                        "ele_ecalDriveSeed" : event.electron_ecalDrivenSeed[iEle],
+                        "ele_hademCone": event.electron_hademCone[iEle],
+                        "ele_trkPModeErr": event.electron_trkPModeErr[iEle],
+                        "ele_trkPMode": event.electron_trkPMode[iEle],
+                        "ele_trkEtaMode": event.electron_trkEtaMode[iEle],
+                        "ele_trkPhiMode": event.electron_trkPhiMode[iEle],
+                        
+                        "ncls_sel": sc_nCls[iSC] if sc_matched else -999,
+                        "ncls_sel_true": len(correct_cls),
+                        "ncls_sel_false": len(spurious_cls),
+                        "ncls_true": len(true_cls),
+                        "ncls_tot": len(cls_in_window),
+                        "ncls_missing": len(missing_cls),
+
+                        "en_sc_raw": sc_rawEn[iSC] if sc_matched else -999, 
+                        "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999,
+                        #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                        #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                        "en_sc_calib": sc_corrEn[iSC] if sc_matched else -999, 
+                        "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999, 
+
+                        # Sim energy and Gen Enerugy of the caloparticle
+                        "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
+                        "calo_et_gen": calo_genenergy[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_en_sim": calo_simenergy_goodstatus[caloindex] if calomatched else -1, 
+                        "calo_et_sim": calo_simenergy_goodstatus[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_geneta": calo_geneta[caloindex] if calomatched else -1,
+                        "calo_genphi": calo_genphi[caloindex] if calomatched else -1,
+                        "calo_simeta": calo_simeta[caloindex] if calomatched else -1,
+                        "calo_simphi": calo_simphi[caloindex] if calomatched else -1,
+                        "calo_genpt": calo_genpt[caloindex] if calomatched else -1,
+
+                        # GenParticle info
+                        "genpart_en": genpart_energy[genindex] if genmatched else -1,
+                        "genpart_et": genpart_energy[genindex]/cosh(genpart_eta[genindex]) if genmatched else -1,
+                        "gen_eta": genpart_eta[genindex] if genmatched else -1,
+                        "gen_phi": genpart_phi[genindex] if genmatched else -1,
+                        "gen_pt": genpart_pt[genindex] if genmatched else -1,
+
+                        # PU information
+                        "nVtx": nVtx, 
+                        "rho": rho,
+                        "obsPU": obsPU, 
+                        "truePU": truePU,
+
+                        #Evt number
+                        "eventId" : event.eventId,
+                        "runId": event.runId
+
+                    }
+                    output_object.append(out)
+
+            elif reco_collection == "photon":
+                for iPho in event.photon_index:
+                    seedRawId = event.photon_seedRawId[iPho]
+                    cls_in_window, missing_cls, correct_cls, spurious_cls, true_cls = [],[],[],[],[]
+                    calomatched = False
+                    genmatched = False
+                    if seedRawId in superCluster_seedRawId_map:
+                        sc_matched = True
+                        iSC = superCluster_seedRawId_map[event.photon_seedRawId[iPho]]
+                        seed = sc_seedIndex[iSC]
+                        calomatched = seed in calo_seeds
+                        caloindex = pfcluster_calo_map[seed] if calomatched else -999
+                        
+                        genmatched = iSC in superCluster_genParticle_matching
+                        genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
+                        
+                        seed_eta = pfCluster_eta[seed]
+                        seed_phi = pfCluster_phi[seed]
+                        seed_iz = pfCluster_iz[seed]
+                        seed_en = pfCluster_rawEnergy[seed]
+                        seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
+                        
+                        cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                                  pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                                  pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                        for icl in cls_in_window:
+                            if icl in true_cls:
+                                if icl in pfcl_in_sc[iSC]:
+                                    correct_cls.append(icl)
+                                else:
+                                    missing_cls.append(icl)
+                            else:
+                                if icl in pfcl_in_sc[iSC]:
+                                    spurious_cls.append(icl)
+
+                        out = {
+                            "pho_index" : iPho,
+                            "sc_matched" : sc_matched,
+                            "calomatched" : int(calomatched) if sc_matched else -999,
+                            "caloindex": caloindex if sc_matched else -999,
+                            "genmatched" : int(genmatched) if sc_matched else -999,
+                            "genindex": genindex if sc_matched else -999 ,
+                            "sc_index": iSC if sc_matched else -999,
+                            "seed_index": seed if sc_matched else -999,
                             
-                out = {
-                    "calomatched" : int(calomatched),
-                    "caloindex": caloindex,
-                    "genmatched" : int(genmatched),
-                    "genindex": genindex ,
-                    "sc_index": iSC,
-                    "seed_index": seed,
-                    
-                    "en_seed": pfCluster_rawEnergy[seed],
-                    "et_seed": seed_et,
-                    "en_seed_calib": pfCluster_energy[seed],
-                    "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]),
-                    "seed_eta": seed_eta,
-                    "seed_phi": seed_phi,
-                    "seed_iz": seed_iz, 
-                    
-                    "ncls_sel": sc_nCls[iSC],
-                    "ncls_sel_true": len(correct_cls),
-                    "ncls_sel_false": len(spurious_cls),
-                    "ncls_true": len(true_cls),
-                    "ncls_tot": len(cls_in_window),
-                    "ncls_missing": len(missing_cls),
-                    
-                    "en_sc_raw": sc_rawEn[iSC], 
-                    "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]),
-                    #"en_sc_raw_ES" : sc_rawESEn[iSC],
-                    #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
-                    "en_sc_calib": sc_corrEn[iSC], 
-                    "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]), 
-                    
-                    # Sim energy and Gen Enerugy of the caloparticle
-                    "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
-                    "calo_et_gen": calo_genenergy[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
-                    "calo_en_sim": calo_simenergy_goodstatus[caloindex] if calomatched else -1, 
-                    "calo_et_sim": calo_simenergy_goodstatus[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
-                    "calo_geneta": calo_geneta[caloindex] if calomatched else -1,
-                    "calo_genphi": calo_genphi[caloindex] if calomatched else -1,
-                    "calo_simeta": calo_simeta[caloindex] if calomatched else -1,
-                    "calo_simphi": calo_simphi[caloindex] if calomatched else -1,
-                    "calo_genpt": calo_genpt[caloindex] if calomatched else -1,
-                    
-                    # GenParticle info
-                    "genpart_en": genpart_energy[genindex] if genmatched else -1,
-                    "genpart_et": genpart_energy[genindex]/cosh(genpart_eta[genindex]) if genmatched else -1,
-                    "gen_eta": genpart_eta[genindex] if genmatched else -1,
-                    "gen_phi": genpart_phi[genindex] if genmatched else -1,
-                    "gen_pt": genpart_pt[genindex] if genmatched else -1,
-                    
-                    
-                    # PU information
-                    "nVtx": nVtx, 
-                    "rho": rho,
-                    "obsPU": obsPU, 
-                    "truePU": truePU,
+                            "en_seed": pfCluster_rawEnergy[seed] if sc_matched else -999,
+                            "et_seed": seed_et if sc_matched else -999,
+                            "en_seed_calib": pfCluster_energy[seed] if sc_matched else -999,
+                            "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]) if sc_matched else -999,
+                            "seed_eta": seed_eta if sc_matched else -999,
+                            "seed_phi": seed_phi if sc_matched else -999,
+                            "seed_iz": seed_iz if sc_matched else -999, 
 
-                    #Evt number
-                    "eventId" : event.eventId,
-                    "runId": event.runId
-                    
-                }
-                output_object.append(out)
-            ##########################
-            ## IF we want to loop on calo-matched seeds instead of SC object
+                            "pho_eta" : event.photon_eta[iPho],
+                            "pho_phi" : event.photon_phi[iPho],
+                            "pho_energy": event.photon_energy[iPho],
+                            "pho_et" : event.photon_et[iPho],
+                            "pho_scRawEnergy": event.photon_scRawEnergy[iPho],
+                            "pho_e5x5": event.photon_e5x5[iPho],
+                            "pho_e3x3": event.photon_e3x3[iPho],
+                            "pho_sigmaIEtaIEta": event.photon_sigmaIEtaIEta[iPho],
+                            "pho_sigmaIEtaIPhi" : event.photon_sigmaIEtaIPhi[iPho],
+                            "pho_sigmaIPhiIPhi" : event.photon_sigmaIPhiIPhi[iPho],
+                            "pho_hademCone": event.photon_hademCone[iPho],
+                            
+                            "ncls_sel": sc_nCls[iSC] if sc_matched else -999,
+                            "ncls_sel_true": len(correct_cls),
+                            "ncls_sel_false": len(spurious_cls),
+                            "ncls_true": len(true_cls),
+                            "ncls_tot": len(cls_in_window),
+                            "ncls_missing": len(missing_cls),
+
+                            "en_sc_raw": sc_rawEn[iSC] if sc_matched else -999, 
+                            "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999,
+                            #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                            #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                            "en_sc_calib": sc_corrEn[iSC] if sc_matched else -999, 
+                            "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999, 
+
+                            # Sim energy and Gen Enerugy of the caloparticle
+                            "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
+                            "calo_et_gen": calo_genenergy[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                            "calo_en_sim": calo_simenergy_goodstatus[caloindex] if calomatched else -1, 
+                            "calo_et_sim": calo_simenergy_goodstatus[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                            "calo_geneta": calo_geneta[caloindex] if calomatched else -1,
+                            "calo_genphi": calo_genphi[caloindex] if calomatched else -1,
+                            "calo_simeta": calo_simeta[caloindex] if calomatched else -1,
+                            "calo_simphi": calo_simphi[caloindex] if calomatched else -1,
+                            "calo_genpt": calo_genpt[caloindex] if calomatched else -1,
+                            
+                            # GenParticle info
+                            "genpart_en": genpart_energy[genindex] if genmatched else -1,
+                            "genpart_et": genpart_energy[genindex]/cosh(genpart_eta[genindex]) if genmatched else -1,
+                            "gen_eta": genpart_eta[genindex] if genmatched else -1,
+                            "gen_phi": genpart_phi[genindex] if genmatched else -1,
+                            "gen_pt": genpart_pt[genindex] if genmatched else -1,
+                            
+                            # PU information
+                            "nVtx": nVtx, 
+                            "rho": rho,
+                            "obsPU": obsPU, 
+                            "truePU": truePU,
+                            
+                            #Evt number
+                            "eventId" : event.eventId,
+                            "runId": event.runId
+                            
+                        }
+                        output_object.append(out)
+        ##############################################  
+        ##########################
+        ## IF we want to loop on calo-matched seeds instead of SC object
         else:
             for seed in calo_seeds:
                 calomatched = True
@@ -346,7 +589,7 @@ class WindowCreator():
                     else:
                         if icl in pfcl_in_sc[iSC]:
                             spurious_cls.append(icl)
-                print(true_cls, correct_cls, spurious_cls, missing_cls)
+                # print(true_cls, correct_cls, spurious_cls, missing_cls)
                             
                 out = {
                     "calomatched" : 1,

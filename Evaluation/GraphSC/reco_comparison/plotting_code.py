@@ -11,7 +11,7 @@ import matplotlib as mpl
 mpl.rcParams["image.origin"] = 'lower'
 # mpl.rcParams["image.dpi"] = 200
 import os
-import numpy as np1
+import numpy as np
 import pandas as pd
 
 import mplhep as hep
@@ -181,42 +181,46 @@ def bin_analysis_cruijff(col, nbins=300, prange=0.95):
             })
     return f
 
-
-# ### Generic plotting function
-
-# In[68]:
-
-
-def do_plot(*, name, df, res_var, 
+def do_plot(*, name, df1, df2, res_var1, res_var2, 
             bins1, bins2, binlabel1, binlabel2, binvar1, binvar2, binleg,
             xlabel, ylabel, general_label, ylabelratio,
             yvar, ylims1, ylims2, 
-            bin_analysis="fit", exclude_bin=-1, 
+            bin_analysis="cruijff",
+            yvar_err=None,
+            logy = True,
+            exclude_x_bin=-1,
+            exclude_y_bin=-1,
             nbins_fit=250, prange=1, 
-            fill_between=None,  output_folder=None):
+            fill_between=None,  output_folder=None, 
+            plot_fits=False):
     
-    binLabel1 = binlabel1+"_bin"
-    binLabel2 = binlabel2+"_bin"
-    df[binLabel1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
-    df[binLabel2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
+    binCol1 = binlabel1+"_bin"
+    binCol2 = binlabel2+"_bin"
+    for df in [df1, df2]:
+        df.loc[:,binCol1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
+        df.loc[:,binCol2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
     
-    if bin_analysis == "fit":
-        res = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_cruijff(f"{res_var}_new", nbins=nbins_fit, prange=prange))
-        res_must = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_cruijff(f"{res_var}_old", nbins=nbins_fit, prange=prange))
+    if bin_analysis == "cruijff":
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var1}", nbins=nbins_fit, prange=prange))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var2}", nbins=nbins_fit, prange=prange))
     elif bin_analysis == "ext_quantile":
-        res = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_extquantiles(f"{res_var}_new"))
-        res_must = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_extquantiles(f"{res_var}_old"))
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var1}"))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var2}"))
     elif bin_analysis == "central_quantile":
-        res = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_central_smallest(f"{res_var}_new"))
-        res_must = df.groupby([binLabel1,binLabel2]).apply(bin_analysis_central_smallest(f"{res_var}_old"))
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var1}"))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var2}"))
     res.reset_index(level=0, inplace=True)
     res.reset_index(level=0, inplace=True)
     res_must.reset_index(level=0, inplace=True)
     res_must.reset_index(level=0, inplace=True)
     
-    if yvar=="sigma_avg":
-        res["sigma_avg"] = (res.sigmaL + res.sigmaR)/2
-        res_must["sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
+    # computing sigma_Avg
+    if bin_analysis == "cruijff":
+        res.loc[:,"sigma_avg"] = (res.sigmaL + res.sigmaR)/2
+        res.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res.sigmaL_err**2 + res.sigmaR_err**2)
+        res_must.loc[:,"sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
+        res_must.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res_must.sigmaL_err**2 + res_must.sigmaR_err**2)
+        
     
     fig = plt.figure(figsize=(8,9), dpi=200)
     gs = fig.add_gridspec(2, hspace=0.05, height_ratios=[0.75,0.25])
@@ -231,20 +235,34 @@ def do_plot(*, name, df, res_var,
     mustl = []
     deepl = []
 
-    res.loc[res[binLabel2] == exclude_bin, [yvar]] = 0
-    res_must.loc[res_must[binLabel2] == exclude_bin, [yvar]] = 0
+    res.loc[res[binCol1] == exclude_x_bin, [yvar]] = 0
+    res_must.loc[res_must[binCol1] == exclude_x_bin, [yvar]] = 0
     
 
     for iet, et in enumerate(bins2[:-1]):
-        if iet == exclude_bin: continue
-        l = axs[0].errorbar(x, res_must[res_must[binLabel2] == iet][yvar], xerr=errx, label=f"[{bins2[iet]}, {bins2[iet+1]}]", fmt = ".")
+        if iet == exclude_y_bin: continue
+        if not yvar_err:
+            l = axs[0].errorbar(x, res_must[res_must[binCol2] == iet][yvar], xerr=errx, 
+                                label=f"[{bins2[iet]}, {bins2[iet+1]}]", fmt = ".")
+        else:
+            l = axs[0].errorbar(x, res_must[res_must[binCol2] == iet][yvar], 
+                                xerr=errx, yerr=res_must[res_must[binCol2] == iet][yvar_err],
+                                label=f"[{bins2[iet]}, {bins2[iet+1]}]", fmt = ".", elinewidth=1)
         mustl.append(l)
 
     i = 0
     for iet, et in enumerate(bins2[:-1]):
-        if iet == exclude_bin: continue
-        l = axs[0].errorbar(x, res[res[binLabel2]== iet][yvar],  xerr=errx ,label=f"[{bins2[iet]}, {bins2[iet+1]}]", 
-                                c=mustl[i].lines[0].get_color(), marker="s", markerfacecolor='none', linestyle='none',elinewidth=0)
+        if iet == exclude_y_bin: continue
+        if not yvar_err:
+            l = axs[0].errorbar(x, res[res[binCol2]== iet][yvar],  
+                            xerr=errx,                    
+                            label=f"[{bins2[iet]}, {bins2[iet+1]}]", 
+                            c=mustl[i].lines[0].get_color(), marker="s", markerfacecolor='none', linestyle='none',elinewidth=0)
+        else:
+            l = axs[0].errorbar(x, res[res[binCol2]== iet][yvar],  
+                            xerr=0,  yerr=res[res[binCol2]== iet][yvar_err],                  
+                            label=f"[{bins2[iet]}, {bins2[iet+1]}]", 
+                            c=mustl[i].lines[0].get_color(), marker="s", markerfacecolor='none', linestyle='none',elinewidth=1) #not drawing the error
         i+=1
         deepl.append(l)
 
@@ -254,10 +272,19 @@ def do_plot(*, name, df, res_var,
 
 
     for iet, et in enumerate(bins2[:-1]):
-        if iet == exclude_bin: continue
-        var = res[res[binLabel2]==iet][yvar] / res_must[res_must[binLabel2]==iet][yvar]
-        axs[1].errorbar(x, var,xerr=errx,  fmt="o", linestyle='none', elinewidth=0)
-        
+        if iet == exclude_y_bin: continue
+        rd = res[res[binCol2]==iet][yvar]
+        rm = res_must[res_must[binCol2]==iet][yvar]
+        var = rd/rm
+        if not yvar_err:
+            axs[1].errorbar(x, var,xerr=errx, fmt=".", linestyle='none', elinewidth=0)
+        else:
+            # Error of the ratio
+            deep_err = res[res[binCol2]==iet][yvar_err]
+            must_err = res_must[res_must[binCol2]==iet][yvar_err]
+            err_ratio = np.sqrt( ((1/rm)**2) * deep_err**2 + ((rd/(rm**2))**2 )*must_err**2 )
+            axs[1].errorbar(x, var,xerr=errx, yerr=err_ratio,
+                            fmt=".", linestyle='none', elinewidth=1)
 
     axs[0].set_ylabel(ylabel)
     axs[1].set_xlabel(xlabel)
@@ -273,55 +300,91 @@ def do_plot(*, name, df, res_var,
 
     ml = mlines.Line2D([], [], color='black', marker='.', linestyle='None', markersize=10, label='Mustache')
     dl = mlines.Line2D([], [], color='black', marker='s', markerfacecolor='none', linestyle='None', markersize=10, label='DeepSC')
-    axs[0].legend(handles=[ml,dl], title="Algorithm", title_fontsize=18, loc="upper right", bbox_to_anchor=(0.7, 1), fontsize=18)
+    axs[0].legend(handles=[ml,dl], title="Algorithm", title_fontsize=18, loc="upper right", 
+                  bbox_to_anchor=(0.93, 1), fontsize=18)
     axs[0].add_artist(l1)
 
-
-  
     axs[0].text(0.65, 0.6, general_label, transform=axs[0].transAxes, fontsize=20)
 
-    axs[0].set_yscale("log")
+    if logy:
+        axs[0].set_yscale("log")
     axs[0].grid(which="both",axis="y")
     axs[1].grid(which="both",axis="y")
 
-    hep.cms.label(rlabel="14 TeV", loc=0, ax=axs[0])
+    hep.cms.label(rlabel="14 TeV", loc=0, ax=axs[0]) 
     
     if (output_folder):
         os.makedirs(output_folder, exist_ok=True)
+        os.system(f"cp /eos/user/d/dvalsecc/www/index.php {output_folder}")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.png")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.pdf")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.svg")
+        
+    #######
+    #Plot the single fit bins
+    if bin_analysis=="cruijff" and plot_fits and output_folder:
+        output_fits = output_folder + "/fits_"+ name
+        os.makedirs(output_fits, exist_ok=True)
+        os.system(f"cp /eos/user/d/dvalsecc/www/index.php {output_fits}")
+        
+        for iBin1, bin1, in enumerate(bins1[:-1]):
+            for iBin2, bin2 in enumerate(bins2[:-1]):
+                df_d = df1[(df1[binCol1] == iBin1)&(df1[binCol2]==iBin2)]
+                df_m = df2[(df2[binCol1] == iBin1)&(df2[binCol2]==iBin2)]
+                fit_deep = res[(res[binCol1]== iBin1)&(res[binCol2]==iBin2)]
+                fit_must = res_must[(res_must[binCol1]== iBin1)&(res_must[binCol2]==iBin2)]
+                if fit_deep.sigma_avg.values[0] == -1 or fit_must.sigma_avg.values[0]==-1:
+                    print(f"Fit failed iBin1:{iBin1}, iBin2:{iBin2}")
+                    
+                fig = plt.figure(figsize=(9,8), dpi=100)
+                ax = plt.gca()
+                
+                H_m = np.histogram(df_m[res_var2],bins=nbins_fit, range=(fit_must.xmin.values[0], fit_must.xmax.values[0]))
+                xm = H_m[1][:-1]
+                Ym = H_m[0]
+                ax.errorbar(xm, Ym, np.sqrt(Ym),0, linestyle='none',fmt=".", label="Mustache")
+
+
+                H_d = np.histogram(df_d[res_var1],bins=nbins_fit, range=(fit_deep.xmin.values[0], fit_deep.xmax.values[0]))
+                xd = H_d[1][:-1]
+                Yd = H_d[0]
+                ax.errorbar(xd, Yd, np.sqrt(Yd),0, linestyle='none', fmt=".",label="DeepSC")
+
+
+                y_cr_D = cruijff(xd, fit_deep.A.values[0], fit_deep.m.values[0], fit_deep.sigmaL.values[0], 
+                                 fit_deep.sigmaR.values[0], fit_deep.alphaL.values[0], fit_deep.alphaR.values[0])
+                
+                y_cr_M = cruijff(xm, fit_must.A.values[0], fit_must.m.values[0], fit_must.sigmaL.values[0],
+                                 fit_must.sigmaR.values[0], fit_must.alphaL.values[0], fit_must.alphaR.values[0])
+                
+                ax.plot(xm, y_cr_M, label="Cruijiff Mustache", linewidth=2)
+                ax.plot(xd, y_cr_D, label="Cruijiff DeepSC", linewidth =2)
+
+                ax.legend(loc="upper right", bbox_to_anchor=(1, 1), fontsize=18)
+
+                ax.text(0.05, 0.9, f"DeepSC:\nm={fit_deep.m.values[0]:.3f}, $\sigma_L$={fit_deep.sigmaL.values[0]:.3f}, $\sigma_R$={fit_deep.sigmaR.values[0]:.3f}",
+                        transform=ax.transAxes, fontsize=15, color="orange")
+                ax.text(0.05, 0.8, f"Mustache:\nm={fit_must.m.values[0]:.3f}, $\sigma_L$={fit_must.sigmaL.values[0]:.3f}, $\sigma_R$={fit_must.sigmaR.values[0]:.3f}",
+                        transform=ax.transAxes, fontsize=15, color="blue")
+
+                ax.text(0.05, 0.65, f"{xlabel} [{bins1[iBin1]},{bins1[iBin1+1]}] \n{binleg}: [{bins2[iBin2]},{bins2[iBin2+1]}]",
+                        transform=ax.transAxes, fontsize=17)
+
+                ax.set_ylim(0,max(Yd)*1.3)
+                ax.set_xlabel(ylabel)
+                hep.cms.label(rlabel="14 TeV", loc=0, ax=ax)
+
+                if (output_folder):
+                    fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.png")
+                    fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.pdf")
+                    fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.svg")
+                plt.close()
+                
+    if output_folder:
+        res.to_csv(f"{output_folder}/resolution_{name}_deepsc.csv", sep=',', index=False)
+        res_must.to_csv(f"{output_folder}/resolution_{name}_mustache.csv", sep=',', index=False)
     
     return res, res_must
-
-
-
-# EXAMPLE
-#res_d, res_m = do_plot(name="ele_gen_matched_corr",
-#         df=df_join, 
-#         res_var="Ecorr_ov_EGen", 
-#         bins1=[0, 0.5,0.8,1.0,1.2, 1.485, 1.566, 1.75, 2.,2.25,2.5,3],
-#         bins2=[4,10,20,40,60], 
-#         binlabel1="eta",
-#         binlabel2="et",
-#         binleg="$E_T^{Gen}$", 
-#         binvar1="seed_eta_new", 
-#         binvar2="calo_et_gen_new", 
-#         nbins_fit=250, 
-#         prange=0.98, 
-#         exclude_bin=5, 
-#         general_label="Electron \n(GEN-matched)", 
-#         xlabel="$|\eta_{Gen}|$", 
-#         ylabel="$\sigma_{avg}(E_{Calib}/E_{Gen})$",
-#         ylabelratio="$\sigma_{DeepSC}/\sigma_{Must}$", 
-#         yvar="sigma_avg",
-#         ylims1=(5e-3,1e1),
-#         ylims2=(0.75, 1.15),
-#         fill_between=[1.485, 1.566],
-#         output_folder=None)
-
-
-# # In[59]:
 
 
 # res_d, res_m = do_plot(name="ele_gen_matched_corr_byEt",

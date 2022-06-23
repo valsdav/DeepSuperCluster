@@ -27,6 +27,7 @@ parser.add_argument("--redo", action="store_true", default=False, help="Redo all
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
 parser.add_argument("-s","--sc-collection", type=str, help="SuperCluster collection", default="superCluster")
+parser.add_argument("-r","--reco-collection", type=str, help="Reco collection (none/electron/photon)", default="none")
 args = parser.parse_args()
 
 
@@ -60,7 +61,7 @@ WPFILE=$5;
 echo -e "Running reco comparison dumper.."
 
 python run_reco_dumper.py -i ${INPUTFILE} -o output_{type}.csv \
-            -a ${ASSOC} --wp-file ${WPFILE} --sc-collection {SC_COLL} {LOOP_CALO} {debug};
+            -a ${ASSOC} --wp-file ${WPFILE} --sc-collection {SC_COLL} --reco-collection {RECO_COLL} {LOOP_CALO} {debug};
 
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
@@ -86,7 +87,7 @@ else:
     script = script.replace("{LOOP_CALO}","")
     
 script=script.replace("{SC_COLL}", args.sc_collection)
-
+script=script.replace("{RECO_COLL}", args.reco_collection)
     
 arguments= []
 if not os.path.exists(args.outputdir):
