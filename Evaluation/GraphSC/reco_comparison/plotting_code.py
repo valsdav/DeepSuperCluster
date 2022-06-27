@@ -181,6 +181,7 @@ def bin_analysis_cruijff(col, nbins=300, prange=0.95):
             })
     return f
 
+
 def do_plot(*, name, df1, df2, res_var1, res_var2, 
             bins1, bins2, binlabel1, binlabel2, binvar1, binvar2, binleg,
             xlabel, ylabel, general_label, ylabelratio,
@@ -192,35 +193,42 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
             exclude_y_bin=-1,
             nbins_fit=250, prange=1, 
             fill_between=None,  output_folder=None, 
-            plot_fits=False):
-    
+            plot_fits=False,
+            load_from_file=None):
+            
+        
     binCol1 = binlabel1+"_bin"
     binCol2 = binlabel2+"_bin"
-    for df in [df1, df2]:
-        df.loc[:,binCol1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
-        df.loc[:,binCol2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
-    
-    if bin_analysis == "cruijff":
-        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var1}", nbins=nbins_fit, prange=prange))
-        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var2}", nbins=nbins_fit, prange=prange))
-    elif bin_analysis == "ext_quantile":
-        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var1}"))
-        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var2}"))
-    elif bin_analysis == "central_quantile":
-        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var1}"))
-        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var2}"))
-    res.reset_index(level=0, inplace=True)
-    res.reset_index(level=0, inplace=True)
-    res_must.reset_index(level=0, inplace=True)
-    res_must.reset_index(level=0, inplace=True)
-    
-    # computing sigma_Avg
-    if bin_analysis == "cruijff":
-        res.loc[:,"sigma_avg"] = (res.sigmaL + res.sigmaR)/2
-        res.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res.sigmaL_err**2 + res.sigmaR_err**2)
-        res_must.loc[:,"sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
-        res_must.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res_must.sigmaL_err**2 + res_must.sigmaR_err**2)
-        
+    if not load_from_file:
+       
+        for df in [df1, df2]:
+            df.loc[:,binCol1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
+            df.loc[:,binCol2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
+
+        if bin_analysis == "cruijff":
+            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var1}", nbins=nbins_fit, prange=prange))
+            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var2}", nbins=nbins_fit, prange=prange))
+        elif bin_analysis == "ext_quantile":
+            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var1}"))
+            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var2}"))
+        elif bin_analysis == "central_quantile":
+            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var1}"))
+            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var2}"))
+        res.reset_index(level=0, inplace=True)
+        res.reset_index(level=0, inplace=True)
+        res_must.reset_index(level=0, inplace=True)
+        res_must.reset_index(level=0, inplace=True)
+
+        # computing sigma_Avg
+        if bin_analysis == "cruijff":
+            res.loc[:,"sigma_avg"] = (res.sigmaL + res.sigmaR)/2
+            res.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res.sigmaL_err**2 + res.sigmaR_err**2)
+            res_must.loc[:,"sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
+            res_must.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res_must.sigmaL_err**2 + res_must.sigmaR_err**2)
+    else:
+      res = pd.read_csv(load_from_file[0], sep=",")
+      res_must = pd.read_csv(load_from_file[1], sep=",")
+
     
     fig = plt.figure(figsize=(8,9), dpi=200)
     gs = fig.add_gridspec(2, hspace=0.05, height_ratios=[0.75,0.25])
@@ -304,14 +312,14 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
                   bbox_to_anchor=(0.93, 1), fontsize=18)
     axs[0].add_artist(l1)
 
-    axs[0].text(0.65, 0.6, general_label, transform=axs[0].transAxes, fontsize=20)
+    axs[0].text(0.7, 0.65, general_label, transform=axs[0].transAxes, fontsize=20)
 
     if logy:
         axs[0].set_yscale("log")
     axs[0].grid(which="both",axis="y")
     axs[1].grid(which="both",axis="y")
 
-    hep.cms.label(rlabel="14 TeV", loc=0, ax=axs[0]) 
+    hep.cms.label(rlabel="14 TeV", llabel="Simulation Preliminary", loc=0, ax=axs[0]) 
     
     if (output_folder):
         os.makedirs(output_folder, exist_ok=True)
