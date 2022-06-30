@@ -145,8 +145,8 @@ def bin_analysis_cruijff(col, nbins=300, prange=0.95):
 
             return pd.Series({
                 "m": params[1],
-                "sigmaL": params[2], 
-                "sigmaR": params[3],
+                "sigmaL": abs(params[2]), 
+                "sigmaR": abs(params[3]),
                 "alphaL": params[4],
                 "alphaR": params[5],
                 "m_err": perr[1],
@@ -182,6 +182,7 @@ def bin_analysis_cruijff(col, nbins=300, prange=0.95):
     return f
 
 
+# ### Generic plotting function
 def do_plot(*, name, df1, df2, res_var1, res_var2, 
             bins1, bins2, binlabel1, binlabel2, binvar1, binvar2, binleg,
             xlabel, ylabel, general_label, ylabelratio,
@@ -193,42 +194,35 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
             exclude_y_bin=-1,
             nbins_fit=250, prange=1, 
             fill_between=None,  output_folder=None, 
-            plot_fits=False,
-            load_from_file=None):
-            
-        
+            plot_fits=False):
+    
     binCol1 = binlabel1+"_bin"
     binCol2 = binlabel2+"_bin"
-    if not load_from_file:
-       
-        for df in [df1, df2]:
-            df.loc[:,binCol1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
-            df.loc[:,binCol2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
-
-        if bin_analysis == "cruijff":
-            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var1}", nbins=nbins_fit, prange=prange))
-            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var2}", nbins=nbins_fit, prange=prange))
-        elif bin_analysis == "ext_quantile":
-            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var1}"))
-            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var2}"))
-        elif bin_analysis == "central_quantile":
-            res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var1}"))
-            res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var2}"))
-        res.reset_index(level=0, inplace=True)
-        res.reset_index(level=0, inplace=True)
-        res_must.reset_index(level=0, inplace=True)
-        res_must.reset_index(level=0, inplace=True)
-
-        # computing sigma_Avg
-        if bin_analysis == "cruijff":
-            res.loc[:,"sigma_avg"] = (res.sigmaL + res.sigmaR)/2
-            res.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res.sigmaL_err**2 + res.sigmaR_err**2)
-            res_must.loc[:,"sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
-            res_must.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res_must.sigmaL_err**2 + res_must.sigmaR_err**2)
-    else:
-      res = pd.read_csv(load_from_file[0], sep=",")
-      res_must = pd.read_csv(load_from_file[1], sep=",")
-
+    for df in [df1, df2]:
+        df.loc[:,binCol1] = pd.cut(df[binvar1].abs(), bins1, labels=list(range(len(bins1)-1)))
+        df.loc[:,binCol2] = pd.cut(df[binvar2].abs(), bins2, labels=list(range(len(bins2)-1)))
+    
+    if bin_analysis == "cruijff":
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var1}", nbins=nbins_fit, prange=prange))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_cruijff(f"{res_var2}", nbins=nbins_fit, prange=prange))
+    elif bin_analysis == "ext_quantile":
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var1}"))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_extquantiles(f"{res_var2}"))
+    elif bin_analysis == "central_quantile":
+        res = df1.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var1}"))
+        res_must = df2.groupby([binCol1,binCol2]).apply(bin_analysis_central_smallest(f"{res_var2}"))
+    res.reset_index(level=0, inplace=True)
+    res.reset_index(level=0, inplace=True)
+    res_must.reset_index(level=0, inplace=True)
+    res_must.reset_index(level=0, inplace=True)
+    
+    # computing sigma_Avg
+    if bin_analysis == "cruijff":
+        res.loc[:,"sigma_avg"] = (res.sigmaL + res.sigmaR)/2
+        res.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res.sigmaL_err**2 + res.sigmaR_err**2)
+        res_must.loc[:,"sigma_avg"] = (res_must.sigmaL + res_must.sigmaR)/2
+        res_must.loc[:,"sigma_avg_err"] = 0.5 * np.sqrt( res_must.sigmaL_err**2 + res_must.sigmaR_err**2)
+        
     
     fig = plt.figure(figsize=(8,9), dpi=200)
     gs = fig.add_gridspec(2, hspace=0.05, height_ratios=[0.75,0.25])
@@ -312,18 +306,17 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
                   bbox_to_anchor=(0.93, 1), fontsize=18)
     axs[0].add_artist(l1)
 
-    axs[0].text(0.7, 0.65, general_label, transform=axs[0].transAxes, fontsize=20)
+    axs[0].text(0.65, 0.6, general_label, transform=axs[0].transAxes, fontsize=20)
 
     if logy:
         axs[0].set_yscale("log")
     axs[0].grid(which="both",axis="y")
     axs[1].grid(which="both",axis="y")
 
-    hep.cms.label(rlabel="14 TeV", llabel="Simulation Preliminary", loc=0, ax=axs[0]) 
+    hep.cms.label(rlabel="14 TeV", loc=0, ax=axs[0]) 
     
     if (output_folder):
         os.makedirs(output_folder, exist_ok=True)
-        os.system(f"cp /eos/user/d/dvalsecc/www/index.php {output_folder}")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.png")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.pdf")
         fig.savefig(output_folder + f"/resolution_{name}_{yvar}_ratio.svg")
@@ -382,17 +375,47 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
                 ax.set_xlabel(ylabel)
                 hep.cms.label(rlabel="14 TeV", loc=0, ax=ax)
 
-                if (output_folder):
+                if output_folder:
                     fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.png")
                     fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.pdf")
                     fig.savefig(output_fits + f"/cruijff_fit_{binlabel1}{bins1[iBin1]}_{bins1[iBin1+1]}_{binlabel2}{bins2[iBin2]}_{bins2[iBin2+1]}.svg")
                 plt.close()
-                
+
+    
     if output_folder:
         res.to_csv(f"{output_folder}/resolution_{name}_deepsc.csv", sep=',', index=False)
         res_must.to_csv(f"{output_folder}/resolution_{name}_mustache.csv", sep=',', index=False)
-    
     return res, res_must
+
+
+
+
+# EXAMPLE
+#res_d, res_m = do_plot(name="ele_gen_matched_corr",
+#         df=df_join, 
+#         res_var="Ecorr_ov_EGen", 
+#         bins1=[0, 0.5,0.8,1.0,1.2, 1.485, 1.566, 1.75, 2.,2.25,2.5,3],
+#         bins2=[4,10,20,40,60], 
+#         binlabel1="eta",
+#         binlabel2="et",
+#         binleg="$E_T^{Gen}$", 
+#         binvar1="seed_eta_new", 
+#         binvar2="calo_et_gen_new", 
+#         nbins_fit=250, 
+#         prange=0.98, 
+#         exclude_bin=5, 
+#         general_label="Electron \n(GEN-matched)", 
+#         xlabel="$|\eta_{Gen}|$", 
+#         ylabel="$\sigma_{avg}(E_{Calib}/E_{Gen})$",
+#         ylabelratio="$\sigma_{DeepSC}/\sigma_{Must}$", 
+#         yvar="sigma_avg",
+#         ylims1=(5e-3,1e1),
+#         ylims2=(0.75, 1.15),
+#         fill_between=[1.485, 1.566],
+#         output_folder=None)
+
+
+# # In[59]:
 
 
 # res_d, res_m = do_plot(name="ele_gen_matched_corr_byEt",
