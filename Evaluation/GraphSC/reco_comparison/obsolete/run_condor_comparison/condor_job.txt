@@ -1,0 +1,10 @@
+executable              = run_reco_comparison_script.sh
+output                  = output/strips.$(ClusterId).$(ProcId).out
+error                   = error/strips.$(ClusterId).$(ProcId).err
+log                     = log/strips.$(ClusterId).log
+transfer_input_files    = ../run_reco_comparison.py, ../reco_comparison.py, ../calo_association.py, ../simScore_WP/simScore_Minima_PhotonsOnly_updated.root, ../Mustache.C
+
++JobFlavour             = "longlunch"
+queue arguments from arguments.txt
+
++AccountingGroup = "group_u_CMS.CAF.COMM"
