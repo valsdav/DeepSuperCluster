@@ -3,7 +3,14 @@
 ## Goal
 We need a dataset formed by a list of detector "windows" (eta-phi rectangular regions) containing the clusters and the caloparticle (gen level info) creating them. This window is the unit of the dataset:  both the training and the final reconstruction algorithm will be applied on it. 
 
-These windows can be created with a lot of flexibility. Details on how they are formed are really important for the characteristics of the training dataset. 
+These windows can be created with a lot of flexibility. Details on how they are formed are really important for the
+characteristics of the training dataset. 
+
+### Truth labels
+The first step is analyzing the input dataset with minimum requirements to understand the pfClusters-CaloParticle
+interplay. The truth labels needs to be defined to obtain the best possible resolution of the SuperCluster. 
+
+Code and plotting scripts for the truth level analysis are described in the folder [input_dataset_truth](./input_dataset_truth/README.md).
 
 ## Procedure
 
