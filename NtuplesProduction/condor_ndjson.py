@@ -26,6 +26,8 @@ parser.add_argument("--weta", type=float, nargs=2,  help="Window eta widths (bar
 parser.add_argument("--wphi", type=float, nargs=2, help="Window phi widths (barrel, endcap)", default=[0.7,0.7])
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1)
+parser.add_argument("-ov","--overlap", action="store_true",  help="Overlapping window mode", default=False)
+parser.add_argument("--pu-limit", type=float,  help="SimEnergy PU limit", default=1e6)
 parser.add_argument('-c', "--compress", action="store_true",  help="Compress output")
 parser.add_argument("--redo", action="store_true", default=False, help="Redo all files")
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
@@ -37,7 +39,7 @@ condor = '''executable              = run_ndjson_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../cluster_ndjson_dynamic_global_nooverlap.py, ../windows_creator_dynamic_global_nooverlap.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
+transfer_input_files    = ../cluster_ndjson_dynamic_general.py, ../windows_creator_general.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -50,7 +52,7 @@ condor = condor.replace("{wp_file}", args.wp_file)
 
 script = '''#!/bin/sh -e
 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc10-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_101/x86_64-centos7-gcc11-opt/setup.sh
 
 JOBID=$1;  
 INPUTFILE=$2;
@@ -59,12 +61,15 @@ ASSOC=$4;
 WPFILE=$5;
 MAXNOCALO=$6;
 ET_SEED=$7;
+OVERLAP=$8;
+PULIM=$9;
 
 
 echo -e "Running ndjson dumper.."
 
 python cluster_ndjson_dynamic_global_nooverlap.py -i ${INPUTFILE} -o output.ndjson \
-            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO  {debug};
+            -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO \
+           --overlap ${OVERLAP} --pu_limit ${PULIM} {debug};
 
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
@@ -120,9 +125,9 @@ for file in files_training:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {} {}".format(
+        arguments.append("{} {} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy, wp_file,
-                args.maxnocalow, args.min_et_seed))
+                args.maxnocalow, args.min_et_seed, args.overlap, args.pu_limit))
         files_groups = []
         ifile_group = 0
 
@@ -130,9 +135,9 @@ print ("N files used for training: {}, Last id file used: {}".format(ifile_used+
 
 # Join also the last group
 if len(files_groups):
-    arguments.append("{} {} {} {} {} {} {}".format(
+    arguments.append("{} {} {} {} {} {} {} {} {}".format(
                     jobid+1,"#_#".join(files_groups), args.outputdir +"/training", args.assoc_strategy,wp_file,
-                    args.maxnocalow, args.min_et_seed))
+                    args.maxnocalow, args.min_et_seed, args.overlap, args.pu_limit))
 
 
 # ######## testing
@@ -149,9 +154,9 @@ for file in files_testing:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {} {} {} {}".format(
+        arguments.append("{} {} {} {} {} {} {} {}".format(
                 jobid,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy, wp_file,
-                args.maxnocalow, args.min_et_seed))
+                args.maxnocalow, args.min_et_seed,args.overlap, args.pu_limit))
         files_groups = []
         ifile_group = 0
 
@@ -159,9 +164,9 @@ print ("N files used for testing: {}, Last id file used: {}".format(ifile_used+1
 
 # Join also the last group
 if len(files_groups):
-    arguments.append("{} {} {} {} {} {} {}".format(
+    arguments.append("{} {} {} {} {} {} {} {}".format(
                 jobid+1,"#_#".join(files_groups), args.outputdir +"/testing", args.assoc_strategy,wp_file,
-                args.maxnocalow, args.min_et_seed))
+                args.maxnocalow, args.min_et_seed,args.overlap, args.pu_limit))
 
 
 print("Njobs: ", len(arguments))

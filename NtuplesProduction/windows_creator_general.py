@@ -75,11 +75,16 @@ def get_cluster_hits(pfclhit_ieta,pfclhit_iphi,pfclhit_iz,pfclhit_energy, pfclhi
 
 class WindowCreator():
 
-    def __init__(self, simfraction_thresholds,  seed_min_fraction=1e-2, cl_min_fraction=1e-4, simenergy_pu_limit = 1.5):
+    def __init__(self, simfraction_thresholds,  seed_min_fraction=1e-2, cl_min_fraction=1e-4, simenergy_pu_limit = 1.5,
+                 min_et_seed=1., assoc_strategy="sim_fraction", overlapping_window=False,  nocalowNmax=0):
         self.seed_min_fraction = seed_min_fraction
         self.cluster_min_fraction = cl_min_fraction
         self.simfraction_thresholds = simfraction_thresholds
         self.simenergy_pu_limit = simenergy_pu_limit
+        self.min_et_seed=min_et_seed
+        self.assoc_strategy = assoc_strategy
+        self.overlapping_window = overlapping_window
+        self.nocalowNMax = nocalowNMax
 
 
     def pass_simfraction_threshold(self, seed_eta, seed_et, cluster_calo_score ):
@@ -92,40 +97,49 @@ class WindowCreator():
         #print(seed_eta, seed_et, cluster_calo_score, thre, cluster_calo_score >= thre )
         return cluster_calo_score >= thre
 
-
-    def dynamic_window(self,eta):
+    def dynamic_window(self,eta, version=2):
         aeta = abs(eta)
 
-        if aeta >= 0 and aeta < 0.1:
-            deta_up = 0.075
-        if aeta >= 0.1 and aeta < 1.3:
-            deta_up = 0.0758929 -0.0178571* aeta + 0.0892857*(aeta**2) 
-        elif aeta >= 1.3 and aeta < 1.7:
-            deta_up = 0.2
-        elif aeta >=1.7 and aeta < 1.9:
-            deta_up = 0.625 -0.25*aeta
-        elif aeta >= 1.9:
-            deta_up = 0.15
+        if version == 1:
+            if aeta >= 0 and aeta < 0.1:
+                deta_up = 0.075
+            if aeta >= 0.1 and aeta < 1.3:
+                deta_up = 0.0758929 -0.0178571* aeta + 0.0892857*(aeta**2) 
+            elif aeta >= 1.3 and aeta < 1.7:
+                deta_up = 0.2
+            elif aeta >=1.7 and aeta < 1.9:
+                deta_up = 0.625 -0.25*aeta
+            elif aeta >= 1.9:
+                deta_up = 0.15
 
-        if aeta < 2.1: 
-            deta_down = -0.075
-        elif aeta >= 2.1 and aeta < 2.5:
-            deta_down = -0.1875 *aeta + 0.31875
-        elif aeta >=2.5:
-            deta_down = -0.15
-            
-        if aeta < 1.9:
-            dphi = 0.6
-        elif aeta >= 1.9 and aeta < 2.7:
-            dphi = 1.075 -0.25 * aeta
-        elif aeta >= 2.7:
-            dphi = 0.4
-              
-        return deta_up, deta_down, dphi
+            if aeta < 2.1: 
+                deta_down = -0.075
+            elif aeta >= 2.1 and aeta < 2.5:
+                deta_down = -0.1875 *aeta + 0.31875
+            elif aeta >=2.5:
+                deta_down = -0.15
+
+            if aeta < 1.9:
+                dphi = 0.6
+            elif aeta >= 1.9 and aeta < 2.7:
+                dphi = 1.075 -0.25 * aeta
+            elif aeta >= 2.7:
+                dphi = 0.4
+
+            return deta_up, deta_down, dphi
+
+        elif version == 2:
+            if aeta <= 1.5:
+                deta_up = (0.1/1.5)*aeta + 0.1
+                deta_down = -0.1
+            else:
+                deta_up = (0.1/1.5)*(aeta-1.5) + 0.2
+                deta_down = (-0.1/1.5)*(aeta-1.5) -0.1
+            dphi = 0.7 + (-0.1/3)*aeta
+            return deta_up, deta_down, dphi
 
 
-
-    def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1, debug=False):
+    def get_windows(self, event, debug=False):
         # Metadata for debugging
         metadata = {
             "n_windows_matched" : 0,
@@ -182,7 +196,7 @@ class WindowCreator():
         # pfclhit_eta = event.pfClusterHit_eta
         # pfclhit_phi = event.pfClusterHit_phi
 
-        clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
+        clusters_scores = getattr(event, "pfCluster_"+self.assoc_strategy)
         # Get Association between pfcluster and calo
         # Sort the clusters for each calo in order of score. 
         # # This is needed to understand which cluster is the seed of the calo
@@ -236,7 +250,7 @@ class WindowCreator():
             #print(icl, clenergy_T)
 
             # No seeds with Et< min_et_seed GeV
-            if clenergy_T < min_et_seed: continue
+            if clenergy_T < self.min_et_seed: continue
 
             cl_eta = pfCluster_eta[icl]
             cl_phi = pfCluster_phi[icl]
@@ -253,10 +267,14 @@ class WindowCreator():
                     is_in_window = True
                     if debug: print("Cluster {} already in window {}! skipping window".format(icl, window["window_index"]))
                     break
+
                 
-            # Create new window ONLY IF THE CLUSTER IS NOT ALREADY IN ANOTHER WINDOW
-            if not is_in_window:
-                # - CHeck if the seed simFraction with the signal calo is at least seed_min_fraction
+            if not self.overlapping_window and is_in_window:
+                # If we are in non-overlapping mode 
+                # Create new window ONLY IF THE CLUSTER IS NOT ALREADY IN ANOTHER WINDOW
+                break
+            else:
+                # - Check if the seed simFraction with the signal calo is at least seed_min_fraction
                 # - Check if the seed is associated with a calo in the window: calomatched 
                 # - Check if the seed is the main cluster of the calo:  caloseed
                 # It is required to have seed_min_fraction% of the calo energy and to be "in the window" of the seed
@@ -638,7 +656,7 @@ class WindowCreator():
         metadata["n_windows_nomatched"] = len(windows_nocalomatched) 
         if len(windows_nocalomatched)> len(windows_calomatched):
             windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] + \
-                          random.sample(windows_nocalomatched[len(windows_calomatched):], min(nocalowNmax,len(windows_nocalomatched) - len(windows_calomatched) ))
+                          random.sample(windows_nocalomatched[len(windows_calomatched):], min(self.nocalowNmax,len(windows_nocalomatched) - len(windows_calomatched) ))
         else:
             windows_to_keep_index = windows_calomatched + windows_nocalomatched
 
