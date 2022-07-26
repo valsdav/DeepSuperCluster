@@ -15,7 +15,7 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-from windows_creator_dynamic_global_nooverlap import WindowCreator
+from windows_creator_general import WindowCreator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)
@@ -24,23 +24,16 @@ parser.add_argument("-a","--assoc-strategy", type=str, help="Association strateg
 parser.add_argument("--wp-file", type=str,  help="File with sim fraction thresholds")
 parser.add_argument("-n","--nevents", type=int,nargs="+", help="n events iterator", required=False)
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
+parser.add_argument("-ov","--overlap", action="store_true",  help="Overlapping window mode", default=False)
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
+parser.add_argument("--pu-limit", type=float,  help="SimEnergy PU limit", default=1e6)
 args = parser.parse_args()
 
 if "#_#" in args.inputfile: 
     inputfiles = args.inputfile.split("#_#")
 else:
     inputfiles = [args.inputfile]
-
-# if args.nevents and len(args.nevents) >= 1:
-#     nevent = args.nevents[0]
-#     if len(args.nevents) == 2:
-#         nevent2 = args.nevents[1]
-#     else:
-#         nevent2 = nevent+1
-#     tree = islice(tree, nevent, nevent2)
-
 
 simfraction_thresholds_file = R.TFile(args.wp_file)
 simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
@@ -51,9 +44,15 @@ SEED_MIN_FRACTION=1e-2
 # min simFraction for the cluster to be associated with the caloparticle
 CL_MIN_FRACION=1e-4
 # threshold of simEnergy PU / simEnergy signal for each cluster and seed to be matched with a caloparticle
-SIMENERGY_PU_LIMIT=1.0
+SIMENERGY_PU_LIMIT= args.pu_limit
 
-windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,cl_min_fraction=CL_MIN_FRACION, simenergy_pu_limit = SIMENERGY_PU_LIMIT)
+windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,
+                                cl_min_fraction=CL_MIN_FRACION,
+                                simenergy_pu_limit = SIMENERGY_PU_LIMIT,
+                                min_et_seed=args.min_et_seed,
+                                assoc_strategy=args.assoc_strategy,
+                                overlapping_window=args.overlap,
+                                nocalowNmax=args.maxnocalow)
 
 debug = args.debug
 nocalowNmax = args.maxnocalow
@@ -71,8 +70,7 @@ for inputfile in inputfiles:
     print ("Starting")
     for iev, event in enumerate(tree):
         if iev % 10 == 0: print(".",end="")
-        windows_data, debug_metadata = windows_creator.get_windows(event, args.assoc_strategy, 
-                nocalowNmax= args.maxnocalow, min_et_seed= args.min_et_seed, debug= args.debug )
+        windows_data, debug_metadata = windows_creator.get_windows(event, debug= args.debug )
         all_metadata.append(debug_metadata)
         for w in windows_data:
             windows_files.write(w)

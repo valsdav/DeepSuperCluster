@@ -84,7 +84,7 @@ class WindowCreator():
         self.min_et_seed=min_et_seed
         self.assoc_strategy = assoc_strategy
         self.overlapping_window = overlapping_window
-        self.nocalowNMax = nocalowNMax
+        self.nocalowNmax = nocalowNmax
 
 
     def pass_simfraction_threshold(self, seed_eta, seed_et, cluster_calo_score ):

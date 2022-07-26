@@ -15,14 +15,17 @@ Code and plotting scripts for the truth level analysis are described in the fold
 ## Procedure
 
 - The Dumper is applied on top of RECO dataset to extract TTrees containing all the necessary informations about clusters, caloparticles, rechits, simhits. 
-- The script `windows_creator_dynamic_global_overlap` is applied on the dumper output in order to extract a list of detector windows for each event. 
-    - this version of the script creates all the possible windows around all the possible seeds and save the list of clusters inside each window. Windows can be overalapped and the clusters can be associated to multiple seeds. 
-    - Different versions of this script generate the windows in different ways. 
-- To apply the window creator algo the helper script `cluster_ndjson_dynamic_global_overlap.py` is used:
+- The script `windows_creator_general.py` is applied on the dumper output to extract a list of detector windows for each event. 
+    - this script creates all the possible windows around all the possible seeds and save the list of clusters inside
+ each window.
+    - Windows can be overlapped (optionally)
+    - All the clusters can be associated to multiple seeds. 
+    
+- To apply the window creator algo the helper script `cluster_ndjson_general.py` is used:
   - This script uses the dumper input tree, applies the window creation step and save text file containing 1 window for each line. The dictionary containing the information for each window is saved in json format. 
   - The txt file corresponding to each input file is saved and compressed
-- In order to apply these scripts in an efficient way an helper script for condor submission has been prepared: `condor_ndjson.py`
-  - An example on how to run is is in `prod_ntuple.sh`
+  
+- The script `condor_ndjson.py` runs the window creation script on condor on all the files in parallel. 
 
 ### Tensorflow dataset format
 
@@ -38,7 +41,7 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
 - All the windows are created for all the seeds with Et> 1
 - The seed is required to have:
   - at least 1% of simfraction of the matched caloparticle
-  - the matched caloparticle needs to be inside the window
+  - the matched caloparticle needs to be inside the geometric window
   - no simfraction WP is checked for the seed
 
 - The clusters are calo_matched to the caloparticle of the seed if:
@@ -51,29 +54,14 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
   - For the clusters the calo is always the calo of the seed. 
   - If the seed is not associated with a calo the matching of the cluster is not checked
 
+- Windows can be created in two modes: overlapping/non-overlapping:
+  - Overlapping: clusters with at least 1 GeV of Et and passing the requirement for the seeds always create a window,
+    also if they are already inside another window. 
+  - Non-overlapping: seeds create a new window only if they are not inside the window defined by an higher energy
+    cluster. 
 
-### Production v9
-
-#### Electron
-
-First step for Ndjson windows output.
-```
-python ../condor_ndjson.py -q espresso \
- -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/ndjson_v9 \
- -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_Reduced_Dumper_v2/FourElectronsGunPt1_Dumper_v2_hadd \
- -tf 0 --min-et-seed 1. --maxnocalow 4 -a sim_fraction --wp-file simScore_Minima_ElectronsOnly.root -nfg 1 --compress
-```
-
-
-#### Photons
-
-First step for Ndjson windows output.
-```
-python ../condor_ndjson.py -q espresso \
- -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/ndjson_v9 \
- -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper/hadd \
- -tf 0 --min-et-seed 1. --maxnocalow 4 -a sim_fraction --wp-file simScore_Minima_PhotonsOnly.root -nfg 1 --compress
-```
+### Production scripts
+The commands used for the main productions are documented in the folder [prod_scripts](./prod_scritps)
 
 
 
