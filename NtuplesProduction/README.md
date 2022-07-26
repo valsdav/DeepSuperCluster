@@ -12,7 +12,7 @@ interplay. The truth labels needs to be defined to obtain the best possible reso
 
 Code and plotting scripts for the truth level analysis are described in the folder [input_dataset_truth](./input_dataset_truth/).
 
-## Procedure
+## Training dataset preparation
 
 - The Dumper is applied on top of RECO dataset to extract TTrees containing all the necessary informations about clusters, caloparticles, rechits, simhits. 
 - The script `windows_creator_general.py` is applied on the dumper output to extract a list of detector windows for each event. 
@@ -22,21 +22,62 @@ Code and plotting scripts for the truth level analysis are described in the fold
     - All the clusters can be associated to multiple seeds. 
     
 - To apply the window creator algo the helper script `cluster_ndjson_general.py` is used:
-  - This script uses the dumper input tree, applies the window creation step and save text file containing 1 window for each line. The dictionary containing the information for each window is saved in json format. 
+  - This script reads the input TTree, applies the window creation code and saves a text file containing 1 window for each line. The dictionary containing the information for each window is saved in json format. 
   - The txt file corresponding to each input file is saved and compressed
   
 - The script `condor_ndjson.py` runs the window creation script on condor on all the files in parallel. 
 
-### Tensorflow dataset format
+```bash
+ python condor_ndjson.py -h
+usage: condor_ndjson.py [-h] -i INPUTDIR -nfg NFILE_GROUP -o OUTPUTDIR -a ASSOC_STRATEGY [--wp-file WP_FILE] -q QUEUE [-e EOS] [--maxnocalow MAXNOCALOW] [--min-et-seed MIN_ET_SEED] [-ov] [--pu-limit PU_LIMIT] [-c] [--redo] [-d] [-cf CONDOR_FOLDER]
 
-The dataset built with the script described above is not suitable for a fast integration with the tensorflow library.  So it is converted in the TFRecord format in order to use the tf.data facilities (https://www.tensorflow.org/api_docs/python/tf/data/Dataset). 
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INPUTDIR, --inputdir INPUTDIR
+                        Inputdir
+  -nfg NFILE_GROUP, --nfile-group NFILE_GROUP
+                        How many files per numpy file
+  -o OUTPUTDIR, --outputdir OUTPUTDIR
+                        Outputdir
+  -a ASSOC_STRATEGY, --assoc-strategy ASSOC_STRATEGY
+                        Association strategy
+  --wp-file WP_FILE     File with sim fraction thresholds
+  -q QUEUE, --queue QUEUE
+                        Condor queue
+  -e EOS, --eos EOS     EOS instance user/cms
+  --maxnocalow MAXNOCALOW
+                        Number of no calo window per event
+  --min-et-seed MIN_ET_SEED
+                        Min Et of the seeds
+  -ov, --overlap        Overlapping window mode
+  --pu-limit PU_LIMIT   SimEnergy PU limit
+  -c, --compress        Compress output
+  --redo                Redo all files
+  -d, --debug           debug
+  -cf CONDOR_FOLDER, --condor-folder CONDOR_FOLDER
+                        Condor folder
+```
+
+An example of the commands used for the main productions are documented in the folder [prod_scripts](./prod_scritps)
+
+### Output formats
+
+#### Tensorflow dataset format
+
+The dataset built with the script described above is not suitable for a fast integration with the tensorflow library. 
+So it is converted in the TFRecord format in order to use the tf.data facilities (https://www.tensorflow.org/api_docs/python/tf/data/Dataset). 
 
 The script to do that is: `convert_tfrecord_dataset_allinfo.py`. This script defines the information that will be part of the TFrecord dataset. 
 
 The helper script to run the conversion on condor is `condor_tfrecords.py`
 
+### Awkward format
+The `ndjson` dataset can also be transformed in Awkward arrays for convinient analysis. 
+The script `convert_awkward_dataset.py` reads the `ndjson` files a
 
-### Window creation details
+
+
+## Window creation details
 
 - All the windows are created for all the seeds with Et> 1
 - The seed is required to have:
@@ -60,8 +101,6 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
   - Non-overlapping: seeds create a new window only if they are not inside the window defined by an higher energy
     cluster. 
 
-### Production scripts
-The commands used for the main productions are documented in the folder [prod_scripts](./prod_scritps)
 
 
 
