@@ -129,7 +129,11 @@ if len(files_groups):
 
 
 print("Njobs: ", len(arguments))
-    
+
+os.makedirs("error", exist_ok = True)
+os.makedirs("log", exist_ok = True)
+os.makedirs("output", exist_ok = True)
+
 with open("condor_job.txt", "w") as cnd_out:
     cnd_out.write(condor)
 

@@ -73,7 +73,23 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
 
 ### Awkward format
 The `ndjson` dataset can also be transformed in Awkward arrays for convinient analysis. 
-The script `convert_awkward_dataset.py` reads the `ndjson` files a
+The script `convert_awkward_dataset.py` reads the `ndjson` files and creates parquet files. 
+
+```bas
+python convert_awkward_dataset.py -h
+usage: convert_awkward_dataset.py [-h] -n NAME -i INPUTDIR -o OUTPUTDIR -g GROUPFILES [-w WEIGHTS] [-f FLAG]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n NAME, --name NAME  Job name
+  -i INPUTDIR, --inputdir INPUTDIR
+                        inputdir
+  -o OUTPUTDIR, --outputdir OUTPUTDIR
+                        Outputdirectory
+  -g GROUPFILES, --groupfiles GROUPFILES
+                        N. input file for each output file
+
+```
 
 
 
@@ -106,31 +122,53 @@ The script `convert_awkward_dataset.py` reads the `ndjson` files a
 
 ### Features in final dataset
 
-seed_features = ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
+
+```python
+features_dict = {
+    "cl_features" : [ "en_cluster","et_cluster",
+                        "cluster_eta", "cluster_phi", 
+                        "cluster_ieta","cluster_iphi","cluster_iz",
+                        "cluster_deta", "cluster_dphi",
+                        "cluster_den_seed","cluster_det_seed",
+                        "en_cluster_calib", "et_cluster_calib",
+                        "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
+                        "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
+                        "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
+                        "cl_sigmaIphiIphi","cl_swissCross",
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth",],
+
+    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
+                     "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
+
+    "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"],
+    
+    "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
+                         "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
+                         "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
+
+    "window_metadata": ["nVtx", "rho", "obsPU", "truePU",
+                         "sim_true_eta", "sim_true_phi",  
+                        "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                        "en_true_sim_good", "et_true_sim_good",
+                        "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
+                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
+                        "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ],
+    
+
+     "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
-                     "en_true","et_true",
                     "seed_f5_r9","seed_f5_sigmaIetaIeta", "seed_f5_sigmaIetaIphi",
                     "seed_f5_sigmaIphiIphi","seed_f5_swissCross",
                     "seed_r9","seed_sigmaIetaIeta", "seed_sigmaIetaIphi",
                     "seed_sigmaIphiIphi","seed_swissCross",
                     "seed_nxtals","seed_etaWidth","seed_phiWidth",
-                    ]
+                    ],
 
-seed_labels = [ "is_seed_calo_matched","is_seed_calo_seed","is_seed_mustach_matched"]
-seed_metadata = ["nclusters_insc","max_en_cluster_insc","max_deta_cluster_insc",
-                   "max_dphi_cluster_insc", "max_en_cluster","max_deta_cluster","max_dphi_cluster","seed_score" ]
+     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
 
-cls_features = [  "cluster_ieta","cluster_iphi","cluster_iz",
-                     "cluster_deta", "cluster_dphi",
-                     "en_cluster","et_cluster", 
-                     "en_cluster_calib", "et_cluster_calib",
-                    "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
-                    "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
-                    "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
-                    "cl_sigmaIphiIphi","cl_swissCross",
-                    "cl_nxtals", "cl_etaWidth","cl_phiWidth",
-                    ]
+     "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
+}
+```
 
-cls_labels = ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"]
-cls_metadata = [ "calo_score" ]
 
