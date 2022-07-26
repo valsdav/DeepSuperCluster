@@ -73,25 +73,29 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
 
 ### Awkward format
 The `ndjson` dataset can also be transformed in Awkward arrays for convinient analysis. 
-The script `convert_awkward_dataset.py` reads the `ndjson` files and creates parquet files. 
+The script `convert_awkward_dataset.py` reads the `ndjson` files and creates parquet files.
+Condor jobs are prepared by `condor_awkward_dataset.py`.
 
-```bas
-python convert_awkward_dataset.py -h
-usage: convert_awkward_dataset.py [-h] -n NAME -i INPUTDIR -o OUTPUTDIR -g GROUPFILES [-w WEIGHTS] [-f FLAG]
+```bash
+python condor_awkward_dataset.py -h
+usage: condor_awkward_dataset.py [-h] -i INPUTDIR -nfg NFILE_GROUP -o OUTPUTDIR -q QUEUE [-f FEATURES_DEF] [-cf CONDOR_FOLDER]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -n NAME, --name NAME  Job name
   -i INPUTDIR, --inputdir INPUTDIR
-                        inputdir
+                        Inputdir
+  -nfg NFILE_GROUP, --nfile-group NFILE_GROUP
+                        How many files per tfrecord file
   -o OUTPUTDIR, --outputdir OUTPUTDIR
-                        Outputdirectory
-  -g GROUPFILES, --groupfiles GROUPFILES
-                        N. input file for each output file
-
+                        Outputdir
+  -q QUEUE, --queue QUEUE
+                        Condor queue
+  -f FEATURES_DEF, --features-def FEATURES_DEF
+                        Features definition file
+  -cf CONDOR_FOLDER, --condor-folder CONDOR_FOLDER
+                        Condor folder
 ```
-
-
+An example of this script can be found in [prod_scripts](./prod_scritps/awkward_2022v1.sh).
 
 ## Window creation details
 
