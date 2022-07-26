@@ -78,3 +78,11 @@ Two ingredients can be extracted from this basic ntuples to define the truth lev
 The notebooks `Truth_definition_study_electrons.ipynb` and `Truth_definition_study_photons.ipynb` contain the code and
 explanation of the truth computation. 
 
+### Window dimension
+
+The window dimension has been studied by looking at the profiled distribution of the deposited simEn/CaloEn in the
+crystals around the seed. 
+
+The results of the optimization can be found here:
+- [Electrons](https://dvalsecc.web.cern.ch/ECAL/Clustering/DeepCluster/validation_sim_truth/V2/simfraction_electron/windows_simEn_ov_caloEn/)
+- [Photons](https://dvalsecc.web.cern.ch/ECAL/Clustering/DeepCluster/validation_sim_truth/V2/simfraction_photon/windows_simEn_ov_caloEn/)

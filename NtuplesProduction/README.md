@@ -10,7 +10,7 @@ characteristics of the training dataset.
 The first step is analyzing the input dataset with minimum requirements to understand the pfClusters-CaloParticle
 interplay. The truth labels needs to be defined to obtain the best possible resolution of the SuperCluster. 
 
-Code and plotting scripts for the truth level analysis are described in the folder [input_dataset_truth](./input_dataset_truth/README.md).
+Code and plotting scripts for the truth level analysis are described in the folder [input_dataset_truth](./input_dataset_truth/).
 
 ## Procedure
 
