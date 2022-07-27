@@ -28,15 +28,19 @@ parser.add_argument("-d","--debug", action="store_true",  help="debug", default=
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
 parser.add_argument("-s","--sc-collection", type=str, help="SuperCluster collection", default="superCluster")
 parser.add_argument("-r","--reco-collection", type=str, help="Reco collection (none/electron/photon)", default="none")
+parser.add_argument("-cf","--condor-folder", type=str,  help="Condor folder", default="condor_ndjson")
 args = parser.parse_args()
 
-
+os.makedirs(args.condor_folder+"/error", exist_ok=True)
+os.makedirs(args.condor_folder+"/output", exist_ok=True)
+os.makedirs(args.condor_folder+"/log", exist_ok=True)
+                    
 # Prepare condor jobs
 condor = '''executable              = run_reco_dumper_script.sh
 output                  = output/strips.$(ClusterId).$(ProcId).out
 error                   = error/strips.$(ClusterId).$(ProcId).err
 log                     = log/strips.$(ClusterId).log
-transfer_input_files    = ../run_reco_dumper.py, ../reco_dumper.py, ../calo_association.py, ../../simScore_WP/{wp_file}, ../Mustache.C
+transfer_input_files    = ../run_reco_dumper.py, ../reco_dumper.py, ../calo_association.py, ../simScore_WP/{wp_file}, ../Mustache.C
 
 +JobFlavour             = "{queue}"
 queue arguments from arguments.txt
@@ -130,17 +134,14 @@ if len(files_groups):
 
 print("Njobs: ", len(arguments))
 
-os.makedirs("error", exist_ok = True)
-os.makedirs("log", exist_ok = True)
-os.makedirs("output", exist_ok = True)
 
-with open("condor_job.txt", "w") as cnd_out:
+with open(args.condor_folder + "/condor_job.txt", "w") as cnd_out:
     cnd_out.write(condor)
 
-with open("arguments.txt", "w") as args:
-    args.write("\n".join(arguments))
+with open(args.condor_folder + "/arguments.txt", "w") as arg:
+    arg.write("\n".join(arguments))
 
-with open("run_reco_dumper_script.sh", "w") as rs:
+with open(args.condor_folder + "/run_reco_dumper_script.sh", "w") as rs:
     rs.write(script)
 
 #os.system("condor_submit condor_job.txt")

@@ -22,54 +22,56 @@ For each object many piece of information are saved:
   algos. 
   
 ### How to run the reco dumper
-In order to run the reco dumper on condor go to the subfoler `run_condor_dumper`. 
-
-Use the script `run_reco_dumper.py` to prepare the job submission: 
+In order to run the reco dumper on condor use the script `condor_reco_dumper.py` to prepare the job submission: 
 
 ```bash
-python run_reco_dumper.py -h                                                 
-usage: run_reco_dumper.py [-h] -i INPUTFILE [-o OUTPUTFILE] [-a ASSOC_STRATEGY] [--wp-file WP_FILE] [-n NEVENTS [NEVENTS ...]] [-d] [--maxnocalow MAXNOCALOW] [--min-et-seed MIN_ET_SEED] [--loop-on-calo] [-s SC_COLLECTION] [-r RECO_COLLECTION]
+python condor_reco_dumper.py -h
+usage: condor_reco_dumper.py [-h] -i INPUTDIR -nfg NFILE_GROUP -o OUTPUTDIR -a ASSOC_STRATEGY [--wp-file WP_FILE] -q QUEUE [-e EOS] [-c] [--redo] [-d] [--loop-on-calo] [-s SC_COLLECTION] [-r RECO_COLLECTION] [-cf CONDOR_FOLDER]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i INPUTFILE, --inputfile INPUTFILE
-                        inputfile
-  -o OUTPUTFILE, --outputfile OUTPUTFILE
-                        outputfile
+  -i INPUTDIR, --inputdir INPUTDIR
+                        Inputdir
+  -nfg NFILE_GROUP, --nfile-group NFILE_GROUP
+                        How many files per numpy file
+  -o OUTPUTDIR, --outputdir OUTPUTDIR
+                        Outputdir
   -a ASSOC_STRATEGY, --assoc-strategy ASSOC_STRATEGY
                         Association strategy
   --wp-file WP_FILE     File with sim fraction thresholds
-  -n NEVENTS [NEVENTS ...], --nevents NEVENTS [NEVENTS ...]
-                        n events iterator
+  -q QUEUE, --queue QUEUE
+                        Condor queue
+  -e EOS, --eos EOS     EOS instance user/cms
+  -c, --compress        Compress output
+  --redo                Redo all files
   -d, --debug           debug
-  --maxnocalow MAXNOCALOW
-                        Number of no calo window per event
-  --min-et-seed MIN_ET_SEED
-                        Min Et of the seeds
   --loop-on-calo        If true, loop only on calo-seeds, not on all the SC
   -s SC_COLLECTION, --sc-collection SC_COLLECTION
                         SuperCluster collection
   -r RECO_COLLECTION, --reco-collection RECO_COLLECTION
                         Reco collection (none/electron/photon)
+  -cf CONDOR_FOLDER, --condor-folder CONDOR_FOLDER
+                        Condor folder
 
 ```
 
 For example to analyze the electron collection looping on the reco objects. 
 
 ```
-    python ../condor_run_dumper.py -i
+    python ../condor_reco_dumper.py -i
     ${basedir}/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v11_UL18_pfRechitThres_Dumper_SCRegression_EleRegression_Mustache_125X_bugFix 
     -o ${outdir}electrons/ele_UL18_123X_Mustache_v1/ 
     -a sim_fraction 
     --wp-file simScore_Minima_ElectronsOnly_updated.root 
     -nfg 40 -q espresso --compress 
     --reco-collection electron
+    --condor-folder condor_dumper_electrons
 
 ```
 
-Then run the condor submission `condor_submit condor_job.txt`. 
+Then go to the `condor-folder` directly (as specified in the parameters of the script) and run the condor submission `condor_submit condor_job.txt`. 
 
-It is convienient to submit the jobs for different datasets in different folders: have a look at the script `run_all.sh`
+It is convienient to submit the jobs for different datasets in different folders: have a look at the script `run_dumper_example.sh`
 for an example. 
 
 At the end of the condor processing the dataset needs to be joint in a single pandas dataframe for convinience: 
