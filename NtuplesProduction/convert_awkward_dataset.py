@@ -50,10 +50,10 @@ def convert_to_features_awkward(file):
     out["cl_h"] = df.clusters.cl_hits[mask_hits_index]
     return ak.Array(out)
 
-def finalize_output(arrays, name):
+def finalize_output(arrays, directory, name):
     totA = ak.concatenate(arrays)
-    out = ak.to_parquet(totA, name)
-    
+    ak.to_parquet(totA, name)
+    #ak.to_parquet.dataset(directory) --> to be done externally at the end
     
 if __name__ == "__main__":
     
@@ -81,9 +81,9 @@ if __name__ == "__main__":
         ig +=1
         if ig == args.groupfiles:
             if args.standalone:
-                finalize_output(arrays, args.outputdir + "/"+args.name + ".{}.parquet".format(iG) )
+                finalize_output(arrays, args.outputdir, args.outputdir + "/"+args.name + ".{}.parquet".format(iG) )
             else:
-                finalize_output(arrays, args.outputdir + "/"+args.name )
+                finalize_output(arrays, args.outputdir, args.outputdir + "/"+args.name )
             iG+=1
             ig = 0
             arrays.clear()
@@ -91,9 +91,9 @@ if __name__ == "__main__":
 
     if len(arrays):
         if args.standalone:
-            finalize_output(arrays, args.outputdir + "/"+args.name + ".{}.parquet".format(iG) )
+            finalize_output(arrays, args.outputdir, args.outputdir + "/"+args.name + ".{}.parquet".format(iG) )
         else:
-            finalize_output(arrays, args.outputdir + "/"+args.name )
+            finalize_output(arrays, args.outputdir, args.outputdir + "/"+args.name )
         arrays.clear()
         
     print("DONE!")

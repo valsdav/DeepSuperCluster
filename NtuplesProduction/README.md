@@ -62,16 +62,8 @@ An example of the commands used for the main productions are documented in the f
 
 ### Output formats
 
-#### Tensorflow dataset format
 
-The dataset built with the script described above is not suitable for a fast integration with the tensorflow library. 
-So it is converted in the TFRecord format in order to use the tf.data facilities (https://www.tensorflow.org/api_docs/python/tf/data/Dataset). 
-
-The script to do that is: `convert_tfrecord_dataset_allinfo.py`. This script defines the information that will be part of the TFrecord dataset. 
-
-The helper script to run the conversion on condor is `condor_tfrecords.py`
-
-### Awkward format
+#### Awkward format
 The `ndjson` dataset can also be transformed in Awkward arrays for convinient analysis. 
 The script `convert_awkward_dataset.py` reads the `ndjson` files and creates parquet files.
 Condor jobs are prepared by `condor_awkward_dataset.py`.
@@ -96,6 +88,24 @@ optional arguments:
                         Condor folder
 ```
 An example of this script can be found in [prod_scripts](./prod_scritps/awkward_2022v1.sh).
+
+The output files are saved in **parquet** format. In order to be able to use all the files in the same folder as a
+single parquet dataframe the metadata of the folder must be properly updated. 
+An helper script is available to do that, **to be run at the end of all the jobs**: 
+
+```bash
+python finalize_awkward_dataset.py --inputdir FOLDER
+```
+
+
+#### Tensorflow dataset format
+
+The NDjson dataset can be converted to a format created for fast integration with Tensorflow libraries. 
+It can be converted in the TFRecord format in order to use the tf.data facilities (https://www.tensorflow.org/api_docs/python/tf/data/Dataset). 
+
+The script to do that is: `convert_tfrecord_dataset_allinfo.py`. This script defines the information that will be part of the TFrecord dataset. 
+
+The helper script to run the conversion on condor is `condor_tfrecords.py`
 
 ## Window creation details
 
