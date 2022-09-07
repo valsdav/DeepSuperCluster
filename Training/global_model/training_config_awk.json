@@ -1,0 +1,162 @@
+{
+    "models_path": "/work/dvalsecc/Clustering/models_archive/gcn_models/MultiSA_v5/",
+
+    "dataset_conf" : {
+        "training": {
+            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v8/training",
+                             "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v8/training"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU","ncls","ncls", "nclusters_insc"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_type" : "stdscale",
+            "padding" : true,  
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 256,
+            "maxevents": 1000000,
+            "nworkers": 3,
+            "max_batches_in_memory":100
+           },
+        "validation": {
+            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v8/validation",
+                             "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v8/validation"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU","ncls","ncls", "nclusters_insc"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_type" : "stdscale",
+            "padding" : true, 
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 256,
+            "maxevents": 350000,
+            "nworkers": 3,
+            "max_batches_in_memory":100
+        },
+        "test": {
+            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v8/test",
+                             "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v8/test"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU","ncls","ncls", "nclusters_insc"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_type" : "stdscale",
+            "padding" : true, 
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 256,
+            "maxevents": 200000,
+            "nworkers": 3,
+            "max_batches_in_memory":100
+           }
+    },
+    
+    "nepochs": 3,
+    "ntrain": 500,
+    "nval": 400,
+    "lr": 0.0001,
+    "batch_size": 256,
+    "opt": "adam",
+    "activation": "elu",
+    "lr_reduce": {
+        "factor": 0.5,
+        "patience": 3,
+        "min_delta": 0.001
+    },
+    "early_stop": {
+        "patience": 10,
+        "min_delta": 0.001
+    },
+    "loss_plot": true, 
+
+
+    "output_dim_rechits": 16,
+    "output_dim_nodes": 64,
+    "output_dim_gconv": 64,
+    "output_dim_msa_encoder": 64,
+    "output_dim_sa_windclass": 64,
+    "output_dim_sa_enregr": 64,
+    "coord_dim": 2,
+    "coord_dim_sa": 10,
+    "nconv_rechits": 3,
+    "nconv": 3,
+    "nrepeat_msa_encoder": 2,
+    "ff_dim_msa_encoder": 256,
+    "num_heads_msa_encoder": 8,
+    "ff_dim_msa_windclass": 256,
+    "num_heads_msa_windclass": 8,
+    "ff_dim_msa_enregr": 256,
+    "num_heads_msa_enregr": 8,
+    "layers_input": [
+      512,
+      256,
+      128
+    ],
+    "layers_clclass": [
+      256,
+      256,
+      128,
+      64
+    ],
+    "layers_windclass": [
+      256,
+      128,
+      64,
+      64
+    ],
+    "layers_enregr": [
+      256,
+      128,
+      64
+    ],
+    "n_windclasses": 3,
+    "dropout": 0.1,
+    "l2_reg": true,
+    "loss_weights": {
+      "clusters": 1,
+      "window": 1,
+      "softF1": 10,
+      "en_resol": 0,
+      "en_softF1": 1,
+      "en_regr": 0.01,
+      "softF1_beta": 1.5
+    }
+    
+  }

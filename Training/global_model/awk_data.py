@@ -96,8 +96,6 @@ class LoaderConfig():
     nworkers: int = 2,   # number of parallele process to use to read files
     max_batches_in_memory: int = 30 #  number of batches to load at max in memory
 
-
-
 ########################################################
 ### Utility functions to build the generator chain   ###
 ########################################################
@@ -338,15 +336,15 @@ def preprocessing(config):
             # h_padh_padcl_fillnoneCL = ak.fill_none(h_padh_padcl, [None]*max_nhits, axis=1) #-- > fill the out dimension with None
             # cl_hits_pad = np.asarray(ak.fill_none(h_padh_padcl_fillnoneCL, [0.,0.,0.,0.] , axis=2)) # --> fill the padded rechit dim with 0.
            
-            cls_X_pad_n = to_flat_numpy(cls_X_pad, axis=2, allow_missing=True)
-            cls_Y_pad_n = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=True)
-            is_seed_pad_n = ak.to_numpy(is_seed_pad, allow_missing=True)
-            cl_hits_pad_n = ak.to_numpy(cl_hits_padded, allow_missing=True)
-            wind_X_n = to_flat_numpy(wind_X, axis=1)
-            wind_meta_n = to_flat_numpy(wind_meta, axis=1)
+            cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=True)
+            cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=True)
+            is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=True)
+            cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=True)
+            wind_X_np = to_flat_numpy(wind_X, axis=1)
+            wind_meta_np = to_flat_numpy(wind_meta, axis=1)
             
             # Masks for padding
-            hits_mask = np.array(np.any(~cl_hits_pad_n.mask, axis=-1), dtype=int)
+            hits_mask = np.array(np.any(~cl_hits_pad_np.mask, axis=-1), dtype=int)
             cls_mask = np.array(np.any(hits_mask, axis=-1), dtype=int)
             #adding the last dim for broadcasting the 0s
             hits_mask = hits_mask[:,:,:,None]
@@ -356,16 +354,19 @@ def preprocessing(config):
             norm_fact = config.norm_factors
             if config.norm_type == "stdscale":
                 # With remasking
-                cls_X_pad_n = ((cls_X_pad_n - norm_fact["cluster"]["mean"])/ norm_fact["cluster"]["std"] ) * cls_mask
-                wind_X_n =  ((wind_X_n - norm_fact["window"]["mean"])/ norm_fact["window"]["std"] )  
+                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["mean"])/ norm_fact["cluster"]["std"] ) * cls_mask
+                wind_X_norm =  ((wind_X_np - norm_fact["window"]["mean"])/ norm_fact["window"]["std"] )  
             elif config.norm_type == "minmax":
-                cls_X_pad_n = ((cls_X_pad_n - norm_fact["cluster"]["min"])/ (norm_fact["cluster"]["max"]-norm_fact["cluster"]["min"])) * cls_mask
-                wind_X_n =  ((wind_X_n - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) )  
-            
+                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["min"])/ (norm_fact["cluster"]["max"]-norm_fact["cluster"]["min"])) * cls_mask
+                wind_X_norm =  ((wind_X_np - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) )  
+            else:
+                cls_X_pad_norm = cls_X_pad_np
+                windo_X_norm = wind_X_norm
+                
             flavour = np.asarray(df.window_metadata.flavour)
             
-            return size, ( cls_X_pad_n, cls_Y_pad_n, is_seed_pad_n, cl_hits_pad_n,
-                           wind_X_n, wind_meta_n, flavour, hits_mask, cls_mask)
+            return size, ( cls_X_pad_np, cls_X_norm,  cls_Y_pad_np, is_seed_pad_np, cl_hits_pad_np,
+                           wind_X_np, wind_X_norm, wind_meta_np, flavour, hits_mask, cls_mask)
         else:
             cls_X = df.cl_features, max_ncls
             cls_Y = df.cl_labels["in_scluster"], max_ncls
@@ -426,10 +427,17 @@ def tf_generator(config):
                                                            output_queue_size=config.max_batches_in_memory, 
                                                            nworkers=config.nworkers, 
                                                            maxevents=config.maxevents)
-       
+
+        ''' THe order of the output is
+         batch_size, (cls_X_pad_n, cls_Y_pad_n, is_seed_pad_n, cl_hits_pad_n,
+                           wind_X_n, wind_meta_n, flavour, hits_mask, cls_mask)
+        We need to output just X,y,(weight)
+        X = (cl_x, wind_X, hits, is_seed)
+         '''
         for size, df in multidataset:
             tfs = convert_to_tf(df)
-            yield tuple(tfs)
+            weights = tf.ones(size)
+            yield ((tfs[0], tfs[4], tfs[3], tfs[2]), tfs[1], weights)
     return _gen
 
 
@@ -448,10 +456,9 @@ def load_dataset (config: LoaderConfig):
     # Load the normalization factors
     if config.norm_factors == None and config.norm_factors_file:
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
-    #cls_X_pad_n, cls_Y_pad_n, is_seed_pad_n, cl_hits_pad_n,  wind_X_n, wind_meta_n, flavour, hits_mask, cls_mask
-    df = tf.data.Dataset.from_generator(tf_generator(config), 
-       output_signature= (
-         tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float64), # cl_x (batch, ncls, #cl_x_features)
+
+    '''
+    tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float64), # cl_x (batch, ncls, #cl_x_features)
          tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
          tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
          tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float64), #hits  (batch, ncls, nhits, 4)
@@ -460,6 +467,16 @@ def load_dataset (config: LoaderConfig):
          tf.TensorSpec(shape=(None,), dtype=tf.int32),  # flavour (batch,)
          tf.TensorSpec(shape=(None,None,None,1), dtype=tf.int32), #hits mask
          tf.TensorSpec(shape=(None,None,1), dtype=tf.int32),   #clusters mask
+    '''
+    df = tf.data.Dataset.from_generator(tf_generator(config), 
+       output_signature= (
+         (tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float64), # cl_x (batch, ncls, #cl_x_features)
+            tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float64),  #windox_X (batch, #wind_x)
+          tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float64), #hits  (batch, ncls, nhits, 4)
+           tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
+          ),
+           tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
+           tf.TensorSpec(shape=(None), dtype=tf.float32) # weights
      ))
  
     return df

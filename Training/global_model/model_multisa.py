@@ -630,7 +630,7 @@ class GraphBuilding(tf.keras.layers.Layer):
 
     def call(self, cl_features, rechits, training):
         # Conversion from RaggedTensor to dense tensor
-        rechits = rechits.to_tensor()
+        #rechits = rechits.to_tensor()
         mask_rechits, mask_cls = create_padding_masks(rechits)
         # Cal the rechitGCN and get out 1 vector for each cluster 
         output_rechits, (debug) = self.rechitsGCN(rechits, mask_rechits, training=training)
@@ -792,9 +792,9 @@ class DeepClusterGN(tf.keras.Model):
         }
 
     def call(self, inputs, training):
-        cl_X_initial, wind_X, cl_hits, is_seed, n_cl = inputs 
+        cl_X_initial, wind_X, cl_hits, is_seed = inputs 
         # Concatenate the seed label on clusters features
-        cl_X_initial = tf.concat([tf.cast(is_seed, tf.float32), cl_X_initial], axis=-1)
+        cl_X_initial = tf.concat([tf.cast(is_seed[:,:,tf.newaxis], tf.float32), cl_X_initial], axis=-1)
         # Call the graphbuilding step: compute the rechit summary,clusters features and adjacency matrix
         cl_X, coord, adj, mask_cls, output_rechits,coord_att_ws = self.graphbuild(cl_X_initial, cl_hits, training)
         #cl_X now is the latent cluster+rechits representation
