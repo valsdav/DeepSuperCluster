@@ -77,6 +77,15 @@ for an example.
 At the end of the condor processing the dataset needs to be joint in a single pandas dataframe for convinience: 
 
 ```bash
+python join_datasets.py -h                                                                                                                                                                                                   
+usage: join_datasets.py [-h] -i INPUTDIR -o OUTPUTFILE
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INPUTDIR, --inputdir INPUTDIR
+                        inputfolder
+  -o OUTPUTFILE, --outputfile OUTPUTFILE
+                        outputfile
 python join_datasets.py -i /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/supercluster_regression/electrons/ele_UL18_123X_Mustache_v${ver} -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/supercluster_regression/electrons/ele_UL18_123X_Mustache_v${ver}_{type}.h5py
 ```
 
