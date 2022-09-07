@@ -12,4 +12,9 @@ print(f"Finalizing awkward parquet dataset in folder: {args.inputdir}")
 
 ak.to_parquet.dataset(args.inputdir)
 
+# Getting the metadata
+df = ak.from_parquet(args.inputdir, lazy=True)
+with open(f"{args.inputdir}/dataset_metadata.txt","w") as o:
+    o.write(str(df.type))
+
 print("Done!")
