@@ -95,6 +95,35 @@ class LoaderConfig():
     norm_factors: dict = None     #normalization factors array dictionary
     nworkers: int = 2,   # number of parallele process to use to read files
     max_batches_in_memory: int = 30 #  number of batches to load at max in memory
+    '''
+    The output of the pipeline is fed to tensorflow by providing 3 items: X,y,weight.
+    Each item can contain a tuple of tensors. The `output_tensors` configuration
+    defines the tensors for each item: e.g. [[cl_X, wind_X, is_seed],[cl_y], []].
+    The available tensors are defined by the preprocessing function. 
+    '''
+    output_tensors : List[List[str]] = field(default_factory=lambda : [
+        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"] ])
+
+
+def get_tensors_spec(config):
+    spec = {
+        "cl_X": tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float32), # cl_x (batch, ncls, #cl_x_features)
+        "cl_X_norm": tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float32),
+        "wind_X" : tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
+        "wind_X_norm" : tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
+        "wind_meta": tf.TensorSpec(shape=(None,len(config.columns["window_metadata"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
+        "cl_hits" : tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float32), #hits  (batch, ncls, nhits, 4)
+        "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
+        "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # in_supercluster (batch, ncls,)
+        "cl_Y": tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
+        "flavour" : tf.TensorSpec(shape=(None), dtype=tf.float32),  #windox_X (batch, #wind_x)
+        "weight": tf.TensorSpec(shape=(None), dtype=tf.float32) # weights
+    }
+    return tuple([
+       tuple([spec[label]  for label in conf ])    for conf in config.output_tensors
+    ])
+    
+    
 
 ########################################################
 ### Utility functions to build the generator chain   ###
@@ -122,6 +151,8 @@ def split_batches(gen, batch_size):
             for i in range(size//batch_size):
                 if isinstance(df, tuple):
                     yield batch_size, tuple(d[i*batch_size : (i+1)*batch_size] for d in df)
+                elif isinstance(df, dict):
+                    yield batch_size, { k: d[i*batch_size: (i+1)*batch_size] for k, d in df.items() } 
                 else:
                     yield batch_size, df[i*batch_size : (i+1)*batch_size]
         else:
@@ -176,6 +207,13 @@ def concat_fn(dfs):
 def concat_datasets(*iterables):
     for dfs in zip_datasets(*iterables):
         yield concat_fn(dfs)
+
+def build_output_structure(gen, structure):
+    for size, df in gen:
+        yield size, tuple([
+            tuple([df[label] for label in cfg])
+            for cfg in structure
+        ])
         
 def to_flat_numpy(X, axis=2, allow_missing=True):
     return np.stack([ak.to_numpy(X[f], allow_missing=allow_missing) for f in X.fields], axis=axis)
@@ -278,7 +316,6 @@ def load_batches_from_files_generator(config, preprocessing_fn):
         _preprocess_fn = preprocessing_fn(config)
         processed  = (_preprocess_fn(d) for d in shuffled)
         # Split in batches
-        #yield from processed
         yield from split_batches(processed, config.batch_size)
     
     return _fn
@@ -326,6 +363,7 @@ def preprocessing(config):
             wind_X = df.window_features
             wind_meta = df.window_metadata
             is_seed_pad = ak.pad_none(df.cl_labels["is_seed"], max_ncls, clip=True)
+            in_scluster_pad = ak.pad_none(df.cl_labels["in_scluster"], max_ncls, clip=True)
 
             # cls_X_pad = ak.fill_none(cls_X_pad, {k:0 for k in config.columns["cl_features"]})
             # cls_Y_pad = ak.fill_none(cls_Y_pad, 0.)
@@ -339,6 +377,7 @@ def preprocessing(config):
             cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=True)
             cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=True)
             is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=True)
+            in_scluster_pad_np = ak.to_numpy(in_scluster_pad, allow_missing=True)
             cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=True)
             wind_X_np = to_flat_numpy(wind_X, axis=1)
             wind_meta_np = to_flat_numpy(wind_meta, axis=1)
@@ -364,10 +403,28 @@ def preprocessing(config):
                 windo_X_norm = wind_X_norm
                 
             flavour = np.asarray(df.window_metadata.flavour)
+
+            # General weight
+            weight = np.ones(size)
             
-            return size, ( cls_X_pad_np, cls_X_norm,  cls_Y_pad_np, is_seed_pad_np, cl_hits_pad_np,
-                           wind_X_np, wind_X_norm, wind_meta_np, flavour, hits_mask, cls_mask)
+            return size, {
+                "cl_X": cls_X_pad_np,
+                "cl_X_norm": cls_X_pad_norm,
+                "cl_Y": cls_Y_pad_np,
+                "is_seed" : is_seed_pad_np,
+                "in_scluster": in_scluster_pad_np,
+                "cl_hits": cl_hits_pad_np,
+                "wind_X": wind_X_np,
+                "wind_X_norm": wind_X_norm,
+                "wind_meta": wind_meta_np,
+                "flavour": flavour,
+                "hits_mask": hits_mask,
+                "cls_mask": cls_mask,
+                "weight" : weight
+            }
         else:
+            # No padding --> never used
+            raise Exception("Not implemented!")
             cls_X = df.cl_features, max_ncls
             cls_Y = df.cl_labels["in_scluster"], max_ncls
             is_seed = df.cl_labels["is_seed"], max_ncls
@@ -420,6 +477,12 @@ def get_norm_factors(norm_file, cl_features, wind_features, numpy=True):
 
 
 def tf_generator(config):
+    '''
+    The function converts the multipurpose generator chain to a
+    Tensorflow format chain.
+    The list of output_tensors is read from the general output and put in the
+    requested order.
+    '''
     def _gen():
         file_loader_generator = load_batches_from_files_generator(config, preprocessing)
         multidataset = multiprocessor_generator_from_files(config.input_files, 
@@ -428,16 +491,12 @@ def tf_generator(config):
                                                            nworkers=config.nworkers, 
                                                            maxevents=config.maxevents)
 
-        ''' THe order of the output is
-         batch_size, (cls_X_pad_n, cls_Y_pad_n, is_seed_pad_n, cl_hits_pad_n,
-                           wind_X_n, wind_meta_n, flavour, hits_mask, cls_mask)
-        We need to output just X,y,(weight)
-        X = (cl_x, wind_X, hits, is_seed)
-         '''
+        # Getting the output configuration from the config
         for size, df in multidataset:
-            tfs = convert_to_tf(df)
-            weights = tf.ones(size)
-            yield ((tfs[0], tfs[4], tfs[3], tfs[2]), tfs[1], weights)
+            X = tuple([convert_to_tf(df[label]) for label in config.output_tensors[0]])
+            Y = tuple([convert_to_tf(df[label]) for label in config.output_tensors[1]])
+            W = tuple([convert_to_tf(df[label]) for label in config.output_tensors[2]])
+            yield X,Y,W
     return _gen
 
 
@@ -450,33 +509,15 @@ def load_dataset (config: LoaderConfig):
     '''
     # Check if folders instead of files have been provided
     if config.input_folders:
-        config.input_files = list(zip_longest([glob(folder+"/*.parquet") for folder in config.input_folders]))
+        config.input_files = list(zip_longest(*[glob(folder+"/*.parquet") for folder in config.input_folders]))
     if not config.input_folders and not config.input_files:
         raise Exception("No input folders or files provided! Please provide some input!")
     # Load the normalization factors
     if config.norm_factors == None and config.norm_factors_file:
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
 
-    '''
-    tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float64), # cl_x (batch, ncls, #cl_x_features)
-         tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
-         tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
-         tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float64), #hits  (batch, ncls, nhits, 4)
-         tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float64),  #windox_X (batch, #wind_x)
-         tf.TensorSpec(shape=(None,len(config.columns["window_metadata"])), dtype=tf.float64),  #windox_metadata (batch, #wind_meta)
-         tf.TensorSpec(shape=(None,), dtype=tf.int32),  # flavour (batch,)
-         tf.TensorSpec(shape=(None,None,None,1), dtype=tf.int32), #hits mask
-         tf.TensorSpec(shape=(None,None,1), dtype=tf.int32),   #clusters mask
-    '''
+    
     df = tf.data.Dataset.from_generator(tf_generator(config), 
-       output_signature= (
-         (tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float64), # cl_x (batch, ncls, #cl_x_features)
-            tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float64),  #windox_X (batch, #wind_x)
-          tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float64), #hits  (batch, ncls, nhits, 4)
-           tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
-          ),
-           tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
-           tf.TensorSpec(shape=(None), dtype=tf.float32) # weights
-     ))
+                                        output_signature= get_tensors_spec(config))
  
     return df
