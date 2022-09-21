@@ -17,6 +17,7 @@ parser.add_argument("-o","--outputdir", type=str, help="Outputdirectory",require
 parser.add_argument("-f","--features-def", type=str, help="Features definition file", default="features_definition.json")
 parser.add_argument("-g","--groupfiles", type=int, help="N. input file for each output file",default=1)
 parser.add_argument("-s","--standalone", action="store_true", help="Run without condor")
+parser.add_argument("--flavour", type=int, help="PdgID flavor to add to the dataset", default=11)
 args = parser.parse_args()
 
 features_dict = json.load(open(args.features_def))["features_dict"]
@@ -33,7 +34,7 @@ def load_iter(files):
             yield "[{}]".format(",".join(lines))
                                    
 
-def convert_to_features_awkward(file):
+def convert_to_features_awkward(file, flavour):
     df = ak.from_json(file)
     out = {}
     for k,v in features_dict.items():
@@ -48,6 +49,9 @@ def convert_to_features_awkward(file):
     for i in features_dict["hits_indices"]:
         mask_hits_index = mask_hits_index | (hits_index == i)
     out["cl_h"] = df.clusters.cl_hits[mask_hits_index]
+    # add the flavour info to each line    
+    flavour = ak.ones_like(df.en_seed) * flavour
+    out["window_metadata"] = ak.with_field(out["window_metadata"], flavour, "flavour")
     return ak.Array(out)
 
 def finalize_output(arrays, directory, name):
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     arrays = []
     for file in load_iter(inputfiles):
         print("Processing file {}, in group {}".format(ig, iG))
-        arrays.append(convert_to_features_awkward(file))
+        arrays.append(convert_to_features_awkward(file, args.flavour))
         ig +=1
         if ig == args.groupfiles:
             if args.standalone:

@@ -19,6 +19,7 @@ parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=Tr
 parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="longlunch", required=True)
 parser.add_argument("-f","--features-def", type=str, help="Features definition file", default="features_definition.json")
 parser.add_argument("-cf","--condor-folder", type=str,  help="Condor folder", default="condor_ndjson")
+parser.add_argument("--flavour", type=int, help="PdgID flavor to add to the dataset", default=11)
 args = parser.parse_args()
 
 
@@ -51,12 +52,14 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos7-gcc11-opt/setup.sh
 JOBID=$1;  
 INPUTFILE=$2;
 OUTPUTDIR=$3;
-NFILES=$4
+NFILES=$4;
+FLAVOUR=$5;
 
 echo -e "Running Awkward dumper.."
 
 mkdir output;
-python convert_awkward_dataset.py -i ${INPUTFILE} -o ./output -n records_${JOBID}.parquet -g ${NFILES} -f {features_def};
+python convert_awkward_dataset.py -i ${INPUTFILE} -o ./output -n records_${JOBID}.parquet \
+                 -g ${NFILES} -f {features_def} --flavour ${FLAVOUR};
 
 echo -e "Copying result to: $OUTPUTDIR";
 rsync -avz output/ ${OUTPUTDIR}
@@ -92,16 +95,16 @@ for file in inputfiles:
     if len(files_groups) == args.nfile_group:
         jobid +=1
         #join input files by ;
-        arguments.append("{} {} {} {}".format(
-                jobid,"#_#".join(files_groups), args.outputdir, args.nfile_group))
+        arguments.append("{} {} {} {} {}".format(
+                jobid,"#_#".join(files_groups), args.outputdir, args.nfile_group, args.flavour))
         files_groups = []
         ifile_group = 0
 
 
 if len(files_groups)>0:
 # Join also the last group
-    arguments.append("{} {} {} {}".format(
-                    jobid+1,"#_#".join(files_groups), args.outputdir, len(files_groups)))
+    arguments.append("{} {} {} {} {}".format(
+                    jobid+1,"#_#".join(files_groups), args.outputdir, len(files_groups), args.flavour))
 
 
 print("Njobs: ", len(arguments))
