@@ -39,7 +39,7 @@ def convert_to_features_awkward(file, flavour):
     out = {}
     for k,v in features_dict.items():
         if k != "hits_indices":
-            if "cl_" in k:
+            if k.startswith("cl_"):
                 out[k] = df.clusters[v]
             else:
                 out[k] = df[v]
