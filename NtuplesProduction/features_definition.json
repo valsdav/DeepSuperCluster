@@ -29,7 +29,6 @@
                     ],
 
     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
-    "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
 
      "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
                          "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
@@ -43,7 +42,8 @@
                         "en_true_sim_good", "et_true_sim_good",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ],
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig",
+                       "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
     
     "hits_indices": [0,1,2,4] 
 }

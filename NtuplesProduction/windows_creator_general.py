@@ -653,7 +653,9 @@ class WindowCreator():
 
         ## Now save only the first N nocalomatched windows and then nocalowNMax of random ones
         metadata["n_windows_matched"] = len(windows_calomatched) 
-        metadata["n_windows_nomatched"] = len(windows_nocalomatched) 
+        metadata["n_windows_nomatched"] = len(windows_nocalomatched)
+        if self.nocalowNmax == 0:
+            windows_to_keep_index = windows_calomatched
         if len(windows_nocalomatched)> len(windows_calomatched):
             windows_to_keep_index = windows_calomatched + windows_nocalomatched[:len(windows_calomatched)] + \
                           random.sample(windows_nocalomatched[len(windows_calomatched):], min(self.nocalowNmax,len(windows_nocalomatched) - len(windows_calomatched) ))
