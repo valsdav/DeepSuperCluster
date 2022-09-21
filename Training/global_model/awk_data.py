@@ -41,9 +41,12 @@ default_features_dict = {
     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
     "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
 
-     "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
-                         "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
-                         "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
+     "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                           "max_dphi_cluster","max_den_cluster","max_det_cluster",
+                           "min_en_cluster","min_et_cluster","min_deta_cluster",
+                           "min_dphi_cluster","min_den_cluster","min_det_cluster",
+                           "mean_en_cluster","mean_et_cluster","mean_deta_cluster",
+                           "mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
     "window_metadata": ["flavour", "ncls", "nclusters_insc",
                         "nVtx", "rho", "obsPU", "truePU",
@@ -102,7 +105,7 @@ class LoaderConfig():
     The available tensors are defined by the preprocessing function. 
     '''
     output_tensors : List[List[str]] = field(default_factory=lambda : [
-        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"] ])
+        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"] ])
 
 
 def get_tensors_spec(config):
@@ -113,18 +116,33 @@ def get_tensors_spec(config):
         "wind_X_norm" : tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "wind_meta": tf.TensorSpec(shape=(None,len(config.columns["window_metadata"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "cl_hits" : tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float32), #hits  (batch, ncls, nhits, 4)
-        "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # is seed (batch, ncls,)
-        "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.bool),  # in_supercluster (batch, ncls,)
+        "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # is seed (batch, ncls,)
+        "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # in_supercluster (batch, ncls,)
         "cl_Y": tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
         "flavour" : tf.TensorSpec(shape=(None), dtype=tf.float32),  #windox_X (batch, #wind_x)
-        "weight": tf.TensorSpec(shape=(None), dtype=tf.float32) # weights
+        "weight": tf.TensorSpec(shape=(None), dtype=tf.float32), # weights
+        "cls_mask": tf.TensorSpec(shape=(None, None), dtype=tf.float32),
+        "hits_mask": tf.TensorSpec(shape=(None, None, None), dtype=tf.float32),
+        
     }
     return tuple([
        tuple([spec[label]  for label in conf ])    for conf in config.output_tensors
     ])
-    
-    
 
+
+def get_output_indices(output_tensors):
+    '''
+    This function translates a list of labels for the tensors outputs to a list of
+    indices. In fact the generator internally returns all the tensors in a tuple, for performance
+    optiomization. The output formatting is then handled by the main thread.
+    The order of the output between this list and the preprocessing function MUST match
+    '''
+    indices = [ "cl_X", "cl_X_norm", "cl_Y",
+                "is_seed",  "in_scluster", "cl_hits",
+                "wind_X","wind_X_norm", "wind_meta",
+                "flavour", "hits_mask", "cls_mask", "weight"]
+    return tuple([ tuple([indices.index(label) for label in cfg  ]) for cfg in output_tensors])
+        
 ########################################################
 ### Utility functions to build the generator chain   ###
 ########################################################
@@ -326,7 +344,7 @@ def load_batches_from_files_generator(config, preprocessing_fn):
 def preprocessing(config):
     '''
     Preprocessing function preparing the data to be in the format needed for training.
-     Several zero-padded numpy arrays are retured:
+     Several zero-padded numpy arrays are returned:
      - Cluster features (batchsize, Nclusters, Nfeatures)
      - Cluster labels (batchsize, Nclusters, Nlabels)
      - is_seed mask (batchsize, Ncluster)
@@ -334,13 +352,14 @@ def preprocessing(config):
      - Window features (batchsize, Nwind_features)
      - Window metadata (batchsize, Nwind_meatadata)
      - flavour (ele/gamma/jets) (batchsize,)
-     - Rechits padding mask  (batchsize, Ncluster, Nrechits, 1)
-     - Clusters padding mask (batchsize, Ncluster, 1)
+     - Rechits padding mask  (batchsize, Ncluster, Nrechits)
+     - Clusters padding mask (batchsize, Ncluster)
 
     The config for the function contains all the info and have the format
      The zero-padding can be fixed side (specified in the config dizionary),
      or computed dinamically for each chunk.
-     
+
+    The order of the output MUST BE SYNCHRONIZED with the get_output_indices function
     '''
     def process_fn(data): 
         size, df = data
@@ -385,18 +404,17 @@ def preprocessing(config):
             # Masks for padding
             hits_mask = np.array(np.any(~cl_hits_pad_np.mask, axis=-1), dtype=int)
             cls_mask = np.array(np.any(hits_mask, axis=-1), dtype=int)
-            #adding the last dim for broadcasting the 0s
-            hits_mask = hits_mask[:,:,:,None]
-            cls_mask = cls_mask[:,:,None]
+            #not adding the last dim for broadcasting to give the user more flexibility
             
             # Normalization
             norm_fact = config.norm_factors
             if config.norm_type == "stdscale":
                 # With remasking
-                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["mean"])/ norm_fact["cluster"]["std"] ) * cls_mask
+                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["mean"])/ norm_fact["cluster"]["std"] ) * cls_mask[:,:,None]
                 wind_X_norm =  ((wind_X_np - norm_fact["window"]["mean"])/ norm_fact["window"]["std"] )  
             elif config.norm_type == "minmax":
-                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["min"])/ (norm_fact["cluster"]["max"]-norm_fact["cluster"]["min"])) * cls_mask
+                cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["min"])/ (norm_fact["cluster"]["max"]-norm_fact["cluster"]["min"])) \
+                    * cls_mask[:,:,:None]
                 wind_X_norm =  ((wind_X_np - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) )  
             else:
                 cls_X_pad_norm = cls_X_pad_np
@@ -406,22 +424,11 @@ def preprocessing(config):
 
             # General weight
             weight = np.ones(size)
-            
-            return size, {
-                "cl_X": cls_X_pad_np,
-                "cl_X_norm": cls_X_pad_norm,
-                "cl_Y": cls_Y_pad_np,
-                "is_seed" : is_seed_pad_np,
-                "in_scluster": in_scluster_pad_np,
-                "cl_hits": cl_hits_pad_np,
-                "wind_X": wind_X_np,
-                "wind_X_norm": wind_X_norm,
-                "wind_meta": wind_meta_np,
-                "flavour": flavour,
-                "hits_mask": hits_mask,
-                "cls_mask": cls_mask,
-                "weight" : weight
-            }
+
+
+            return size, (cls_X_pad_np, cls_X_pad_norm, cls_Y_pad_np, is_seed_pad_np,
+                          in_scluster_pad_np, cl_hits_pad_np, wind_X_np, wind_X_norm,
+                          wind_meta_np, flavour, hits_mask, cls_mask, weight)
         else:
             # No padding --> never used
             raise Exception("Not implemented!")
@@ -483,6 +490,9 @@ def tf_generator(config):
     The list of output_tensors is read from the general output and put in the
     requested order.
     '''
+    # Getting the output configuration from the config
+    out_index = get_output_indices(config.output_tensors)
+    # Generator function
     def _gen():
         file_loader_generator = load_batches_from_files_generator(config, preprocessing)
         multidataset = multiprocessor_generator_from_files(config.input_files, 
@@ -491,12 +501,11 @@ def tf_generator(config):
                                                            nworkers=config.nworkers, 
                                                            maxevents=config.maxevents)
 
-        # Getting the output configuration from the config
+        print(config.input_files)
         for size, df in multidataset:
-            X = tuple([convert_to_tf(df[label]) for label in config.output_tensors[0]])
-            Y = tuple([convert_to_tf(df[label]) for label in config.output_tensors[1]])
-            W = tuple([convert_to_tf(df[label]) for label in config.output_tensors[2]])
-            yield X,Y,W
+            df_tf = convert_to_tf(df)
+            # Now the output is formatted with the order requested in the config
+            yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
     return _gen
 
 

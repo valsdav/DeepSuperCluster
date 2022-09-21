@@ -1,5 +1,5 @@
 {
-    "models_path": "/work/dvalsecc/Clustering/models_archive/gcn_models/MultiSA_v5/",
+    "models_path": "/work/dvalsecc/Clustering/models_archive/gcn_models/ACAT2021_v2/",
 
     "dataset_conf" : {
         "training": {
@@ -15,7 +15,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU","ncls","ncls", "nclusters_insc"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -28,7 +28,9 @@
             "batch_size": 256,
             "maxevents": 1000000,
             "nworkers": 3,
-            "max_batches_in_memory":100
+            "max_batches_in_memory":100,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
         "validation": {
             "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v8/validation",
@@ -43,7 +45,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU","ncls","ncls", "nclusters_insc"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -56,7 +58,9 @@
             "batch_size": 256,
             "maxevents": 350000,
             "nworkers": 3,
-            "max_batches_in_memory":100
+            "max_batches_in_memory":100,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
         "test": {
             "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v8/test",
@@ -71,7 +75,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU","ncls","ncls", "nclusters_insc"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -84,15 +88,15 @@
             "batch_size": 256,
             "maxevents": 200000,
             "nworkers": 3,
-            "max_batches_in_memory":100
+            "max_batches_in_memory":100,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            }
     },
     
     "nepochs": 3,
-    "ntrain": 500,
-    "nval": 400,
     "lr": 0.0001,
-    "batch_size": 256,
+    "batch_size": 512,
     "opt": "adam",
     "activation": "elu",
     "lr_reduce": {
@@ -105,58 +109,50 @@
         "min_delta": 0.001
     },
     "loss_plot": true, 
-
-
-    "output_dim_rechits": 16,
+    "output_dim_rechits": 25,
     "output_dim_nodes": 64,
     "output_dim_gconv": 64,
-    "output_dim_msa_encoder": 64,
+    "output_dim_sa_clclass": 64,
     "output_dim_sa_windclass": 64,
     "output_dim_sa_enregr": 64,
-    "coord_dim": 2,
-    "coord_dim_sa": 10,
-    "nconv_rechits": 3,
+    "coord_dim": 3,
+    "coord_dim_sa": 15,
+    "nconv_rechits": 4,
     "nconv": 3,
-    "nrepeat_msa_encoder": 2,
-    "ff_dim_msa_encoder": 256,
-    "num_heads_msa_encoder": 8,
-    "ff_dim_msa_windclass": 256,
-    "num_heads_msa_windclass": 8,
-    "ff_dim_msa_enregr": 256,
-    "num_heads_msa_enregr": 8,
     "layers_input": [
-      512,
-      256,
-      128
+        256,
+        128,
+        128,
+        64
     ],
     "layers_clclass": [
-      256,
-      256,
-      128,
-      64
+        256,
+        128,
+        128,
+        64
     ],
     "layers_windclass": [
-      256,
-      128,
-      64,
-      64
+        128,
+        64,
+        64
     ],
     "layers_enregr": [
-      256,
-      128,
-      64
+        256,
+        128,
+        128,
+        64
     ],
     "n_windclasses": 3,
     "dropout": 0.1,
-    "l2_reg": true,
+    
     "loss_weights": {
-      "clusters": 1,
-      "window": 1,
-      "softF1": 10,
-      "en_resol": 0,
-      "en_softF1": 1,
-      "en_regr": 0.01,
-      "softF1_beta": 1.5
+        "clusters": 1,
+        "window": 1,
+        "softF1": 10,
+        "en_resol": 0,
+        "en_softF1": 1,
+        "en_regr": 0.01,
+        "softF1_beta": 1.5
     }
     
-  }
+}

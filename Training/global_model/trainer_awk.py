@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--config", type=str, help="Config", required=True)
 parser.add_argument("--model", type=str, help="Model .py", required=True)
+parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 args = parser.parse_args()
 
 config = json.load(open(args.config))
@@ -75,6 +76,7 @@ print(">>> Loading datasets")
 train_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["training"]))
 test_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["validation"]))
 
+
 # Create training and validation
 ds_train = train_ds.prefetch(200).repeat(config['nepochs'])
 ds_test  = test_ds.prefetch(200).repeat(config['nepochs'])
@@ -100,7 +102,7 @@ with strategy.scope():
         opt = tf.keras.optimizers.Adam(learning_rate=config['lr'])
 
     #compile the model
-    model.compile(optimizer=opt)
+    model.compile(optimizer=opt, run_eagerly=args.debug)
     model.set_metrics()
 
     for X, y ,w  in ds_train:
@@ -143,16 +145,14 @@ with strategy.scope():
     if config["loss_plot"]:
         loss_plotter = plot_loss.LossPlotter(outdir, batch_mode=True)
         callbacks.append(loss_plotter)
-
     
-   
     # FINALLY TRAINING!
     print(">>> Start training")
     history = model.fit(ds_train,
         validation_data=ds_test, 
         epochs=config['nepochs'],
-        steps_per_epoch= config['ntrain']//config['batch_size'], 
-        validation_steps= config['nval']//config['batch_size'],
+        steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['batch_size'], 
+        validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['batch_size'],
         verbose=2,
         callbacks = callbacks
     )
