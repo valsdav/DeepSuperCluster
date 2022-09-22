@@ -28,15 +28,15 @@ print('version={}, CUDA={}, GPU={}'.format(
       
 gpus =  tf.config.list_physical_devices('GPU')
 
-if len(gpus) ==1 :
+if len(gpus) >=1 :
     print("Using 1 GPU")
-    tf.config.experimental.set_memory_growth(gpus[0], enable=True)
+    # tf.config.experimental.set_memory_growth(gpus[0], enable=True)
     strategy = tf.distribute.OneDeviceStrategy("gpu:0")
-elif len(gpus):
-    print("Using {} GPUs".format(len(gpus)))
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, enable=True)
-    strategy = tf.distribute.MirroredStrategy()
+# elif len(gpus):
+#     print("Using {} GPUs".format(len(gpus)))
+#     for gpu in gpus:
+#         tf.config.experimental.set_memory_growth(gpu, enable=True)
+#     strategy = tf.distribute.MirroredStrategy()-
 else:
     strategy = tf.distribute.OneDeviceStrategy("cpu:0")
 
@@ -107,7 +107,7 @@ with strategy.scope():
 
     for X, y ,w  in ds_train:
         # Load the model
-        ypred = model(X)
+        ypred = model(X, training=False)
         #l = custom_loss(y, ypred)
         break
 

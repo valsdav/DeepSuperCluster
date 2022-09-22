@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow as tf
 from collections import namedtuple
 
+tf_minor_version = int(tf.__version__.split(".")[1])
+
 from glob import glob
 from itertools import zip_longest, islice
 from collections import deque
@@ -39,9 +41,8 @@ default_features_dict = {
                     ],
 
     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
-    "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
 
-     "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+    "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                            "max_dphi_cluster","max_den_cluster","max_det_cluster",
                            "min_en_cluster","min_et_cluster","min_deta_cluster",
                            "min_dphi_cluster","min_den_cluster","min_det_cluster",
@@ -56,13 +57,14 @@ default_features_dict = {
                         "en_true_sim_good", "et_true_sim_good",
                         "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
                         "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig" ],
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig",
+                        "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
 }
 
 
 ##### Configuration namedtuple
 
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass, field
 
 
@@ -79,8 +81,8 @@ class LoaderConfig():
     file_input_columns: List[str] = field(default_factory=lambda : ["cl_features", "cl_labels",
                                                                 "window_features", "window_metadata", "cl_h"])
     # specific fields to read out for each cl, window, labels..
-    columns: dict[str] = field(default_factory=lambda: default_features_dict) 
-    padding: bool = True, # zero padding or not
+    columns: Dict[str,list] = field(default_factory=lambda: default_features_dict) 
+    padding: bool = True # zero padding or not
     # if -1 it will be dynami# c for each batch,
     #if >0 it will be a fix number with clippingq
     ncls_padding: int = 45 
@@ -96,7 +98,7 @@ class LoaderConfig():
     norm_type: str = "stdscale"
     norm_factors_file: str = "normalization_factors_v1.json"     #file with normalization factors
     norm_factors: dict = None     #normalization factors array dictionary
-    nworkers: int = 2,   # number of parallele process to use to read files
+    nworkers: int = 2   # number of parallele process to use to read files
     max_batches_in_memory: int = 30 #  number of batches to load at max in memory
     '''
     The output of the pipeline is fed to tensorflow by providing 3 items: X,y,weight.
@@ -109,7 +111,8 @@ class LoaderConfig():
 
 
 def get_tensors_spec(config):
-    spec = {
+    if tf_minor_version >=4:
+        spec = {
         "cl_X": tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float32), # cl_x (batch, ncls, #cl_x_features)
         "cl_X_norm": tf.TensorSpec(shape=(None,None,len(config.columns["cl_features"])), dtype=tf.float32),
         "wind_X" : tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
@@ -124,10 +127,25 @@ def get_tensors_spec(config):
         "cls_mask": tf.TensorSpec(shape=(None, None), dtype=tf.float32),
         "hits_mask": tf.TensorSpec(shape=(None, None, None), dtype=tf.float32),
         
-    }
-    return tuple([
-       tuple([spec[label]  for label in conf ])    for conf in config.output_tensors
-    ])
+        }
+        return tuple([ tuple([spec[label]  for label in conf ])    for conf in config.output_tensors])
+    else:
+        types = {
+            "cl_X": tf.float32,
+            "cl_X_norm": tf.float32,
+            "wind_X": tf.float32,
+            "wind_X_norm": tf.float32,
+            "wind_meta": tf.float32,
+            "cl_hits": tf.float32,
+            "is_seed": tf.int64,
+            "in_scluster": tf.int64,
+            "cl_y": tf.bool,
+            "flavour": tf.float32,
+            "weight": tf.float32,
+            "cls_mask": tf.float32,
+            "hits_mask": tf.float32
+        }
+        return tuple([ tuple([types[label]  for label in conf ])    for conf in config.output_tensors]) 
 
 
 def get_output_indices(output_tensors):
@@ -501,7 +519,6 @@ def tf_generator(config):
                                                            nworkers=config.nworkers, 
                                                            maxevents=config.maxevents)
 
-        print(config.input_files)
         for size, df in multidataset:
             df_tf = convert_to_tf(df)
             # Now the output is formatted with the order requested in the config
@@ -525,8 +542,11 @@ def load_dataset (config: LoaderConfig):
     if config.norm_factors == None and config.norm_factors_file:
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
 
-    
-    df = tf.data.Dataset.from_generator(tf_generator(config), 
+    if tf_minor_version >=4:    
+        df = tf.data.Dataset.from_generator(tf_generator(config), 
                                         output_signature= get_tensors_spec(config))
+    else:
+        df = tf.data.Dataset.from_generator(tf_generator(config), 
+                                        output_types= get_tensors_spec(config))
  
     return df
