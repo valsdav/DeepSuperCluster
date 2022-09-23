@@ -419,7 +419,6 @@ class RechitsGCN(tf.keras.layers.Layer):
         sa_output = self.drop1(sa_output, training=training)
         sa_output = self.sa_normalization(sa_output) * mask_for_output
         # Apply dense layer on each rechit output before the final sum
-        breakpoint()
         dense_output = self.dense_out(sa_output, training=training) 
         dense_output = self.drop2(dense_output, training=training)
         # Add + Norm
@@ -695,15 +694,16 @@ class DeepClusterGN(tf.keras.Model):
             loss_windows = window_classification_loss(y, y_pred, w[0])
             loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w[0], self.loss_weights["softF1_beta"])
             loss_en_regr = energy_regression_loss(y, y_pred, w[0])
-            tf.print(loss_clusters)
+            # tf.print(loss_clusters, loss_softF1, loss_windows, loss_en_resol, loss_en_regr, loss_en_softF1, sum(self.losses))
             # Total loss function
             loss =  self.loss_weights["clusters"] * loss_clusters +\
                      self.loss_weights["window"] * loss_windows + \
                      self.loss_weights["softF1"] * loss_softF1 + \
-                     self.loss_weights["en_resol"] * loss_en_resol+ \
                      self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                      self.loss_weights["en_regr"] * loss_en_regr + \
                      sum(self.losses)
+                     #self.loss_weights["en_resol"] * loss_en_resol+ \
+
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -740,10 +740,10 @@ class DeepClusterGN(tf.keras.Model):
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
                 self.loss_weights["softF1"] * loss_softF1 + \
-                self.loss_weights["en_resol"] * loss_en_resol + \
                 self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                 self.loss_weights["en_regr"] * loss_en_regr + \
                 sum(self.losses)
+                # self.loss_weights["en_resol"] * loss_en_resol + \
         
         # Compute our own metrics
         self.loss_tracker.update_state(loss)

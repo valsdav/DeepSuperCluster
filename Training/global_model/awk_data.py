@@ -254,8 +254,18 @@ def build_output_structure(gen, structure):
 def to_flat_numpy(X, axis=2, allow_missing=True):
     return np.stack([ak.to_numpy(X[f], allow_missing=allow_missing) for f in X.fields], axis=axis)
 
+def remove_nan_inf(tensor):
+    if tensor.dtype in [tf.float32, tf.double]:
+        zeros = tf.zeros_like(tensor)
+        tensor = tf.where(tf.math.is_nan(tensor), zeros, tensor)
+        tensor = tf.where(tf.math.is_inf(tensor), zeros, tensor)
+        return tensor
+    else:
+        return tensor
+
 def convert_to_tf(df):
-    return [ tf.convert_to_tensor(d) for d in df ]
+    tfs = [tf.convert_to_tensor(d) for d in df ]
+    return [ remove_nan_inf(t) for t in tfs]
 
 ##############################################################################################
 # Multiprocessor generator running a separate process for each group of
