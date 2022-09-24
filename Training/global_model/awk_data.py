@@ -180,6 +180,8 @@ def load_dataset_chunks(df, config, chunk_size, offset=0, maxevents=None):
         # Then materialize it
         yield chunk_size, ak.materialized(filtered_df[offset + i*chunk_size: offset + (i+1)*chunk_size])
         #yield batch_size, df[i*batch_size: (i+1)*batch_size]
+
+
         
 def split_batches(gen, batch_size):
     for size, df in gen:
@@ -339,6 +341,9 @@ def load_batches_from_files_generator(config, preprocessing_fn):
 
     N.B.: the chunk size must be a multiple of the batch size. 
     '''
+    # Prepare the preprocessing function with the config
+    _preprocess_fn = preprocessing_fn(config)
+    
     def _fn(files): 
         # Parquet files
         dfs_raw = [ ak.from_parquet(file, lazy=True, use_threads=True, columns=config.file_input_columns) for file in files if file!=None]
@@ -349,7 +354,6 @@ def load_batches_from_files_generator(config, preprocessing_fn):
         # Shuffle the axis=0
         shuffled = shuffle_dataset(concat_df)
         # Processing the data to extract X,Y, etc
-        _preprocess_fn = preprocessing_fn(config)
         processed  = (_preprocess_fn(d) for d in shuffled)
         # Split in batches
         yield from split_batches(processed, config.batch_size)
