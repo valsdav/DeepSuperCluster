@@ -254,18 +254,8 @@ def build_output_structure(gen, structure):
 def to_flat_numpy(X, axis=2, allow_missing=True):
     return np.stack([ak.to_numpy(X[f], allow_missing=allow_missing) for f in X.fields], axis=axis)
 
-def remove_nan_inf(tensor):
-    if tensor.dtype in [tf.float32, tf.double]:
-        zeros = tf.zeros_like(tensor)
-        tensor = tf.where(tf.math.is_nan(tensor), zeros, tensor)
-        tensor = tf.where(tf.math.is_inf(tensor), zeros, tensor)
-        return tensor
-    else:
-        return tensor
-
 def convert_to_tf(df):
-    tfs = [tf.convert_to_tensor(d) for d in df ]
-    return [ remove_nan_inf(t) for t in tfs]
+    return [tf.convert_to_tensor(d) for d in df ]
 
 ##############################################################################################
 # Multiprocessor generator running a separate process for each group of
@@ -405,12 +395,17 @@ def preprocessing(config):
             else:
                 max_nhits = config.nhits_padding
 
+            # Padding 
             cls_X_pad = ak.pad_none(df.cl_features, max_ncls, clip=True)
             cls_Y_pad = ak.pad_none(df.cl_labels, max_ncls, clip=True)
+            # Fill padding with empty record
+            cls_X_pad = ak.fill_none(cls_X_pad, {k:0. for k in df.cl_features.fields})
+            cls_Y_pad = ak.fill_none(cls_Y_pad, {k:0 for k in df.cl_labels.fields})
+            
             wind_X = df.window_features
             wind_meta = df.window_metadata
-            is_seed_pad = ak.pad_none(df.cl_labels["is_seed"], max_ncls, clip=True)
-            in_scluster_pad = ak.pad_none(df.cl_labels["in_scluster"], max_ncls, clip=True)
+            is_seed_pad = ak.fill_none(ak.pad_none(df.cl_labels["is_seed"], max_ncls, clip=True),0)
+            in_scluster_pad = ak.fill_none(ak.pad_none(df.cl_labels["in_scluster"], max_ncls, clip=True),0)
 
             # cls_X_pad = ak.fill_none(cls_X_pad, {k:0 for k in config.columns["cl_features"]})
             # cls_Y_pad = ak.fill_none(cls_Y_pad, 0.)
@@ -418,22 +413,28 @@ def preprocessing(config):
             # hits padding
             cl_hits_padrec = ak.pad_none(df.cl_h, max_nhits, axis=2, clip=True) # --> pad rechits dim
             cl_hits_padded = ak.pad_none(cl_hits_padrec, max_ncls, axis=1, clip=True) # --> pad ncls dimension
+            # fill none with array of correct dimension
+            cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros(4), axis=2) # --> rechit level
+            cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_nhits, 4)), axis=1)
+
+            #cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_ncls, max_nhits, 4)))
             # h_padh_padcl_fillnoneCL = ak.fill_none(h_padh_padcl, [None]*max_nhits, axis=1) #-- > fill the out dimension with None
             # cl_hits_pad = np.asarray(ak.fill_none(h_padh_padcl_fillnoneCL, [0.,0.,0.,0.] , axis=2)) # --> fill the padded rechit dim with 0.
            
-            cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=True)
-            cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=True)
-            is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=True)
-            in_scluster_pad_np = ak.to_numpy(in_scluster_pad, allow_missing=True)
-            cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=True)
+            cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=False)
+            cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=False)
+            is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=False)
+            in_scluster_pad_np = ak.to_numpy(in_scluster_pad, allow_missing=False)
+            # Only hits have truly padded None to be converted to masked numpy arrays
+            cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=False)
             wind_X_np = to_flat_numpy(wind_X, axis=1)
             wind_meta_np = to_flat_numpy(wind_meta, axis=1)
             
             # Masks for padding
-            hits_mask = np.array(np.any(~cl_hits_pad_np.mask, axis=-1), dtype=int)
-            cls_mask = np.array(np.any(hits_mask, axis=-1), dtype=int)
+            hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=int)
+            cls_mask = np.any(hits_mask, axis=-1).astype(int)
             #not adding the last dim for broadcasting to give the user more flexibility
-            
+
             # Normalization
             norm_fact = config.norm_factors
             if config.norm_type == "stdscale":
@@ -510,6 +511,29 @@ def get_norm_factors(norm_file, cl_features, wind_features, numpy=True):
 #####################################################################################################
 ### Tensorflow tensors conversion
 
+def numpy_generator(config):
+    '''
+    The function converts the multipurpose generator chain to a
+    Tensorflow format chain.
+    The list of output_tensors is read from the general output and put in the
+    requested order.
+    '''
+    # Getting the output configuration from the config
+    out_index = get_output_indices(config.output_tensors)
+    # Generator function
+    def _gen():
+        file_loader_generator = load_batches_from_files_generator(config, preprocessing)
+        multidataset = multiprocessor_generator_from_files(config.input_files, 
+                                                           file_loader_generator, 
+                                                           output_queue_size=config.max_batches_in_memory, 
+                                                           nworkers=config.nworkers, 
+                                                           maxevents=config.maxevents)
+
+        for size, df in multidataset:
+            # Now the output is formatted with the order requested in the config
+            yield tuple([ tuple([df[i] for i in o]) for o in out_index])
+    return _gen
+
 
 def tf_generator(config):
     '''
@@ -536,10 +560,12 @@ def tf_generator(config):
     return _gen
 
 
+
+
 ################################
 # User API to get a dataset general
 
-def load_dataset (config: LoaderConfig):
+def load_dataset (config: LoaderConfig, output_type="tf"):
     '''
     Function exposing to the end user the tensorflow dataset loading through the awkward chain. 
     '''
@@ -552,11 +578,16 @@ def load_dataset (config: LoaderConfig):
     if config.norm_factors == None and config.norm_factors_file:
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
 
-    if tf_minor_version >=4:    
-        df = tf.data.Dataset.from_generator(tf_generator(config), 
-                                        output_signature= get_tensors_spec(config))
-    else:
-        df = tf.data.Dataset.from_generator(tf_generator(config), 
-                                        output_types= get_tensors_spec(config))
- 
-    return df
+    if output_type == "tf":
+        if tf_minor_version >=4:    
+            df = tf.data.Dataset.from_generator(tf_generator(config), 
+                                                output_signature= get_tensors_spec(config))
+
+        else:
+            df = tf.data.Dataset.from_generator(tf_generator(config), 
+                                                output_types= get_tensors_spec(config))
+        return df
+
+    elif output_type == "numpy":
+        return numpy_generator(config)
+    
