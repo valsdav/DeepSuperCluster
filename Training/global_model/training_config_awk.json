@@ -19,7 +19,7 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
             "norm_type" : "stdscale",
             "padding" : true,  
             "ncls_padding" : -1, 
@@ -28,7 +28,7 @@
             "batch_size": 512,
             "maxevents": 1000000,
             "nworkers": 3,
-            "max_batches_in_memory":40,
+            "max_batches_in_memory":100,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
@@ -49,7 +49,7 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 
@@ -79,7 +79,7 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 
