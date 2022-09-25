@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--config", type=str, help="Config", required=True)
 parser.add_argument("--model", type=str, help="Model .py", required=True)
+parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 args = parser.parse_args()
 
@@ -50,6 +51,9 @@ def get_unique_run():
         run_number = max([int(s.split('run_')[1]) for s in previous_runs]) + 1
     return run_number
 
+
+if args.output != None:
+    config["models_path"] = args.output
 if not os.path.isdir(config["models_path"]):
     os.makedirs(config["models_path"])
 
