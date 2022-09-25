@@ -8,11 +8,12 @@ from awk_data import default_features_dict
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--input-folders", type=str, nargs="+", help="List of folders with parquet dataset to use", required=True)
+parser.add_argument("-n","--n-samples", type=int, help="Number of sample to use", default=1000000)
 parser.add_argument("-o", "--output-file", type=str, required=True)
 args = parser.parse_args()
 
 
-df_tot = ak.concatenate([ak.from_parquet(folder, lazy=True, use_threads=True)
+df_tot = ak.concatenate([ak.from_parquet(folder, lazy=True, use_threads=True)[0:args.n_samples]
                          for folder in args.input_folders])
 
 norm_factor = { "cluster" : { "mean" : {}, "max": {}, "min": {}, "std": {}},

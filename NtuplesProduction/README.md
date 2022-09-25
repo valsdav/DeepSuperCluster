@@ -112,7 +112,8 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
 - All the windows are created for all the seeds with Et> 1
 - The seed is required to have:
   - at least 1% of simfraction of the matched caloparticle
-  - the matched caloparticle needs to be inside the geometric window
+  - the matched caloparticle Gen position  needs to be inside the geometric window defined by the seed: this is needed
+  to avoid the border effect in the crack
   - no simfraction WP is checked for the seed
 
 - The clusters are calo_matched to the caloparticle of the seed if:

@@ -19,13 +19,14 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true,  
             "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
-            "batch_size": 256,
+            "batch_size": 512,
             "maxevents": 1000000,
             "nworkers": 3,
             "max_batches_in_memory":100,
@@ -49,13 +50,14 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
-            "batch_size": 256,
+            "batch_size": 512,
             "maxevents": 350000,
             "nworkers": 3,
             "max_batches_in_memory":100,
@@ -79,7 +81,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v1.json",
+            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 
@@ -94,8 +97,8 @@
            }
     },
     
-    "nepochs": 3,
-    "lr": 0.0001,
+    "nepochs": 100,
+    "lr": 0.001,
     "batch_size": 512,
     "opt": "adam",
     "activation": "elu",
@@ -146,12 +149,12 @@
     "dropout": 0.1,
     "l2_reg": true,
     "loss_weights": {
-        "clusters": 1,
+        "clusters": 100,
         "window": 1,
-        "softF1": 10,
+        "softF1": 1,
         "en_resol": 0,
-        "en_softF1": 1,
-        "en_regr": 0.01,
+        "en_softF1": 100,
+        "en_regr": 0.05,
         "softF1_beta": 1.50
     }
     
