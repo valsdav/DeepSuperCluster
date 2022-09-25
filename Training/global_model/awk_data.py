@@ -413,9 +413,9 @@ def preprocessing(config):
     
             if corr!= None:
                 seed_df = df.cl_features[df.cl_labels.is_seed==1][["cluster_eta","et_cluster"]]
-                seed_eta = abs(ak.flatten(seed_df.cluster_eta))
-                seed_et = ak.flatten(seed_df.et_cluster)
-                ncls_tot = df.window_metadata.ncls
+                seed_eta = ak.to_numpy(abs(ak.flatten(seed_df.cluster_eta)))
+                seed_et = ak.to_numpy(ak.flatten(seed_df.et_cluster))
+                ncls_tot = ak.to_numpy(df.window_metadata.ncls)
                 # Different weight for electrons and photons
                 index = np.indices([size]).flatten()
                 mask_ele = flavour == 11

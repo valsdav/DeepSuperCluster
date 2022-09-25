@@ -681,6 +681,7 @@ class DeepClusterGN(tf.keras.Model):
         self.loss4_tracker = tf.keras.metrics.Mean(name="loss_en_resol")
         self.loss5_tracker = tf.keras.metrics.Mean(name="loss_en_softF1")
         self.loss6_tracker = tf.keras.metrics.Mean(name="loss_en_regr")
+        self.loss_reg      = tf.keras.metrics.Mean(name="loss_regularization")
 
     # Customized training loop
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
@@ -694,6 +695,7 @@ class DeepClusterGN(tf.keras.Model):
             loss_windows = window_classification_loss(y, y_pred, w[0])
             loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w[0], self.loss_weights["softF1_beta"])
             loss_en_regr = energy_regression_loss(y, y_pred, w[0])
+            loss_reg = sum(self.losses)
             # tf.print(loss_clusters, loss_softF1, loss_windows, loss_en_resol, loss_en_regr, loss_en_softF1, sum(self.losses))
             # Total loss function
             loss =  self.loss_weights["clusters"] * loss_clusters +\
@@ -701,7 +703,7 @@ class DeepClusterGN(tf.keras.Model):
                      self.loss_weights["softF1"] * loss_softF1 + \
                      self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                      self.loss_weights["en_regr"] * loss_en_regr + \
-                     sum(self.losses)
+                     loss_reg
                      #self.loss_weights["en_resol"] * loss_en_resol+ \
 
         # Compute gradients
@@ -717,13 +719,15 @@ class DeepClusterGN(tf.keras.Model):
         self.loss4_tracker.update_state(loss_en_resol)
         self.loss5_tracker.update_state(loss_en_softF1)
         self.loss6_tracker.update_state(loss_en_regr)
+        self.loss_reg.update_state(loss_reg)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_softF1": self.loss3_tracker.result(),
                 "loss_en_resol": self.loss4_tracker.result(),
                 "loss_en_softF1": self.loss5_tracker.result(),
-                "loss_en_regr": self.loss6_tracker.result()}
+                "loss_en_regr": self.loss6_tracker.result(),
+                "loss_regularization": self.loss_reg.result()}
 
     def test_step(self, data):
         # Unpack the data
@@ -736,13 +740,14 @@ class DeepClusterGN(tf.keras.Model):
         loss_windows = window_classification_loss(y, y_pred, w[0])
         loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w[0], self.loss_weights["softF1_beta"])
         loss_en_regr = energy_regression_loss(y, y_pred, w[0])
+        loss_reg = sum(self.losses)
         # Total loss function
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
                 self.loss_weights["softF1"] * loss_softF1 + \
                 self.loss_weights["en_softF1"] *  loss_en_softF1 + \
                 self.loss_weights["en_regr"] * loss_en_regr + \
-                sum(self.losses)
+                loss_reg
                 # self.loss_weights["en_resol"] * loss_en_resol + \
         
         # Compute our own metrics
@@ -753,13 +758,15 @@ class DeepClusterGN(tf.keras.Model):
         self.loss4_tracker.update_state(loss_en_resol)
         self.loss5_tracker.update_state(loss_en_softF1)
         self.loss6_tracker.update_state(loss_en_regr)
+        self.loss_reg(loss_reg)
         return {"loss": self.loss_tracker.result(),
                 "loss_clusters": self.loss1_tracker.result(),
                 "loss_windows": self.loss2_tracker.result(),
                 "loss_softF1": self.loss3_tracker.result(),
                 "loss_en_resol": self.loss4_tracker.result(),
                 "loss_en_softF1": self.loss5_tracker.result(),
-                "loss_en_regr": self.loss6_tracker.result()
+                "loss_en_regr": self.loss6_tracker.result(),
+                "loss_regularization": self.loss_reg.result()
                 }
 
     @property
@@ -770,7 +777,7 @@ class DeepClusterGN(tf.keras.Model):
         # If you don't implement this property, you have to call
         # `reset_states()` yourself at the time of your choosing.
         return [self.loss_tracker, self.loss1_tracker, self.loss2_tracker, self.loss3_tracker,
-                self.loss4_tracker, self.loss5_tracker, self.loss6_tracker]
+                self.loss4_tracker, self.loss5_tracker, self.loss6_tracker, self.loss_reg]
 
 
 

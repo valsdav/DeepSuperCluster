@@ -1,10 +1,10 @@
 {
-    "models_path": "/work/dvalsecc/Clustering/models_archive/gcn_models/ACAT2021_v2/",
+    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2021_v2/tests",
 
     "dataset_conf" : {
         "training": {
-            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v9_onlycalomatched/training",
-                              "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v9_onlycalomatched/training"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/training",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/training"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [
@@ -34,8 +34,8 @@
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
         "validation": {
-            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v9_onlycalomatched/validation",
-                              "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v9_onlycalomatched/validation"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/validation",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/validation"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [
@@ -65,8 +65,8 @@
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
         "test": {
-            "input_folders": ["/work/dvalsecc/Clustering/dataset/electrons_awkward_2022v9_onlycalomatched/test",
-                              "/work/dvalsecc/Clustering/dataset/gammas_awkward_2022v9_onlycalomatched/test"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/test",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/test"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [

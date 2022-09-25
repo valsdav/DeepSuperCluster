@@ -79,11 +79,9 @@ print(">>> Loading datasets")
 
 train_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["training"]))
 test_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["validation"]))
-
-
 # Create training and validation
-ds_train = train_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
-ds_test  = test_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
+ds_train = train_ds.prefetch(150).repeat(config['nepochs'])
+ds_test  = test_ds.prefetch(150).repeat(config['nepochs'])
 
 
 ############### 
