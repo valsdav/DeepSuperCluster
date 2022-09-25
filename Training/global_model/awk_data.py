@@ -2,6 +2,7 @@ import awkward as ak
 import numpy as np
 import tensorflow as tf
 from collections import namedtuple
+import correctionlib
 
 tf_minor_version = int(tf.__version__.split(".")[1])
 
@@ -97,6 +98,7 @@ class LoaderConfig():
     # stdscale, minmax,or None
     norm_type: str = "stdscale"
     norm_factors_file: str = "normalization_factors_v1.json"     #file with normalization factors
+    reweighting_file: str = None # File with reweighting correctlib json
     norm_factors: dict = None     #normalization factors array dictionary
     nworkers: int = 2   # number of parallele process to use to read files
     max_batches_in_memory: int = 30 #  number of batches to load at max in memory
@@ -383,6 +385,12 @@ def preprocessing(config):
 
     The order of the output MUST BE SYNCHRONIZED with the get_output_indices function
     '''
+    if config.reweighting_file != None:
+        cset = correctionlib.CorrectionSet.from_file(config.reweighting_file)
+        corr = cset.compound["total_reweighting"]
+    else:
+        corr = None
+    
     def process_fn(data): 
         size, df = data
         # Extraction of the ntuples and zero padding
@@ -399,6 +407,22 @@ def preprocessing(config):
             else:
                 max_nhits = config.nhits_padding
 
+            # Computing the weight
+            flavour = np.asarray(df.window_metadata.flavour)
+            weight = np.ones((size,), dtype=float)
+    
+            if corr!= None:
+                seed_df = df.cl_features[df.cl_labels.is_seed==1][["cluster_eta","et_cluster"]]
+                seed_eta = abs(ak.flatten(seed_df.cluster_eta))
+                seed_et = ak.flatten(seed_df.et_cluster)
+                ncls_tot = df.window_metadata.ncls
+                # Different weight for electrons and photons
+                index = np.indices([size]).flatten()
+                mask_ele = flavour == 11
+                mask_pho = flavour == 22
+                weight[index[mask_ele]] = corr.evaluate(11, seed_eta[mask_ele], seed_et[mask_ele], ncls_tot[mask_ele])
+                weight[index[mask_pho]] = corr.evaluate(22, seed_eta[mask_pho], seed_et[mask_pho], ncls_tot[mask_pho])
+                
             # Padding 
             cls_X_pad = ak.pad_none(df.cl_features, max_ncls, clip=True)
             cls_Y_pad = ak.pad_none(df.cl_labels, max_ncls, clip=True)
@@ -411,9 +435,6 @@ def preprocessing(config):
             is_seed_pad = ak.fill_none(ak.pad_none(df.cl_labels["is_seed"], max_ncls, clip=True),0)
             in_scluster_pad = ak.fill_none(ak.pad_none(df.cl_labels["in_scluster"], max_ncls, clip=True),0)
 
-            # cls_X_pad = ak.fill_none(cls_X_pad, {k:0 for k in config.columns["cl_features"]})
-            # cls_Y_pad = ak.fill_none(cls_Y_pad, 0.)
-            # is_seed_pad = ak.fill_none(is_seed_pad, False)
             # hits padding
             cl_hits_padrec = ak.pad_none(df.cl_h, max_nhits, axis=2, clip=True) # --> pad rechits dim
             cl_hits_padded = ak.pad_none(cl_hits_padrec, max_ncls, axis=1, clip=True) # --> pad ncls dimension
@@ -421,10 +442,7 @@ def preprocessing(config):
             cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros(4), axis=2) # --> rechit level
             cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_nhits, 4)), axis=1)
 
-            #cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_ncls, max_nhits, 4)))
-            # h_padh_padcl_fillnoneCL = ak.fill_none(h_padh_padcl, [None]*max_nhits, axis=1) #-- > fill the out dimension with None
-            # cl_hits_pad = np.asarray(ak.fill_none(h_padh_padcl_fillnoneCL, [0.,0.,0.,0.] , axis=2)) # --> fill the padded rechit dim with 0.
-           
+            # Converting to numpy after padding
             cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=False)
             cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=False)
             is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=False)
@@ -452,12 +470,6 @@ def preprocessing(config):
             else:
                 cls_X_pad_norm = cls_X_pad_np
                 windo_X_norm = wind_X_norm
-                
-            flavour = np.asarray(df.window_metadata.flavour)
-
-            # General weight
-            weight = np.ones(size)
-
 
             return size, (cls_X_pad_np, cls_X_pad_norm, cls_Y_pad_np, is_seed_pad_np,
                           in_scluster_pad_np, cl_hits_pad_np, wind_X_np, wind_X_norm,
