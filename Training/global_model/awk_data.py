@@ -607,3 +607,9 @@ def load_dataset (config: LoaderConfig, output_type="tf"):
     elif output_type == "numpy":
         return numpy_generator(config)
     
+
+#Utils for debugging tf dataset
+
+def get(dataset):
+    el = next(iter(dataset.take(1)))
+    return el

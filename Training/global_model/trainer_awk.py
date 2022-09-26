@@ -172,7 +172,7 @@ with strategy.scope():
         epochs=config['nepochs'],
         steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['dataset_conf']["training"]['batch_size'], 
         validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['dataset_conf']["validation"]['batch_size'],
-        verbose=2,
+        verbose=1,
         callbacks = callbacks
     )
 
