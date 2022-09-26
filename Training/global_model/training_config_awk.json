@@ -1,5 +1,5 @@
 {
-    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2021_v2/tests",
+    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/tests_norechits/",
 
     "dataset_conf" : {
         "training": {
@@ -23,11 +23,11 @@
             "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true,  
-            "ncls_padding" : -1, 
-            "nhits_padding": -1,
+            "ncls_padding" : 40, 
+            "nhits_padding": 40,
             "chunk_size": 5120,
             "batch_size": 512,
-            "maxevents": 1000000,
+            "maxevents": 1400000,
             "nworkers": 3,
             "max_batches_in_memory":100,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
@@ -54,11 +54,11 @@
             "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
-            "ncls_padding" : -1, 
-            "nhits_padding": -1,
+            "ncls_padding" : 40, 
+            "nhits_padding": 40,
             "chunk_size": 5120,
             "batch_size": 512,
-            "maxevents": 350000,
+            "maxevents": 1400000,
             "nworkers": 3,
             "max_batches_in_memory":100,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
@@ -97,7 +97,7 @@
            }
     },
     
-    "nepochs": 100,
+    "nepochs": 200,
     "lr": 0.001,
     "batch_size": 512,
     "opt": "adam",
@@ -108,7 +108,7 @@
         "min_delta": 0.001
     },
     "early_stop": {
-        "patience": 10,
+        "patience": 15,
         "min_delta": 0.001
     },
     "loss_plot": true, 

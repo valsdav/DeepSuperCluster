@@ -1,13 +1,11 @@
 import awk_data
 import tensorflow as tf
-import loader
 import argparse 
 from collections import defaultdict
 import os, json
 import importlib.util
 from time import time
 import numpy as np
-from plotting import * 
 import plot_loss
 
 parser = argparse.ArgumentParser()
@@ -16,6 +14,7 @@ parser.add_argument("--config", type=str, help="Config", required=True)
 parser.add_argument("--model", type=str, help="Model .py", required=True)
 parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
+parser.add_argument("--profile", action="store_true", help="Profile model training")
 args = parser.parse_args()
 
 config = json.load(open(args.config))
@@ -31,7 +30,7 @@ gpus =  tf.config.list_physical_devices('GPU')
 
 if len(gpus) >=1 :
     print("Using 1 GPU")
-    # tf.config.experimental.set_memory_growth(gpus[0], enable=True)
+    tf.config.experimental.set_memory_growth(gpus[0], enable=True)
     strategy = tf.distribute.OneDeviceStrategy("gpu:0")
 # elif len(gpus):
 #     print("Using {} GPUs".format(len(gpus)))
@@ -39,6 +38,18 @@ if len(gpus) >=1 :
 #         tf.config.experimental.set_memory_growth(gpu, enable=True)
 #     strategy = tf.distribute.MirroredStrategy()-
 else:
+    num_threads = 5
+    os.environ["OMP_NUM_THREADS"] = str(num_threads)
+    os.environ["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
+    os.environ["TF_NUM_INTEROP_THREADS"] = str(num_threads)
+
+    tf.config.threading.set_inter_op_parallelism_threads(
+        num_threads
+    )
+    tf.config.threading.set_intra_op_parallelism_threads(
+        num_threads
+    )
+    tf.config.set_soft_device_placement(True)
     strategy = tf.distribute.OneDeviceStrategy("cpu:0")
 
 ##################
@@ -80,8 +91,8 @@ print(">>> Loading datasets")
 train_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["training"]))
 test_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["validation"]))
 # Create training and validation
-ds_train = train_ds.prefetch(150).repeat(config['nepochs'])
-ds_test  = test_ds.prefetch(150).repeat(config['nepochs'])
+ds_train = train_ds.prefetch(100).repeat(config['nepochs'])
+ds_test  = test_ds.prefetch(100).repeat(config['nepochs'])
 
 
 ############### 
@@ -147,14 +158,20 @@ with strategy.scope():
     if config["loss_plot"]:
         loss_plotter = plot_loss.LossPlotter(outdir, batch_mode=True)
         callbacks.append(loss_plotter)
-    
+
+    if args.profile:
+        tb_callback = tf.keras.callbacks.TensorBoard(outdir+"/profiler_logs",
+                                                 profile_batch=(50, 10100),
+                                                 update_freq='batch')
+        callbacks.append(tb_callback)
+        
     # FINALLY TRAINING!
     print(">>> Start training")
     history = model.fit(ds_train,
         validation_data=ds_test, 
         epochs=config['nepochs'],
-        steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['batch_size'], 
-        validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['batch_size'],
+        steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['dataset_conf']["training"]['batch_size'], 
+        validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['dataset_conf']["validation"]['batch_size'],
         verbose=2,
         callbacks = callbacks
     )
