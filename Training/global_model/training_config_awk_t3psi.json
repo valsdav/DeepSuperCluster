@@ -31,7 +31,7 @@
             "maxevents": 1000000,
             "nworkers": 3,
             "max_batches_in_memory":100,
-            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
         "validation": {
@@ -63,7 +63,7 @@
             "maxevents": 350000,
             "nworkers": 3,
             "max_batches_in_memory":100,
-            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
         "test": {
@@ -94,7 +94,7 @@
             "maxevents": 200000,
             "nworkers": 3,
             "max_batches_in_memory":100,
-            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            }
     },

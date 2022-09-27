@@ -455,8 +455,8 @@ def preprocessing(config):
                 cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=False)
                 hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=int)
             else:
-                cl_hits_pad_np = None
-                hits_mask = None
+                cl_hits_pad_np = np.zeros((size))
+                hits_mask = np.zeros((size))
             
             # Masks for padding
             cls_mask = ak.to_numpy(cls_X_pad.en_cluster != 0).astype(int)

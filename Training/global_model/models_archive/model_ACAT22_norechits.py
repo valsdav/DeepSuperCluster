@@ -482,7 +482,7 @@ class GraphBuilding(tf.keras.layers.Layer):
             "name": self.name
         }
 
-    def call(self, cl_features, rechits_features, mask_rechits, mask_cls, training):
+    def call(self, cl_features, mask_cls, training):
         # Conversion from RaggedTensor to dense tensor
         #rechits = rechits_features.to_tensor()
         #mask_rechits, mask_cls = create_padding_masks(rechits)
@@ -597,7 +597,7 @@ class DeepClusterGN(tf.keras.Model):
         # Concatenation layers
         self.concat_wind_feats = tf.keras.layers.Concatenate(axis=-1)
         self.concat_inputs = tf.keras.layers.Concatenate(axis=-1)
-        self.concat_inputs_enregr = tf.keras.layers.Concatenate(axis=-1)
+        #self.concat_inputs_enregr = tf.keras.layers.Concatenate(axis=-1)
 
     def get_config(self):
         return {
@@ -628,11 +628,11 @@ class DeepClusterGN(tf.keras.Model):
         }
 
     def call(self, inputs, training):
-        cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = inputs 
+        cl_X_initial, wind_X, is_seed, mask_cls = inputs 
         # Concatenate the seed label on clusters features
         cl_X_initial = tf.concat([tf.cast(is_seed[:,:,tf.newaxis], tf.float32), cl_X_initial], axis=-1)
         #cl_X now is the latent cluster+rechits representation
-        cl_X, coord, adj,coord_att_ws = self.graphbuild(cl_X_initial, cl_hits, mask_rechits, mask_cls, training)
+        cl_X, coord, adj,coord_att_ws = self.graphbuild(cl_X_initial, mask_cls, training)
         mask_cls_to_apply = mask_cls[:,:,tf.newaxis]
         out_gcn = self.GCN(cl_X, adj) 
         # Dropout + normalization
