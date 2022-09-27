@@ -1,0 +1,163 @@
+{
+    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/tests_norechits/",
+
+    "dataset_conf" : {
+        "training": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/training",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/training"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_type" : "stdscale",
+            "padding" : true,
+            "include_rechits": false,
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 512,
+            "maxevents": 1000000,
+            "nworkers": 3,
+            "max_batches_in_memory":400,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+           },
+        "validation": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/validation",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/validation"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_type" : "stdscale",
+            "padding" : true, 
+            "include_rechits": false,
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 512,
+            "maxevents": 250000,
+            "nworkers": 3,
+            "max_batches_in_memory":400,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+        },
+        "test": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/test",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/test"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+                    "cluster_ieta", "cluster_iphi", "cluster_iz","cluster_deta",
+                    "cluster_dphi", "cluster_den_seed", "cluster_det_seed", "cl_etaWidth",
+                    "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_type" : "stdscale",
+            "padding" : true,
+            "include_rechits": false,
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 256,
+            "maxevents": 200000,
+            "nworkers": 3,
+            "max_batches_in_memory":100,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "is_seed", "cls_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+           }
+    },
+    
+    "nepochs": 200,
+    "lr": 0.001,
+    "batch_size": 512,
+    "opt": "adam",
+    "activation": "elu",
+    "lr_reduce": {
+        "factor": 0.7,
+        "patience": 3,
+        "min_delta": 0.001
+    },
+    "early_stop": {
+        "patience": 15,
+        "min_delta": 0.001
+    },
+    "loss_plot": true, 
+    "output_dim_nodes": 128,
+    "output_dim_gconv": 128,
+    "output_dim_sa_clclass": 128,
+    "output_dim_sa_windclass": 32,
+    "output_dim_sa_enregr": 32,
+    "coord_dim": 3,
+    "coord_dim_sa": 15,
+    "nconv": 2,
+    "layers_input": [
+        256,
+        256,
+        128,
+        128
+    ],
+    "layers_clclass": [
+        256,
+        128,
+        128,
+        128,
+        64
+    ],
+    "layers_windclass": [
+        128,
+        64,
+        64
+    ],
+    "layers_enregr": [
+        256,
+        128,
+        128,
+        64
+    ],
+    "n_windclasses": 3,
+    "dropout": 0.2,
+    "l2_reg": true,
+    "loss_weights": {
+        "clusters": 100,
+        "window": 1,
+        "softF1": 1,
+        "en_resol": 0,
+        "en_softF1": 100,
+        "en_regr": 0.01,
+        "softF1_beta": 1.50
+    }
+    
+}
