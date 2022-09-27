@@ -67,11 +67,13 @@ else:
     os.makedirs(outdir)
 
 print("Model output folder: ", outdir)
-
-############################3
+# Save the output folder in the config
+config["models_path"] = outdir
+config["model_definition_path"] = os.path.join(outdir,
 #Copying the config file and model file in the output dir:
-os.system("cp {} {}".format(args.config, outdir))
 os.system("cp {} {}".format(args.model, outdir))
+json.dump(config, open(os.path.join(outdir, "training_config.json"),"w"),
+          indent=2)
 
 ###########################
 ## Loading the datasets
