@@ -19,8 +19,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true,  
             "ncls_padding" : 40, 
@@ -50,8 +50,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : 40, 
@@ -81,8 +81,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 

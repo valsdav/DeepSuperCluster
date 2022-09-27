@@ -91,8 +91,8 @@ print(">>> Loading datasets")
 train_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["training"]))
 test_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["validation"]))
 # Create training and validation
-ds_train = train_ds.prefetch(100).repeat(config['nepochs'])
-ds_test  = test_ds.prefetch(100).repeat(config['nepochs'])
+ds_train = train_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
+ds_test  = test_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
 
 
 ############### 
@@ -172,7 +172,7 @@ with strategy.scope():
         epochs=config['nepochs'],
         steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['dataset_conf']["training"]['batch_size'], 
         validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['dataset_conf']["validation"]['batch_size'],
-        verbose=1,
+        verbose=2,
         callbacks = callbacks
     )
 

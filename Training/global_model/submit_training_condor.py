@@ -15,7 +15,7 @@ args = parser.parse_args()
 base_dir= "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/"
 
 sub = htcondor.Submit()
-sub['Executable'] = base_dir
+sub['Executable'] = "run_training_condor.sh"
 sub["arguments"] = args.config +" "+args.model
 sub['Error'] = base_dir+"/condor_logs/error/training-$(ClusterId).$(ProcId).err"
 sub['Output'] = base_dir+"/condor_logs/output/training-$(ClusterId).$(ProcId).out"

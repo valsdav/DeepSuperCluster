@@ -84,6 +84,7 @@ class LoaderConfig():
     # specific fields to read out for each cl, window, labels..
     columns: Dict[str,list] = field(default_factory=lambda: default_features_dict) 
     padding: bool = True # zero padding or not
+    include_rechits: bool = True # include the rechits in the preprocessing
     # if -1 it will be dynami# c for each batch,
     #if >0 it will be a fix number with clippingq
     ncls_padding: int = 45 
@@ -402,7 +403,7 @@ def preprocessing(config):
                 max_ncls = ak.max(ak.num(df.cl_features, axis=1))
             else:
                 max_ncls = config.ncls_padding
-            if config.nhits_padding == -1:
+            if config.nhits_padding == -1 and config.include_rechits:
                 max_nhits = ak.max(ak.num(df.cl_h, axis=2))
             else:
                 max_nhits = config.nhits_padding
@@ -435,26 +436,31 @@ def preprocessing(config):
             is_seed_pad = ak.fill_none(ak.pad_none(df.cl_labels["is_seed"], max_ncls, clip=True),0)
             in_scluster_pad = ak.fill_none(ak.pad_none(df.cl_labels["in_scluster"], max_ncls, clip=True),0)
 
-            # hits padding
-            cl_hits_padrec = ak.pad_none(df.cl_h, max_nhits, axis=2, clip=True) # --> pad rechits dim
-            cl_hits_padded = ak.pad_none(cl_hits_padrec, max_ncls, axis=1, clip=True) # --> pad ncls dimension
-            # fill none with array of correct dimension
-            cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros(4), axis=2) # --> rechit level
-            cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_nhits, 4)), axis=1)
-
             # Converting to numpy after padding
             cls_X_pad_np = to_flat_numpy(cls_X_pad, axis=2, allow_missing=False)
             cls_Y_pad_np = to_flat_numpy(cls_Y_pad, axis=2, allow_missing=False)
             is_seed_pad_np = ak.to_numpy(is_seed_pad, allow_missing=False)
             in_scluster_pad_np = ak.to_numpy(in_scluster_pad, allow_missing=False)
-            # Only hits have truly padded None to be converted to masked numpy arrays
-            cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=False)
             wind_X_np = to_flat_numpy(wind_X, axis=1)
             wind_meta_np = to_flat_numpy(wind_meta, axis=1)
+
+            # hits padding
+            if config.include_rechits:
+                cl_hits_padrec = ak.pad_none(df.cl_h, max_nhits, axis=2, clip=True) # --> pad rechits dim
+                cl_hits_padded = ak.pad_none(cl_hits_padrec, max_ncls, axis=1, clip=True) # --> pad ncls dimension
+                # fill none with array of correct dimension
+                cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros(4), axis=2) # --> rechit level
+                cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_nhits, 4)), axis=1)
+                # Only hits have truly padded None to be converted to masked numpy arrays
+                cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=False)
+                hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=int)
+            else:
+                cl_hits_pad_np = None
+                hits_mask = None
             
             # Masks for padding
-            hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=int)
-            cls_mask = np.any(hits_mask, axis=-1).astype(int)
+            cls_mask = ak.to_numpy(cls_X_pad.en_cluster != 0).astype(int)
+            # cls_mask = np.any(hits_mask, axis=-1).astype(int)
             #not adding the last dim for broadcasting to give the user more flexibility
 
             # Normalization
