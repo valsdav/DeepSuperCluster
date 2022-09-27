@@ -15,11 +15,11 @@ parser.add_argument("--model", type=str, help="Model .py", required=True)
 parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 parser.add_argument("--profile", action="store_true", help="Profile model training")
+parser.add_argument("-v","--verbose", action="store_true", help="Verbose")
 args = parser.parse_args()
 
 config = json.load(open(args.config))
 
-config['activation'] = tf.keras.activations.get(config['activation'])
 
 # Checking hardware
 print('version={}, CUDA={}, GPU={}'.format(
@@ -80,11 +80,12 @@ else:
 print("Model output folder: ", outdir)
 # Save the output folder in the config
 config["models_path"] = outdir
-config["model_definition_path"] = os.path.join(outdir,
+config["model_definition_path"] = os.path.join(outdir, args.model)
 #Copying the config file and model file in the output dir:
 os.system("cp {} {}".format(args.model, outdir))
 json.dump(config, open(os.path.join(outdir, "training_config.json"),"w"),
           indent=2)
+
 
 ###########################
 ## Loading the datasets
@@ -104,6 +105,7 @@ spec = importlib.util.spec_from_file_location("model", args.model)
 model_lib = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model_lib)
 
+config['activation'] = tf.keras.activations.get(config['activation'])
 
 tf.keras.backend.clear_session()
 # Construction of the model in the strategy scope
@@ -166,7 +168,11 @@ with strategy.scope():
                                                  profile_batch=(50, 10100),
                                                  update_freq='batch')
         callbacks.append(tb_callback)
-        
+
+    if args.verbose:
+        verbosity = 1
+    else:
+        verbosity = 2
     # FINALLY TRAINING!
     print(">>> Start training")
     history = model.fit(ds_train,
@@ -174,7 +180,7 @@ with strategy.scope():
         epochs=config['nepochs'],
         steps_per_epoch= config['dataset_conf']["training"]["maxevents"]//config['dataset_conf']["training"]['batch_size'], 
         validation_steps= config['dataset_conf']["validation"]["maxevents"]//config['dataset_conf']["validation"]['batch_size'],
-        verbose=2,
+        verbose=verbosity,
         callbacks = callbacks
     )
 
