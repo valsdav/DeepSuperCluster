@@ -1,5 +1,5 @@
 {
-    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/tests/",
+    "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/tests_simpler_rechits/",
 
     "dataset_conf" : {
         "training": {
@@ -19,10 +19,10 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
             "norm_type" : "stdscale",
-            "padding" : true,  
+            "padding" : true,
             "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
@@ -50,11 +50,10 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_rewhting_v9_calomatched.json",
             "norm_type" : "stdscale",
-            "padding" : true, 
-            "ncls_padding" : -1, 
+            "padding" : true,           "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
             "batch_size": 512,
@@ -81,11 +80,10 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_rewhting_v9_calomatched.json",
             "norm_type" : "stdscale",
-            "padding" : true, 
-            "ncls_padding" : -1, 
+            "padding" : true,           "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
             "batch_size": 256,
@@ -108,31 +106,29 @@
         "min_delta": 0.001
     },
     "early_stop": {
-        "patience":20,
+        "patience": 15,
         "min_delta": 0.001
     },
     "loss_plot": true, 
-    "output_dim_rechits": 25,
+    "output_dim_rechits": 10,
     "output_dim_nodes": 64,
     "output_dim_gconv": 64,
     "output_dim_sa_clclass": 64,
     "output_dim_sa_windclass": 64,
     "output_dim_sa_enregr": 64,
     "coord_dim": 3,
-    "coord_dim_sa": 15,
-    "nconv_rechits": 4,
+    "coord_dim_sa": 10,
+    "nconv_rechits": 2,
     "nconv": 3,
     "layers_input": [
-        256,
         128,
         128,
-        64
+        128
     ],
     "layers_clclass": [
         256,
         128,
-        128,
-        64
+        128
     ],
     "layers_windclass": [
         128,
@@ -151,9 +147,9 @@
     "loss_weights": {
         "clusters": 100,
         "window": 1,
-        "softF1": 1,
+        "softF1": 0,
         "en_resol": 0,
-        "en_softF1": 100,
+        "en_softF1": 0,
         "en_regr": 0.05,
         "softF1_beta": 1.50
     }
