@@ -9,13 +9,15 @@ credd.add_user_cred(htcondor.CredTypes.Kerberos, None)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--basedir", type=str, help="Base dir", default=os.getcwd())
-parser.add_argument("--config", type=str, help="Config", required=True)
-parser.add_argument("--model", type=str, help="Model .py", required=True)
+parser.add_argument("--name", type=str, help="Model version name", required=False)
+parser.add_argument("--config", type=str, help="config file (relative to base dir)", required=True)
+parser.add_argument("--model", type=str, help="Model.py (relative to basedir)", required=True)
 args = parser.parse_args()
 
 # Checking the input files exists
-if not os.path.exists(args.basedir):
-    os.makedirs(args.basedir, exist_ok=True)
+os.makedirs(args.basedir, exist_ok=True)
+os.makedirs(f"{args.basedir}/condor_logs", exist_ok=True)
+
 if not os.path.exists(args.config):
     raise ValueError(f"Config file does not exists: {args.config}")
 if not os.path.exists(args.model):
@@ -23,7 +25,7 @@ if not os.path.exists(args.model):
 
 sub = htcondor.Submit()
 sub['Executable'] = "run_training_condor.sh"
-sub["arguments"] = args.config +" "+args.model
+sub["arguments"] = f"{args.basedir}/{args.config}  {args.basedir}/{args.model} {args.name}"
 sub['Error'] = args.basedir+"/condor_logs/error/training-$(ClusterId).$(ProcId).err"
 sub['Output'] = args.basedir+"/condor_logs/output/training-$(ClusterId).$(ProcId).out"
 sub['Log'] = args.basedir+"/condor_logs/log/training-$(ClusterId).log"
@@ -38,5 +40,8 @@ schedd = htcondor.Schedd()
 with schedd.transaction() as txn:
     cluster_id = sub.queue(txn)
     print(cluster_id)
+    # Saving the log
+    with open(f"{args.basedir}/condor_logs/training_jobs.csv", "wa") as l:
+        l.write(f"{cluster_id};{args.name};{args.model};{args.config};{args.basedir}\n")
 
     

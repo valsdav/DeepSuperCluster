@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--config", type=str, help="Config", required=True)
 parser.add_argument("--model", type=str, help="Model .py", required=True)
+parser.add_argument("--name", type=str, help="Model version name", required=False)
 parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 parser.add_argument("--profile", action="store_true", help="Profile model training")
@@ -59,7 +60,7 @@ def get_unique_run():
     if len(previous_runs) == 0:
         run_number = 1
     else:
-        run_number = max([int(s.split('run_')[1]) for s in previous_runs]) + 1
+        run_number = max([int(s.split('_')[1]) for s in previous_runs]) + 1
     return run_number
 
 
@@ -68,9 +69,12 @@ if args.output != None:
 if not os.path.isdir(config["models_path"]):
     os.makedirs(config["models_path"])
 
-name =  'run_{:02}'.format(get_unique_run())
+name =  f'run_{get_unique_run():02}'
+if args.name != None:
+    name += f"_{args.name}"
 
 outdir = config["models_path"] + "/"+ name
+config["model_name"] = name 
 
 if os.path.isdir(outdir):
     print("Output directory exists: {}".format(outdir), file=sys.stderr)
