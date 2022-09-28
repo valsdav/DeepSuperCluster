@@ -18,9 +18,9 @@ args = parser.parse_args()
 os.makedirs(args.basedir, exist_ok=True)
 os.makedirs(f"{args.basedir}/condor_logs", exist_ok=True)
 
-if not os.path.exists(args.config):
+if not os.path.exists(os.path.join(args.basedir, args.config)):
     raise ValueError(f"Config file does not exists: {args.config}")
-if not os.path.exists(args.model):
+if not os.path.exists(os.path.join(args.basedir, args.model)):
     raise ValueError(f"Model file does not exists: {args.model}")
 
 sub = htcondor.Submit()
@@ -41,7 +41,7 @@ with schedd.transaction() as txn:
     cluster_id = sub.queue(txn)
     print(cluster_id)
     # Saving the log
-    with open(f"{args.basedir}/condor_logs/training_jobs.csv", "wa") as l:
+    with open(f"{args.basedir}/condor_logs/training_jobs.csv", "a") as l:
         l.write(f"{cluster_id};{args.name};{args.model};{args.config};{args.basedir}\n")
 
     
