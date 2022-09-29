@@ -50,16 +50,17 @@ def get_model_and_dataset(config_path, weights_path,
         cfg = args["dataset_conf"]["validation"]
 
     if awk_dataset:
-        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**cfg))
+        dataset = awk_data.load_tfdataset_and_original(awk_data.LoaderConfig(**cfg))        
     else:
-        dataset = awk_data.load_tfdataset_and_original(awk_data.LoaderConfig(**cfg))
+        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**cfg))
 
     ds_iter = iter(dataset)
     # Get model instance
     print(">> Load the model")
     if fixed_X == None:
         if awk_dataset:
-            (X,y,W), df = next(ds_iter)
+            x, df = next(ds_iter)
+            X,y,W = x
         else:
             X, y, W = next(ds_iter)
 

@@ -47,8 +47,8 @@ model, dataset = loader_awk.get_model_and_dataset(args.model_config, args.model_
                                                   training=False,
                                                   awk_dataset=True)
 
-include_rechits = args.model_config["datset_conf"]["validation"]["include_rechits"]
-batch_size = args.model_config["datset_conf"]["validation"]["batch_size"]
+include_rechits = args.model_config["dataset_conf"]["validation"]["include_rechits"]
+batch_size = args.model_config["dataset_conf"]["validation"]["batch_size"]
 print(">> Model successfully loaded")
 
 print(">> Starting to run on events: ")

@@ -464,13 +464,13 @@ def preprocessing(config):
                 cl_hits_padded = ak.fill_none(cl_hits_padded, np.zeros((max_nhits, 4)), axis=1)
                 # Only hits have truly padded None to be converted to masked numpy arrays
                 cl_hits_pad_np = ak.to_numpy(cl_hits_padded, allow_missing=False)
-                hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=int)
+                hits_mask = np.array(np.sum(cl_hits_padded, axis=-1) != 0, dtype=float)
             else:
                 cl_hits_pad_np = np.zeros((size))
                 hits_mask = np.zeros((size))
             
             # Masks for padding
-            cls_mask = ak.to_numpy(cls_X_pad.en_cluster != 0).astype(int)
+            cls_mask = ak.to_numpy(cls_X_pad.en_cluster != 0).astype(float)
             # cls_mask = np.any(hits_mask, axis=-1).astype(int)
             #not adding the last dim for broadcasting to give the user more flexibility
 
