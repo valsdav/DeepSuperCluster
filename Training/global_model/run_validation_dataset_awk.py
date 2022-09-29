@@ -14,7 +14,6 @@ parser.add_argument("--model-config", type=str, help="Model configuration", requ
 parser.add_argument("--model-weights", type=str, help="Model weights", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("-n", "--nevents", type=int, help="Number of events",)
-parser.add_argument("-b", "--batch-size", type=int, help="Batch size", default=100)
 args = parser.parse_args()
 
 
@@ -45,24 +44,32 @@ print(">> Load the dataset manually to be able to use all the features")
 
 print(">> Load the dataset and model")
 model, dataset = loader_awk.get_model_and_dataset(args.model_config, args.model_weights,
-                                                  training=False)
+                                                  training=False,
+                                                  awk_dataset=True)
 
+include_rechits = args.model_config["datset_conf"]["validation"]["include_rechits"]
+batch_size = args.model_config["datset_conf"]["validation"]["batch_size"]
 print(">> Model successfully loaded")
 
 print(">> Starting to run on events: ")
 data = defaultdict(list)
 lastT = time()
-for ib, (X, y_true, weight) in enumerate(dataset):
+for ib, data in enumerate(dataset):
     if ib % 10 == 0: 
         now = time()
-        rate = 10* args.batch_size / (now-lastT)
+        rate = 10* batch_size / (now-lastT)
         lastT = now
-        nsecond = (args.nevents - args.batch_size*ib) / rate
-        print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*args.batch_size, rate, nsecond//60, nsecond%60))
+        nsecond = (args.nevents - batch_size*ib) / rate
+        print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*batch_size, rate, nsecond//60, nsecond%60))
+
+    (X,y_true, w), df = data
         
     y_out = model(X, training=False)
 
-    cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
+    if include_rechits:
+        cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
+    else:
+        cl_X_initial, wind_X,  is_seed, mask_cls = X
     (dense_clclass,dense_windclass, en_regr_factor),  mask_cls_  = y_out
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
     
@@ -73,12 +80,11 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     y_pred = tf.cast(pred_prob >= 0.5, tf.float32)
     y_mustache = tf.cast(cl_labels[:,:,4] == 1 , tf.float32)
 
-    ind_cl_en = features_dict["cl_features"]["en_cluster"]
-    ind_cl_et = features_dict["cl_features"]["et_cluster"]
-    ind_cl_et = features_dict["cl_features"]["et_cluster"]
-    En = cl_X[:,:,ind_cl_en:ind_cl_en+1]    
-    En_calib = cl_labels[:,:,-2:-1]
-    Et = cl_X[:,:,1:2]    
+    ncls_in_sample = y_target.shape[1]
+
+    En = ak.fill_none(ak.pad_none(df.cl_features.en_cluster, ncls_in_sample, axis=1), 0.)
+    En_calib = ak.fill_none(ak.pad_none(df.meta_cl_features.en_cluster_calib, ncls_in_sample, axis=1), 0.)
+    Et = ak.fill_none(ak.pad_none(df.cl_features.et_cluster, ncls_in_sample, axis=1), 0.)
     Et_tot_window = tf.squeeze(tf.reduce_sum(Et, axis=1))
     En_tot_window = tf.squeeze(tf.reduce_sum(En, axis=1))
     En_tot_window_calib = tf.squeeze(tf.reduce_sum(En_calib, axis=1))
@@ -90,12 +96,12 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)
 
     ## Todo implement a mapping of variables name to indexes
-    En_true_sim = y_metadata[:,0]  
-    En_true_sim_good = y_metadata[:,4]
-    Et_true_sim_good = y_metadata[:,5]
-    En_mustache_regr = y_metadata[:,15]
-    En_true_gen =  y_metadata[:,2]
-    Et_true_gen =  y_metadata[:,3]
+    En_true_sim = df.window_metadata.en_true_sim
+    En_true_sim_good = df.window_metadata.en_true_sim_good
+    Et_true_sim_good = df.window_metadata.et_true_sim_good
+    En_mustache_regr = df.window_metadata.En_mustache_calib
+    En_true_gen =  df.window_metadata.en_true_gen
+    Et_true_gen =  df.window_metadata.et_true_gen
 
     En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
     En_true_calib = tf.reduce_sum( tf.squeeze(En_calib * y_target),axis=1)
@@ -218,15 +224,12 @@ for ib, (X, y_true, weight) in enumerate(dataset):
     data["flavour"].append(y_metadata[:, -1].numpy())
 
     # seed features
-    for iS, s in enumerate(features_dict["seed_features"]):
-        data[s].append(y_metadata[:, N_metadata+iS].numpy())
-        
-    for iW, w in enumerate(features_dict["window_features"]):
-        data[w].append(wind_X[:, iW].numpy())
-        
-    for iM, m in enumerate(features_dict["window_metadata"]):
-        data[m].append(y_metadata[:, iM].numpy())
-        
+    for f in df.meta_seed_features:
+        data[f].append( ak.to_numpy(df.meta_seed_features[f]) )
+
+    for f in df.windows_metadata:
+        data[f].append( ak.to_numpy(df.window_metadata[f]) )
+
     # Now mustache selection
     data["w_nomatch"].append(pred_prob_window[:,0].numpy())
     data["w_ele"].append(pred_prob_window[:,1].numpy())

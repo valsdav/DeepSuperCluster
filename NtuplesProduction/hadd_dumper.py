@@ -6,6 +6,8 @@ inputdir = sys.argv[1]
 outputdir = sys.argv[2]
 ngroup = int(sys.argv[3])
 
+os.makedirs(outputdir, exist_ok=True)
+
 files = [inputdir + '/' +f for f in os.listdir(inputdir) if f != 'log']
 
 def chunks(lst, n):
@@ -15,7 +17,8 @@ def chunks(lst, n):
 
 
 def hadd(d):
-    output = "{}/output_{}.root".format(outputdir, d[0]+1)
+    print(d)
+    output = "{}/output_all{}.root".format(outputdir, d[0]+1)
     if os.path.exists(output): return
     os.system("hadd {} {}".format(output, " ".join(d[1])))
     

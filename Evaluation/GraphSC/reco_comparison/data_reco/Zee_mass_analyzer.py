@@ -21,8 +21,8 @@ import vector
 
 
 output_folder = "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/RecoPlots/DataPlots/Zee_Run2018D/"
-input_folder_must = "/eos/user/r/rdfexp/ecal/cluster/raw_files/EGamma/Dumper_Mustache_bugFix/220919_211119"
-input_folder_deep = "/eos/user/r/rdfexp/ecal/cluster/raw_files/EGamma/Dumper_DeepSC_algoA_bugFix/220919_211359"
+input_folder_must = "/eos/user/r/rdfexp/ecal/cluster/raw_files/EGamma/Dumper_Mustache_bugFix/220919_211119/all/"
+input_folder_deep = "/eos/user/r/rdfexp/ecal/cluster/raw_files/EGamma/Dumper_DeepSC_algoA_bugFix/220919_211359/all/"
 
 fileset = {
     "DeepSC": glob(input_folder_deep+"/*/*.root", recursive=True),
@@ -85,6 +85,7 @@ class ZeeProcessor(processor.ProcessorABC):
         Z = Z[event_mask]
         lead_ele = lead_ele[event_mask]
         sublead_ele = sublead_ele[event_mask]
+        events = events[event_mask]
         
           
         efficiency_hist = hist.new.Integer(start=0, stop=10, name="nele_initial",label="N. ele initial")\
@@ -123,12 +124,14 @@ class ZeeProcessor(processor.ProcessorABC):
                             .Var([0, 0.5, 1, 1.4442, 1.566, 2., 2.5],name="eta", 
                                  label="Leading electron $\eta$")\
                             .Integer(start=1, stop=15, name="ncls", label="Number of PF Clusters")\
+                            .Reg(name="rho", start=0, stop=70, bins=30, label="$\rho$")\
                             .IntCategory([0,1,2,3,4], name="class",label="electron class")\
                             .Double()\
                             .fill(Z.mass,
                                   lead_ele.et,
                                   abs(lead_ele.eta),
                                   lead_ele.nPFClusters,
+                                  events.rho,
                                   lead_ele.classification)
         
         return {
@@ -145,6 +148,9 @@ class ZeeProcessor(processor.ProcessorABC):
                     "ele_et": column_accumulator(ak.to_numpy(lead_ele.et)),
                     "ele_eta": column_accumulator(ak.to_numpy(lead_ele.eta)),
                     "ele_class": column_accumulator(ak.to_numpy(lead_ele.classification)),
+                    "rho":column_accumulator(ak.to_numpy(events.rho)),
+                    "nvtx":column_accumulator(ak.to_numpy(events.nVtx)),
+                    "r9": column_accumulator(ak.to_numpy(lead_ele.full5x5_refinedSCR9))
                 }       
             }
         }

@@ -58,7 +58,10 @@ def get_model_and_dataset(config_path, weights_path,
     # Get model instance
     print(">> Load the model")
     if fixed_X == None:
-        df, (X,y,W) = next(ds_iter)
+        if awk_dataset:
+            (X,y,W), df = next(ds_iter)
+        else:
+            X, y, W = next(ds_iter)
 
         model = get_model(args, args["model_definition_path"],
                           weights_path=os.path.join(args["models_path"],

@@ -833,7 +833,7 @@ def energy_loss(y_true, y_pred, weight, beta=1):
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     cl_en = Et = cl_X[:,:,0:1]
     En_sim_good = y_metadata[:,-1]
-    pred_prob = tf.nn.sigmoid(dense_clclass)
+    pred_prob = tf.nn.sigmoid(dense_clclass) * mask_cls[:,:,tf.newaxis]
 
     sel_en = tf.squeeze(tf.reduce_sum(cl_en * pred_prob , axis=1))
     en_resolution_loss =  tf.reduce_sum(tf.square( (sel_en/En_sim_good) - 1) * weight ) / tf.reduce_sum(weight) 
@@ -852,7 +852,7 @@ def soft_f1_score(y_true, y_pred, weight, beta=1):
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
 
-    pred_prob = tf.nn.sigmoid(dense_clclass)
+    pred_prob = tf.nn.sigmoid(dense_clclass)* mask_cls[:,:,tf.newaxis]
     tp = tf.reduce_sum(pred_prob * y_target, axis=1)
     fn = tf.reduce_sum((1 - pred_prob) * y_target, axis=1)
     fp = tf.reduce_sum(pred_prob * (1 - y_target), axis=1)
