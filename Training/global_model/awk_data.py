@@ -82,7 +82,8 @@ class LoaderConfig():
     file_input_columns: List[str] = field(default_factory=lambda : ["cl_features", "cl_labels",
                                                                 "window_features", "window_metadata", "cl_h"])
     # specific fields to read out for each cl, window, labels..
-    columns: Dict[str,list] = field(default_factory=lambda: default_features_dict) 
+    columns: Dict[str,list] = field(default_factory=lambda: default_features_dict)
+    additiona_columns: Dict[str,list] = field(default_factory=lambda: {}) 
     padding: bool = True # zero padding or not
     include_rechits: bool = True # include the rechits in the preprocessing
     # if -1 it will be dynami# c for each batch,
@@ -171,6 +172,8 @@ def get_output_indices(output_tensors):
 def load_dataset_chunks(df, config, chunk_size, offset=0, maxevents=None):
     # Filtering the columns to keey only the requested ones
     cols = { key: df[key][v] for key, v in config.columns.items() }
+    # Adding additional columns (not used for training)
+    cols = { "meta_"+key: df[key][v] for key,v in config.additional_colums.items()}
     # Adding the clusters hits 
     cols['cl_h'] = df.cl_h
     filtered_df = ak.zip(cols, depth_limit=1)
