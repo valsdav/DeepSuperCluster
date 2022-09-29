@@ -621,7 +621,7 @@ def load_dataset (config: LoaderConfig, output_type="tf"):
 #####################################
 ## Functions for performance evaluation
 
-def load_tfdataset_and_original(config:LoaderConfig, batch_size):
+def load_tfdataset_and_original(config:LoaderConfig):
     ''' This function gets an awkward array input and format the data
     in the tf output format defined by the configuration.
     The function does not handle shuffling or batching.
