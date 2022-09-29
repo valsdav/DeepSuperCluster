@@ -791,7 +791,10 @@ class DeepClusterGN(tf.keras.Model):
 def clusters_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor),  mask_cls, _  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true        
-    class_loss = tf.keras.losses.binary_crossentropy(y_clclass[:,:,tf.newaxis], dense_clclass, from_logits=True) * mask_cls
+    class_loss = tf.keras.metrics.binary_focal_crossentropy(y_clclass[:,:,tf.newaxis],
+                                                            dense_clclass,
+                                                            gamma=2.0, from_logits=True) * mask_cls
+    # class_loss = tf.keras.losses.binary_crossentropy(y_clclass[:,:,tf.newaxis], dense_clclass, from_logits=True) * mask_cls
     # This should be replaced by the mean over the not masked elements
     # reduced_loss = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1) * weight) / tf.reduce_sum(weight)
     ncls = tf.reduce_sum(mask_cls, axis=-1)

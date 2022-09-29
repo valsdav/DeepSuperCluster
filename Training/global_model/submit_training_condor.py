@@ -9,7 +9,7 @@ credd.add_user_cred(htcondor.CredTypes.Kerberos, None)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--basedir", type=str, help="Base dir", default=os.getcwd())
-parser.add_argument("--name", type=str, help="Model version name", required=False)
+parser.add_argument("--name", type=str, help="Model version name", required=False, default="base")
 parser.add_argument("--config", type=str, help="config file (relative to base dir)", required=True)
 parser.add_argument("--model", type=str, help="Model.py (relative to basedir)", required=True)
 args = parser.parse_args()
