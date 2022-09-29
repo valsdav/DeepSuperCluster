@@ -31,7 +31,9 @@ def get_model(args, model_definition_path, weights_path, X):
  
 
 def get_model_and_dataset(config_path, weights_path,
-                          training=False, fixed_X=None, overwrite=None):
+                          training=False, fixed_X=None,
+                          overwrite=None,
+                          awk_dataset=False):
     # Load configs
     args = json.load(open(config_path))
     print("Model options: ")
@@ -41,15 +43,22 @@ def get_model_and_dataset(config_path, weights_path,
     
     # Load the dataset
     print(">> Load the dataset ")
+    
     if training:
-        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**args["dataset_conf"]["training"])) 
+        cfg = args["dataset_conf"]["training"]
     else:
-        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**args["dataset_conf"]["validation"]))
-  
+        cfg = args["dataset_conf"]["validation"]
+
+    if awk_dataset:
+        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**cfg))
+    else:
+        dataset = awk_data.load_tfdataset_and_original(awk_data.LoaderConfig(**cfg))
+
+    ds_iter = iter(dataset)
     # Get model instance
     print(">> Load the model")
     if fixed_X == None:
-        X,y,W = awk_data.get(dataset)
+        df, (X,y,W) = next(ds_iter)
 
         model = get_model(args, args["model_definition_path"],
                           weights_path=os.path.join(args["models_path"],

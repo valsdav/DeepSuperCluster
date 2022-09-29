@@ -151,49 +151,66 @@ class ZeeProcessor(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         pass
+
+
+
+iterative_run = processor.Runner(
+    executor = processor.FuturesExecutor(compression=None, workers=20),
+    schema=BaseSchema    
+)
+
+out = iterative_run(
+    fileset,
+    treename="recosimdumper/caloTree",
+    processor_instance=ZeeProcessor(),
+)
+
+save(out, "output.coffea")
     
-from distributed import Client
-from dask_lxplus import CernCluster
-import socket
+# from distributed import Client
+# from dask_lxplus import CernCluster
+# import socket
 
-n_port = 8786
-with CernCluster(
-    cores=1,
-    memory='2000MB',
-    disk='1000MB',
-    death_timeout = '180',
-    lcg = True,
-    nanny = False,
-    container_runtime = "none",
-    log_directory = "/eos/user/d/dvalsecc/dask_condor/log",
-    scheduler_options={
-        'port': n_port,
-        'host': socket.gethostname(),
-        },
-    job_extra={
-        '+JobFlavour': 'espresso',
-        },
-    extra = ['--worker-port 10000:10100']
-    ) as cluster:
+
+
+# n_port = 8786
+# with CernCluster(
+#     cores=4,
+#     memory='8000MB',
+#     disk='5000MB',
+#     death_timeout = '4000',
+#     lcg = True,
+#     nanny = False,
+#     container_runtime = "none",
+#     log_directory = "/eos/user/d/dvalsecc/dask_condor/log",
+#     scheduler_options={
+#         'port': n_port,
+#         'host': socket.gethostname(),
+#         },
+#     job_extra={
+#         '+JobFlavour': 'longlunch',
+#         },
+#     extra = ['--worker-port 10000:10100']
+#     ) as cluster:
     
-    print(cluster.job_script())
+#     print(cluster.job_script())
 
 
-    with Client(cluster) as client:
-        # scaling the job
-        cluster.scale(10)        
-        iterative_run = processor.Runner(
-            executor = processor.DaskExecutor(
-                client=client,
-            ),
-            schema=BaseSchema,
-        )
+#     with Client(cluster) as client:
+#         # scaling the job
+#         cluster.scale(16)        
+#         iterative_run = processor.Runner(
+#             executor = processor.DaskExecutor(
+#                 client=client,
+#             ),
+#             schema=BaseSchema,
+#         )
         
-        out = iterative_run(
-            fileset,
-            treename="recosimdumper/caloTree",
-            processor_instance=ZeeProcessor(),
-        )
+#         out = iterative_run(
+#             fileset,
+#             treename="recosimdumper/caloTree",
+#             processor_instance=ZeeProcessor(),
+#         )
 
-        save(out, "output.coffea")
+#         save(out, "output.coffea")
 

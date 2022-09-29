@@ -329,7 +329,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
 
  
 
-def load_batches_from_files_generator(config, preprocessing_fn):
+def load_batches_from_files_generator(config, preprocessing_fn, shuffle=True, return_original=False):
     '''
     Generator reading full batches from a list of files.
     The process is the following:
@@ -353,13 +353,17 @@ def load_batches_from_files_generator(config, preprocessing_fn):
         # Loading chunks from the files
         initial_dfs = [ load_dataset_chunks(df, config, chunk_size=config.chunk_size, offset=config.offset) for df in dfs_raw] 
         # Contatenate the chunks from the list of files
-        concat_df = concat_datasets(*initial_dfs)
+        df = concat_datasets(*initial_dfs)
         # Shuffle the axis=0
-        shuffled = shuffle_dataset(concat_df)
+        if shuffle:
+            df = shuffle_dataset(df)
         # Processing the data to extract X,Y, etc
-        processed  = (_preprocess_fn(d) for d in shuffled)
-        # Split in batches
-        yield from split_batches(processed, config.batch_size)
+        for chunk in df:
+            processed = _preprocess_fn(chunk)
+            if return_original:
+                processed = (processed[0], processed[1], chunk)
+            # Split in batches
+            yield from split_batches(processed, config.batch_size)
     
     return _fn
 
@@ -612,8 +616,34 @@ def load_dataset (config: LoaderConfig, output_type="tf"):
 
     elif output_type == "numpy":
         return numpy_generator(config)
-    
 
+
+#####################################
+## Functions for performance evaluation
+
+def load_tfdataset_and_original(config:LoaderConfig, batch_size):
+    ''' This function gets an awkward array input and format the data
+    in the tf output format defined by the configuration.
+    The function does not handle shuffling or batching.
+    It returns the data in the tf format as required in the config.
+    '''
+    if config.input_folders:
+        config.input_files = list(zip_longest(*[glob(folder+"/*.parquet") for folder in config.input_folders]))
+    if not config.input_folders and not config.input_files:
+        raise Exception("No input folders or files provided! Please provide some input!")
+    # Load the normalization factors
+    if config.norm_factors == None and config.norm_factors_file:
+        config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
+
+    file_loader_generator = load_batches_from_files_generator(config, preprocessing,
+                                                              shuffle=False, include_original=True)
+    out_index = get_output_indices(config.output_tensors)
+    for size, batch, original in file_loader_generator:
+        df_tf = convert_to_tf(batch)
+        yield original, tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
+        
+
+        
 #Utils for debugging tf dataset
 
 def get(dataset):
