@@ -358,12 +358,16 @@ def load_batches_from_files_generator(config, preprocessing_fn, shuffle=True, re
         if shuffle:
             df = shuffle_dataset(df)
         # Processing the data to extract X,Y, etc
-        for chunk in df:
-            processed = _preprocess_fn(chunk)
-            if return_original:
-                processed = (processed[0], processed[1], chunk)
-            # Split in batches
-            yield from split_batches(processed, config.batch_size)
+        def preproc(df):
+            for data in df: #consuming the generator
+                processed = _preprocess_fn(data)
+                if return_original:
+                    # Create a "fake" generato to add the chunk
+                    yield processed[0], (*processed[1], data[1]) # data[1] if the original chunk in awk
+                else:
+                    yield processed
+        # Split in batches
+        yield from split_batches(preproc(df), config.batch_size)
     
     return _fn
 
@@ -636,11 +640,13 @@ def load_tfdataset_and_original(config:LoaderConfig):
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
 
     file_loader_generator = load_batches_from_files_generator(config, preprocessing,
-                                                              shuffle=False, include_original=True)
+                                                              shuffle=False, return_original=True)
     out_index = get_output_indices(config.output_tensors)
-    for size, batch, original in file_loader_generator:
-        df_tf = convert_to_tf(batch)
-        yield original, tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
+    for files in config.input_files:
+        for size, df in file_loader_generator(files):
+            original = df[-1]
+            df_tf = convert_to_tf(df[:-1]) #exclude the last entry which is the original
+            yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index]), original
         
 
         
