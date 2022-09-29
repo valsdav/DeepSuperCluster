@@ -20,7 +20,11 @@
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
             "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
+<<<<<<< HEAD
             "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
+=======
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT20220reweightings/total_reweighting_v9_calomatched.json",
+>>>>>>> ef6bd66f359c304537a6831d6b278060a6311c7e
             "norm_type" : "stdscale",
             "padding" : true,
             "ncls_padding" : -1, 
@@ -50,8 +54,13 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
+<<<<<<< HEAD
             "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
             "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
+=======
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT20220normalization_factors/normalization_factors_v9_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT20220reweightings/total_rewhting_v9_calomatched.json",
+>>>>>>> ef6bd66f359c304537a6831d6b278060a6311c7e
             "norm_type" : "stdscale",
             "padding" : true,           "ncls_padding" : -1, 
             "nhits_padding": -1,
