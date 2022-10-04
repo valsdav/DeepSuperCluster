@@ -74,7 +74,10 @@ class ZeeProcessor(processor.ProcessorABC):
         electrons = electrons[id_mask]
         nele_clean = ak.num(electrons, axis=1)
         # Ask for at least two remaining electrons
-        electrons = electrons[ak.num(electrons, axis=1)>=2]
+        electrons = electrons[nele_clean>=2]
+        # Cleaning also events
+        events = events[nele_clean>=2]
+        
         lead_ele = electrons[:, 0]
         sublead_ele = electrons[:,1]
         Z =  lead_ele + sublead_ele
@@ -86,8 +89,7 @@ class ZeeProcessor(processor.ProcessorABC):
         lead_ele = lead_ele[event_mask]
         sublead_ele = sublead_ele[event_mask]
         events = events[event_mask]
-        
-          
+              
         efficiency_hist = hist.new.Integer(start=0, stop=10, name="nele_initial",label="N. ele initial")\
                                   .Integer(start=0, stop=10, name="nele_clean", label="N. ele cleaned")\
                                   .Double().fill(nele_init, nele_clean)
@@ -144,32 +146,49 @@ class ZeeProcessor(processor.ProcessorABC):
                     "ele_sublead": hist_subleading_ele
                 },
                 "Z": {
+                    "runId": column_accumulator(ak.to_numpy(events.runId)),
+                    "eventId": column_accumulator(ak.to_numpy(events.eventId)),
+                    "lumiId": column_accumulator(ak.to_numpy(events.lumiId)),
                     "mass": column_accumulator(ak.to_numpy(Z.mass)),
                     "ele_et": column_accumulator(ak.to_numpy(lead_ele.et)),
+                    "ele_sublead_et": column_accumulator(ak.to_numpy(sublead_ele.et)),
                     "ele_eta": column_accumulator(ak.to_numpy(lead_ele.eta)),
-                    "ele_class": column_accumulator(ak.to_numpy(lead_ele.classification)),
+                    "ele_sublead_eta": column_accumulator(ak.to_numpy(sublead_ele.eta)),
                     "rho":column_accumulator(ak.to_numpy(events.rho)),
                     "nvtx":column_accumulator(ak.to_numpy(events.nVtx)),
-                    "r9": column_accumulator(ak.to_numpy(lead_ele.full5x5_refinedSCR9))
-                }       
+                    "r9": column_accumulator(ak.to_numpy(lead_ele.full5x5_refinedSCR9)),
+                    "r9_sublead": column_accumulator(ak.to_numpy(sublead_ele.full5x5_refinedSCR9)),
+                    "phiwidth": column_accumulator(ak.to_numpy(lead_ele.refinedSCPhiWidth)),
+                    "etawidth": column_accumulator(ak.to_numpy(lead_ele.refinedSCEtaWidth)),
+                    "sigmaietaieta": column_accumulator(ak.to_numpy(lead_ele.refinedSCSigmaIEtaIEta)),
+                    "hoe": column_accumulator(ak.to_numpy(lead_ele.HoE)),
+                    "trkiso": column_accumulator(ak.to_numpy(lead_ele.trkIso)),
+                    "ecaliso": column_accumulator(ak.to_numpy(lead_ele.ecalIso)),
+                    "hcaliso": column_accumulator(ak.to_numpy(lead_ele.hcalIso)),
+                    "pfphoiso": column_accumulator(ak.to_numpy(lead_ele.pfPhotonIso)),
+                    "ele_energy": column_accumulator(ak.to_numpy(lead_ele.energy)),
+                    "ele_energyErr": column_accumulator(ak.to_numpy(lead_ele.energyErr)),
+                    "seedid1": column_accumulator(ak.to_numpy(lead_ele.seedRawId)),
+                    "seedid2": column_accumulator(ak.to_numpy(sublead_ele.seedRawId)),
+                    "ncls1": column_accumulator(ak.to_numpy(lead_ele.nPFClusters)),
+                    "ncls2": column_accumulator(ak.to_numpy(sublead_ele.nPFClusters)),
+                }
             }
         }
 
     def postprocess(self, accumulator):
         pass
 
-
-
 iterative_run = processor.Runner(
-    executor = processor.FuturesExecutor(compression=None, workers=20),
-    schema=BaseSchema    
+     executor = processor.FuturesExecutor(compression=None, workers=5),
+     schema=BaseSchema,
+     chunksize=200000
 )
-
 out = iterative_run(
-    fileset,
-    treename="recosimdumper/caloTree",
-    processor_instance=ZeeProcessor(),
-)
+     fileset,
+     treename="recosimdumper/caloTree",
+     processor_instance=ZeeProcessor(),
+ )
 
 save(out, "output.coffea")
     
@@ -181,9 +200,9 @@ save(out, "output.coffea")
 
 # n_port = 8786
 # with CernCluster(
-#     cores=4,
-#     memory='8000MB',
-#     disk='5000MB',
+#     cores=1,
+#     memory='4000MB',
+#     disk='1000MB',
 #     death_timeout = '4000',
 #     lcg = True,
 #     nanny = False,
@@ -194,7 +213,7 @@ save(out, "output.coffea")
 #         'host': socket.gethostname(),
 #         },
 #     job_extra={
-#         '+JobFlavour': 'longlunch',
+#         '+JobFlavour': 'espresso',
 #         },
 #     extra = ['--worker-port 10000:10100']
 #     ) as cluster:
@@ -204,7 +223,7 @@ save(out, "output.coffea")
 
 #     with Client(cluster) as client:
 #         # scaling the job
-#         cluster.scale(16)        
+#         cluster.scale(10)        
 #         iterative_run = processor.Runner(
 #             executor = processor.DaskExecutor(
 #                 client=client,
