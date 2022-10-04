@@ -45,14 +45,14 @@ def get_model_and_dataset(config_path, weights_path,
     print(">> Load the dataset ")
     
     if training:
-        cfg = args["dataset_conf"]["training"]
+        cfg = awk_data.LoaderConfig(**args["dataset_conf"]["training"])
     else:
-        cfg = args["dataset_conf"]["validation"]
+        cfg = awk_data.LoaderConfig(**args["dataset_conf"]["validation"])
 
     if awk_dataset:
-        dataset = awk_data.load_tfdataset_and_original(awk_data.LoaderConfig(**cfg))        
+        dataset = awk_data.load_tfdataset_and_original(cfg)        
     else:
-        dataset = awk_data.load_dataset(awk_data.LoaderConfig(**cfg))
+        dataset = awk_data.load_dataset(cfg)
 
     ds_iter = iter(dataset)
     # Get model instance
@@ -73,7 +73,7 @@ def get_model_and_dataset(config_path, weights_path,
                           X=fixed_X)
 
 
-    return model, dataset
+    return model, dataset, cfg
 
 
 

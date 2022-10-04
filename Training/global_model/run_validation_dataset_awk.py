@@ -1,5 +1,6 @@
 import numpy as np
 import awk_data
+import awkward as ak
 import tensorflow as tf
 import loader_awk
 import argparse 
@@ -13,7 +14,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model-config", type=str, help="Model configuration", required=True)
 parser.add_argument("--model-weights", type=str, help="Model weights", required=True)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
-parser.add_argument("-n", "--nevents", type=int, help="Number of events",)
 args = parser.parse_args()
 
 
@@ -43,12 +43,12 @@ print(">> Load the dataset manually to be able to use all the features")
 
 
 print(">> Load the dataset and model")
-model, dataset = loader_awk.get_model_and_dataset(args.model_config, args.model_weights,
+model, dataset, cfg = loader_awk.get_model_and_dataset(args.model_config, args.model_weights,
                                                   training=False,
                                                   awk_dataset=True)
 
-include_rechits = args.model_config["dataset_conf"]["validation"]["include_rechits"]
-batch_size = args.model_config["dataset_conf"]["validation"]["batch_size"]
+include_rechits = cfg.include_rechits
+batch_size = cfg.batch_size
 print(">> Model successfully loaded")
 
 print(">> Starting to run on events: ")
@@ -59,7 +59,7 @@ for ib, data in enumerate(dataset):
         now = time()
         rate = 10* batch_size / (now-lastT)
         lastT = now
-        nsecond = (args.nevents - batch_size*ib) / rate
+        nsecond = (cfg.maxevents - batch_size*ib) / rate
         print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*batch_size, rate, nsecond//60, nsecond%60))
 
     (X,y_true, w), df = data
@@ -70,18 +70,17 @@ for ib, data in enumerate(dataset):
         cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
     else:
         cl_X_initial, wind_X,  is_seed, mask_cls = X
-    (dense_clclass,dense_windclass, en_regr_factor),  mask_cls_  = y_out
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata, cl_labels = y_true
+    (dense_clclass,dense_windclass, en_regr_factor),  mask_cls  = y_out
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     
     y_target = tf.cast(y_clclass, tf.float32)
 
     pred_prob = tf.nn.sigmoid(dense_clclass) * mask_cls[:,:,tf.newaxis]
     pred_prob_window = tf.nn.softmax(dense_windclass)
     y_pred = tf.cast(pred_prob >= 0.5, tf.float32)
-    y_mustache = tf.cast(cl_labels[:,:,4] == 1 , tf.float32)
 
     ncls_in_sample = y_target.shape[1]
-
+    y_mustache = tf.cast(ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_labels.in_mustache, ncls_in_sample), 0.)), tf.float32)
     En = ak.fill_none(ak.pad_none(df.cl_features.en_cluster, ncls_in_sample, axis=1), 0.)
     En_calib = ak.fill_none(ak.pad_none(df.meta_cl_features.en_cluster_calib, ncls_in_sample, axis=1), 0.)
     Et = ak.fill_none(ak.pad_none(df.cl_features.et_cluster, ncls_in_sample, axis=1), 0.)
