@@ -37,8 +37,25 @@ if __name__=="__main__":
   model, dataset = get_model_and_dataset(config_path, weights_name,
                             training=False, fixed_X=None, overwrite=None)
   print("Model loaded")
+  print("Preload the dataset")
+  d0 = dataset.take(1)
+  d1 = dataset.take(100)
+
+  print("Tracing the model graph")
+  writer = tf.summary.create_file_writer(logdir)
+  tf.summary.trace_on(graph=True, profiler=True)
+
+  for x,y,w in d0:
+    y = model(x)
+    
+  with writer.as_default():
+    tf.summary.trace_export(
+      name="model_trace",
+      step=0,
+      profiler_outdir=log_folder)
+
+  print("Profiling the prediction")
   
-  d = dataset.take(100).cache("/tmp/cache"+weights_name)
   with tf.profiler.experimental.Profile(log_folder):
     for x,y,w, in d:
       predictions = model.predict(x)
