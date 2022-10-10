@@ -17,6 +17,8 @@ if __name__=="__main__":
   config_path = args.config_path
   weights_name = args.weights_name
   log_folder = args.log_folder
+
+  os.makedirs(log_folder, exist_ok=True)
   
   # Single CPU thread
   num_threads = 1
@@ -34,29 +36,15 @@ if __name__=="__main__":
   tf.config.set_soft_device_placement(True)
 
   print("Starting to load the model...")
-  model, dataset = get_model_and_dataset(config_path, weights_name,
+  model, dataset, cfg = get_model_and_dataset(config_path, weights_name,
                             training=False, fixed_X=None, overwrite=None)
   print("Model loaded")
   print("Preload the dataset")
-  d0 = dataset.take(1)
-  d1 = dataset.take(100)
-
-  print("Tracing the model graph")
-  writer = tf.summary.create_file_writer(logdir)
-  tf.summary.trace_on(graph=True, profiler=True)
-
-  for x,y,w in d0:
-    y = model(x)
-    
-  with writer.as_default():
-    tf.summary.trace_export(
-      name="model_trace",
-      step=0,
-      profiler_outdir=log_folder)
+  d = dataset.take(50).cache("/tmp/cache"+weights_name)
 
   print("Profiling the prediction")
   
   with tf.profiler.experimental.Profile(log_folder):
-    for x,y,w, in d:
+    for x,y,w, in d :
       predictions = model.predict(x)
   print("Done")

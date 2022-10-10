@@ -54,7 +54,7 @@ print(">> Model successfully loaded")
 print(">> Starting to run on events: ")
 data = defaultdict(list)
 lastT = time()
-for ib, data in enumerate(dataset):
+for ib, el in enumerate(dataset):
     if ib % 10 == 0: 
         now = time()
         rate = 10* batch_size / (now-lastT)
@@ -62,7 +62,7 @@ for ib, data in enumerate(dataset):
         nsecond = (cfg.maxevents - batch_size*ib) / rate
         print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*batch_size, rate, nsecond//60, nsecond%60))
 
-    (X,y_true, w), df = data
+    (X,y_true, w), df = el
         
     y_out = model(X, training=False)
 
@@ -77,44 +77,44 @@ for ib, data in enumerate(dataset):
 
     pred_prob = tf.nn.sigmoid(dense_clclass) * mask_cls[:,:,tf.newaxis]
     pred_prob_window = tf.nn.softmax(dense_windclass)
-    y_pred = tf.cast(pred_prob >= 0.5, tf.float32)
+    y_pred = tf.squeeze(tf.cast(pred_prob >= 0.5, tf.float32))
 
     ncls_in_sample = y_target.shape[1]
     y_mustache = tf.cast(ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_labels.in_mustache, ncls_in_sample), 0.)), tf.float32)
-    En = ak.fill_none(ak.pad_none(df.cl_features.en_cluster, ncls_in_sample, axis=1), 0.)
-    En_calib = ak.fill_none(ak.pad_none(df.meta_cl_features.en_cluster_calib, ncls_in_sample, axis=1), 0.)
-    Et = ak.fill_none(ak.pad_none(df.cl_features.et_cluster, ncls_in_sample, axis=1), 0.)
+    En = ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_features.en_cluster, ncls_in_sample, axis=1), 0.))
+    En_calib = ak.to_numpy(ak.fill_none(ak.pad_none(df.meta_cl_features.en_cluster_calib, ncls_in_sample, axis=1), 0.))
+    Et = ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_features.et_cluster, ncls_in_sample, axis=1), 0.))
     Et_tot_window = tf.squeeze(tf.reduce_sum(Et, axis=1))
     En_tot_window = tf.squeeze(tf.reduce_sum(En, axis=1))
     En_tot_window_calib = tf.squeeze(tf.reduce_sum(En_calib, axis=1))
-    Et_true = tf.reduce_sum( tf.squeeze(Et * y_target),axis=1)
 
-    Et_sel =  tf.reduce_sum( tf.squeeze(Et * y_pred),axis=1)
-    Et_sel_true = tf.reduce_sum( tf.squeeze(Et * y_pred * y_target ),axis=1)
-    Et_sel_mustache = tf.reduce_sum( tf.squeeze(Et) * y_mustache, axis=1)  
-    Et_sel_mustache_true = tf.reduce_sum( tf.squeeze(Et * y_target) * y_mustache, axis=1)
+    Et_true = tf.reduce_sum( Et * y_target,axis=1)
+    Et_sel =  tf.reduce_sum( Et * y_pred,axis=1)
+    Et_sel_true = tf.reduce_sum( Et * y_pred * y_target,axis=1)
+    Et_sel_mustache = tf.reduce_sum( Et * y_mustache, axis=1)  
+    Et_sel_mustache_true = tf.reduce_sum( Et * y_target * y_mustache, axis=1)
 
     ## Todo implement a mapping of variables name to indexes
     En_true_sim = df.window_metadata.en_true_sim
     En_true_sim_good = df.window_metadata.en_true_sim_good
     Et_true_sim_good = df.window_metadata.et_true_sim_good
-    En_mustache_regr = df.window_metadata.En_mustache_calib
+    En_mustache_regr = df.window_metadata.en_mustache_calib
     En_true_gen =  df.window_metadata.en_true_gen
     Et_true_gen =  df.window_metadata.et_true_gen
 
-    En_true = tf.reduce_sum( tf.squeeze(En * y_target),axis=1)
-    En_true_calib = tf.reduce_sum( tf.squeeze(En_calib * y_target),axis=1)
+    En_true = tf.reduce_sum( En * y_target,axis=1)
+    En_true_calib = tf.reduce_sum(En_calib * y_target,axis=1)
 
-    En_sel = tf.reduce_sum( tf.squeeze(En * y_pred),axis=1) 
-    En_sel_calib = tf.reduce_sum( tf.squeeze(En_calib * y_pred),axis=1) 
-    En_sel_true = tf.reduce_sum( tf.squeeze(En * y_pred * y_target),axis=1) 
-    En_sel_true_calib = tf.reduce_sum( tf.squeeze(En_calib * y_pred * y_target),axis=1) 
-    
+    En_sel = tf.reduce_sum( En *y_pred,axis=1) 
+    En_sel_calib = tf.reduce_sum( En_calib * y_pred,axis=1) 
+    En_sel_true = tf.reduce_sum(En * y_pred * y_target,axis=1) 
+    En_sel_true_calib = tf.reduce_sum( En_calib * y_pred * y_target,axis=1) 
+
     En_sel_corr = En_sel_calib * tf.squeeze(en_regr_factor)
-    En_sel_mustache = tf.reduce_sum( tf.squeeze(En) * y_mustache, axis=1)
-    En_sel_mustache_calib = tf.reduce_sum( tf.squeeze(En_calib) * y_mustache, axis=1)
-    En_sel_mustache_true = tf.reduce_sum( tf.squeeze(En * y_target) * y_mustache, axis=1)
-    En_sel_mustache_true_calib = tf.reduce_sum( tf.squeeze(En_calib * y_target) * y_mustache, axis=1)
+    En_sel_mustache = tf.reduce_sum( En * y_mustache, axis=1)
+    En_sel_mustache_calib = tf.reduce_sum(En_calib * y_mustache, axis=1)
+    En_sel_mustache_true = tf.reduce_sum(En * y_target * y_mustache, axis=1)
+    En_sel_mustache_true_calib = tf.reduce_sum( En_calib * y_target * y_mustache, axis=1)
 
     fn_sum = tf.math.cumsum(y_target*(1 -  y_pred), axis=-2)
     fp_sum = tf.math.cumsum(y_pred*(1-y_target), axis=-2)
@@ -139,9 +139,9 @@ for ib, data in enumerate(dataset):
     En_fourth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=-2))
     # En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
     
-    data['ncls_true'].append(tf.reduce_sum(tf.squeeze(y_target), axis=-1).numpy())
-    data['ncls_sel'].append(tf.reduce_sum(tf.squeeze(y_pred), axis=-1).numpy())
-    data['ncls_sel_true'].append(tf.reduce_sum(tf.squeeze(y_pred*y_target), axis=-1).numpy())
+    data['ncls_true'].append(tf.reduce_sum(y_target, axis=-1).numpy())
+    data['ncls_sel'].append(tf.reduce_sum(y_pred, axis=-1).numpy())
+    data['ncls_sel_true'].append(tf.reduce_sum(y_pred*y_target, axis=-1).numpy())
     
     data["En_cl_first_fn"].append(En_first_false_negative.numpy())
     data["En_cl_first_fp"].append(En_first_false_positive.numpy())
@@ -155,7 +155,7 @@ for ib, data in enumerate(dataset):
     
     #Mustache selection
     data['ncls_sel_must'].append(tf.reduce_sum(y_mustache, axis=-1).numpy())
-    data['ncls_sel_must_true'].append(tf.reduce_sum(tf.squeeze(y_target)*y_mustache, axis=-1).numpy())
+    data['ncls_sel_must_true'].append(tf.reduce_sum(y_target*y_mustache, axis=-1).numpy())
     
     data["Et_tot"].append(Et_tot_window.numpy())
     data["En_tot"].append(En_tot_window.numpy())
@@ -166,11 +166,11 @@ for ib, data in enumerate(dataset):
     data['Et_sel_true'].append(Et_sel_true.numpy()) 
 
     data['En_true'].append(En_true.numpy())
-    data['En_true_sim'].append(En_true_sim.numpy())
-    data['En_true_sim_good'].append(En_true_sim_good.numpy())
-    data['Et_true_sim_good'].append(Et_true_sim_good.numpy())
-    data['En_true_gen'].append(En_true_gen.numpy())
-    data['Et_true_gen'].append(Et_true_gen.numpy())
+    data['En_true_sim'].append(En_true_sim)
+    data['En_true_sim_good'].append(En_true_sim_good)
+    data['Et_true_sim_good'].append(Et_true_sim_good)
+    data['En_true_gen'].append(En_true_gen)
+    data['Et_true_gen'].append(Et_true_gen)
 
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_calib'].append(En_sel_calib.numpy()) 
@@ -201,7 +201,7 @@ for ib, data in enumerate(dataset):
     # calib == sum of pfClusters calibrated energy
     data['En_sel_must_true_calib'].append(En_sel_mustache_true_calib.numpy())    
     #central regression of the mustache
-    data['En_sel_must_regr'].append(En_mustache_regr.numpy())    
+    data['En_sel_must_regr'].append(En_mustache_regr)    
     
     data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
     data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy()) 
@@ -218,15 +218,15 @@ for ib, data in enumerate(dataset):
     
     data["En_ovEtrue_gen_mustache"].append((En_sel_mustache/En_true_gen).numpy())
     data["En_calib_ovEtrue_gen_mustache"].append((En_sel_mustache_calib/En_true_gen).numpy())
-    data["En_ovEtrue_gen_regr_mustache"].append((En_mustache_regr/En_true_gen).numpy())
+    data["En_ovEtrue_gen_regr_mustache"].append(En_mustache_regr/En_true_gen)
    
     data["flavour"].append(y_metadata[:, -1].numpy())
 
     # seed features
-    for f in df.meta_seed_features:
+    for f in df.meta_seed_features.fields:
         data[f].append( ak.to_numpy(df.meta_seed_features[f]) )
 
-    for f in df.windows_metadata:
+    for f in df.window_metadata.fields:
         data[f].append( ak.to_numpy(df.window_metadata[f]) )
 
     # Now mustache selection
