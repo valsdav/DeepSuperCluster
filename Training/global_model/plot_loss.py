@@ -19,7 +19,8 @@ class LossPlotter(keras.callbacks.Callback):
 
     def on_train_begin(self, logs={}):
         self.i = 0
-        self.loss_labels = ['loss','loss_clusters', 'loss_windows','loss_softF1','loss_en_resol','loss_en_softF1','loss_en_regr']
+        self.loss_labels = ['loss','loss_clusters', 'loss_windows','loss_softF1',
+                            'loss_en_softF1','loss_en_regr', 'loss_regularization']
         self.losses = {}
         self.val_losses ={}
         for l in self.loss_labels:
