@@ -642,11 +642,15 @@ def load_tfdataset_and_original(config:LoaderConfig):
     if config.norm_factors == None and config.norm_factors_file:
         config.norm_factors = get_norm_factors(config.norm_factors_file, config.columns["cl_features"], config.columns["window_features"])
 
+    tot_samples = 0
     file_loader_generator = load_batches_from_files_generator(config, preprocessing,
                                                               shuffle=False, return_original=True)
     out_index = get_output_indices(config.output_tensors)
     for files in config.input_files:
         for size, df in file_loader_generator(files):
+            tot_samples += size
+            if tot_samples >= config.maxevents:
+                break
             original = df[-1]
             df_tf = convert_to_tf(df[:-1]) #exclude the last entry which is the original
             yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index]), original

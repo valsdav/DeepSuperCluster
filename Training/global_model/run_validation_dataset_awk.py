@@ -125,19 +125,20 @@ for ib, el in enumerate(dataset):
     # mask_fifth = (true_sum == 5) & (y_target ==1)
 
     En_zero = tf.zeros(En.shape)
-    En_first_false_negative = tf.squeeze(tf.reduce_sum(tf.where(mask_first_false_negative, En, En_zero), axis=-2))
-    En_first_false_positive  = tf.squeeze(tf.reduce_sum(tf.where(mask_first_false_positive, En, En_zero), axis=-2))
-    En_second_false_negative = tf.squeeze(tf.reduce_sum(tf.where(mask_second_false_negative, En, En_zero), axis=-2))
-    En_second_false_positive  = tf.squeeze(tf.reduce_sum(tf.where(mask_second_false_positive, En, En_zero), axis=-2))
+    En_first_false_negative = tf.reduce_sum(tf.where(mask_first_false_negative, En, En_zero), axis=1)
+    En_first_false_positive  = tf.reduce_sum(tf.where(mask_first_false_positive, En, En_zero), axis=1)
+    En_second_false_negative = tf.reduce_sum(tf.where(mask_second_false_negative, En, En_zero), axis=1)
+    En_second_false_positive  = tf.reduce_sum(tf.where(mask_second_false_positive, En, En_zero), axis=1)
 
-    En_second_true = tf.squeeze(tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=-2))
-    En_third_true = tf.squeeze(tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=-2))
-    En_fourth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=-2))
+    En_second_true = tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=1)
+    En_third_true = tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=1)
+    En_fourth_true = tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=1)
     # En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
     
     data['ncls_true'].append(tf.reduce_sum(y_target, axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(y_pred, axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(y_pred*y_target, axis=-1).numpy())
+    data['ncls_tot'].append(ak.to_numpy(df.window_metadata.ncls))
     
     data["En_cl_first_fn"].append(En_first_false_negative.numpy())
     data["En_cl_first_fp"].append(En_first_false_positive.numpy())
@@ -162,11 +163,11 @@ for ib, el in enumerate(dataset):
     data['Et_sel_true'].append(Et_sel_true.numpy()) 
 
     data['En_true'].append(En_true.numpy())
-    data['En_true_sim'].append(En_true_sim)
-    data['En_true_sim_good'].append(En_true_sim_good)
-    data['Et_true_sim_good'].append(Et_true_sim_good)
-    data['En_true_gen'].append(En_true_gen)
-    data['Et_true_gen'].append(Et_true_gen)
+    data['En_true_sim'].append(ak.to_numpy(En_true_sim))
+    data['En_true_sim_good'].append(ak.to_numpy(En_true_sim_good))
+    data['Et_true_sim_good'].append(ak.to_numpy(Et_true_sim_good))
+    data['En_true_gen'].append(ak.to_numpy(En_true_gen))
+    data['Et_true_gen'].append(ak.to_numpy(Et_true_gen))
 
     data['En_sel'].append(En_sel.numpy()) 
     data['En_sel_calib'].append(En_sel_calib.numpy()) 
@@ -197,7 +198,7 @@ for ib, el in enumerate(dataset):
     # calib == sum of pfClusters calibrated energy
     data['En_sel_must_true_calib'].append(En_sel_mustache_true_calib.numpy())    
     #central regression of the mustache
-    data['En_sel_must_regr'].append(En_mustache_regr)    
+    data['En_sel_must_regr'].append(ak.to_numpy(En_mustache_regr))
     
     data['Et_ovEtrue_mustache'].append((Et_sel_mustache/Et_true).numpy())   
     data['En_ovEtrue_mustache'].append((En_sel_mustache/En_true).numpy()) 
@@ -214,16 +215,17 @@ for ib, el in enumerate(dataset):
     
     data["En_ovEtrue_gen_mustache"].append((En_sel_mustache/En_true_gen).numpy())
     data["En_calib_ovEtrue_gen_mustache"].append((En_sel_mustache_calib/En_true_gen).numpy())
-    data["En_ovEtrue_gen_regr_mustache"].append(En_mustache_regr/En_true_gen)
+    data["En_ovEtrue_gen_regr_mustache"].append(ak.to_numpy(En_mustache_regr/En_true_gen))
    
-    data["flavour"].append(y_metadata[:, -1].numpy())
+    data["flavour"].append(ak.to_numpy(df.window_metadata.flavour))
+    data["nVtx"].append(ak.to_numpy(df.window_metadata.nVtx))
+    data["rho"].append(ak.to_numpy(df.window_metadata.rho))
+    data["obsPU"].append(ak.to_numpy(df.window_metadata.obsPU))
+    data["truePU"].append(ak.to_numpy(df.window_metadata.truePU))
 
     # seed features
     for f in df.meta_seed_features.fields:
         data[f].append( ak.to_numpy(df.meta_seed_features[f]) )
-
-    for f in df.window_metadata.fields:
-        data[f].append( ak.to_numpy(df.window_metadata[f]) )
 
     # Now mustache selection
     data["w_nomatch"].append(pred_prob_window[:,0].numpy())
@@ -237,7 +239,7 @@ print(">> Converting to pandas")
 data_final = {}
 for k,v in data.items():
     data_final[k] = np.concatenate(v)
-    
+
 import pandas as pd
 df  = pd.DataFrame(data_final)
 
