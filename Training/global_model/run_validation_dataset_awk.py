@@ -36,11 +36,7 @@ N_seed_features = len(features_dict['seed_features'])
 
 print("N. metadata: ", N_metadata)
 print("N. seed features: ", N_seed_features)
-
-
 print(">> Load the dataset manually to be able to use all the features")
-
-
 
 print(">> Load the dataset and model")
 model, dataset, cfg = loader_awk.get_model_and_dataset(args.model_config, args.model_weights,
