@@ -565,8 +565,8 @@ class WindowCreator():
                 assoc_clusters = list(filter(lambda cl: cl["in_scluster"], window["clusters"]))
                 window["nclusters_insc"] = len(assoc_clusters)
                 window["max_en_cluster_insc"] = max( [cl["en_cluster"] for cl in assoc_clusters ] )
-                window["max_deta_cluster_insc"] = max( [cl["cluster_deta"] for cl in assoc_clusters] )
-                window["max_dphi_cluster_insc"] = max( [cl["cluster_dphi"] for cl in assoc_clusters])
+                window["max_deta_cluster_insc"] = max( [abs(cl["cluster_deta"]) for cl in assoc_clusters] )
+                window["max_dphi_cluster_insc"] = max( abs([cl["cluster_dphi"]) for cl in assoc_clusters])
             else:
                 window["nclusters_insc"] = 0
                 window["max_en_cluster_insc"] = -1
@@ -577,22 +577,22 @@ class WindowCreator():
             window["ncls"] = len(window["clusters"])
             window["max_en_cluster"] = max( cl["en_cluster"] for cl in window["clusters"])
             window["max_et_cluster"] = max( cl["et_cluster"] for cl in window["clusters"])
-            window["max_deta_cluster"] = max( cl["cluster_deta"] for cl in window["clusters"])
-            window["max_dphi_cluster"] = max( cl["cluster_dphi"] for cl in window["clusters"])
+            window["max_deta_cluster"] = max( abs(cl["cluster_deta"]) for cl in window["clusters"])
+            window["max_dphi_cluster"] = max( abs(cl["cluster_dphi"]) for cl in window["clusters"])
             window["max_den_cluster"] = max( cl["cluster_den_seed"] for cl in window["clusters"])
             window["max_det_cluster"] = max( cl["cluster_det_seed"] for cl in window["clusters"])
             #min variables
             window["min_en_cluster"] = min( cl["en_cluster"] for cl in window["clusters"])
             window["min_et_cluster"] = min( cl["et_cluster"] for cl in window["clusters"])
-            window["min_deta_cluster"] = min( cl["cluster_deta"] for cl in window["clusters"])
-            window["min_dphi_cluster"] = min( cl["cluster_dphi"] for cl in window["clusters"])
+            window["min_deta_cluster"] = min( abs(cl["cluster_deta"]) for cl in window["clusters"])
+            window["min_dphi_cluster"] = min( abs(cl["cluster_dphi"]) for cl in window["clusters"])
             window["min_den_cluster"] = min( cl["cluster_den_seed"] for cl in window["clusters"])
             window["min_det_cluster"] = min( cl["cluster_det_seed"] for cl in window["clusters"])
             #mean variabes
             window["mean_en_cluster"] = np.mean( list(cl["en_cluster"] for cl in window["clusters"]))
             window["mean_et_cluster"] = np.mean( list(cl["et_cluster"] for cl in window["clusters"]))
-            window["mean_deta_cluster"] = np.mean( list(cl["cluster_deta"] for cl in window["clusters"]))
-            window["mean_dphi_cluster"] = np.mean( list(cl["cluster_dphi"] for cl in window["clusters"]))
+            window["mean_deta_cluster"] = np.mean( list(abs(cl["cluster_deta"]) for cl in window["clusters"]))
+            window["mean_dphi_cluster"] = np.mean( list(abs(cl["cluster_dphi"]) for cl in window["clusters"]))
             window["mean_den_cluster"] = np.mean( list(cl["cluster_den_seed"] for cl in window["clusters"]))
             window["mean_det_cluster"] = np.mean( list(cl["cluster_det_seed"] for cl in window["clusters"]))
             # Compute total simEnergy of the signal and PU in the window    
