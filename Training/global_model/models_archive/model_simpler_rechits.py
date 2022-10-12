@@ -867,7 +867,7 @@ def soft_f1_score(y_true, y_pred, weight, beta=1):
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
 
-    pred_prob = tf.nn.sigmoid(dense_clclass)
+    pred_prob = tf.nn.sigmoid(dense_clclass)*mask_cls[:,:,None]
     tp = tf.reduce_sum(pred_prob * y_target, axis=1)
     fn = tf.reduce_sum((1 - pred_prob) * y_target, axis=1)
     fp = tf.reduce_sum(pred_prob * (1 - y_target), axis=1)
