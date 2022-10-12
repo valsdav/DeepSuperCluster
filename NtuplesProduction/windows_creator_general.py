@@ -272,7 +272,7 @@ class WindowCreator():
             if not self.overlapping_window and is_in_window:
                 # If we are in non-overlapping mode 
                 # Create new window ONLY IF THE CLUSTER IS NOT ALREADY IN ANOTHER WINDOW
-                break
+                continue
             else:
                 # - Check if the seed simFraction with the signal calo is at least seed_min_fraction
                 # - Check if the seed is associated with a calo in the window: calomatched 
@@ -491,7 +491,7 @@ class WindowCreator():
                         # is_calo_matched & (sim fraction optimized threshold) || cl it is the seed of the window 
                         "in_scluster": pass_simfrac_thres or (window["seed_index"] == icl) ,
                         # True if the cluster is associated with the same (legacy) mustache as the seed
-                        "in_mustache" : in_mustache,
+                        #"in_mustache" : in_mustache, # saving only the in_geom_mustache, because the SC in the dumper can be one of the two algos
                         # Score of association with the caloparticle of the seed, if present
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster

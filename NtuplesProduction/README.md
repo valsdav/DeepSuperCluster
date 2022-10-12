@@ -195,6 +195,9 @@ default_features_dict = {
 
 ## Datasets logs
 
+- **ndjson_2022_v3** (12-10-2022): found a bug in `window_creator_general.py`: some clusters at low energy were
+  skipped. That's why there were less events with small Et of the seed. 
+
 - **ndjson_2022_v2**: new ndjson with optimized window dimension and re-computed sim-fraction. (N.B. the in_mustache
   label is wrong, please use only the in_geom_mustache label.)
   
@@ -202,3 +205,4 @@ default_features_dict = {
      reweighting files are:
      - normalization_factors_v9_onlycalomatched.json
      - total_reweighting_v9_calomatched.json
+ 
