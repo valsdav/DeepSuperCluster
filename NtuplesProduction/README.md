@@ -139,8 +139,8 @@ The helper script to run the conversion on condor is `condor_tfrecords.py`
 
 
 ```python
-features_dict = {
-    "cl_features" : [ "en_cluster","et_cluster",
+default_features_dict = {
+        "cl_features" : [ "en_cluster","et_cluster",
                         "cluster_eta", "cluster_phi", 
                         "cluster_ieta","cluster_iphi","cluster_iz",
                         "cluster_deta", "cluster_dphi",
@@ -150,40 +150,55 @@ features_dict = {
                         "cl_f5_sigmaIphiIphi","cl_f5_swissCross",
                         "cl_r9", "cl_sigmaIetaIeta", "cl_sigmaIetaIphi",
                         "cl_sigmaIphiIphi","cl_swissCross",
-                        "cl_nxtals", "cl_etaWidth","cl_phiWidth",],
+                        "cl_nxtals", "cl_etaWidth","cl_phiWidth"],
 
-    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU", "cluster_PUfrac","calo_nxtals_PU",
+
+    "cl_metadata": [ "calo_score", "calo_simen_sig", "calo_simen_PU",
+                     "cluster_PUfrac","calo_nxtals_PU",
                      "noise_en","noise_en_uncal","noise_en_nofrac","noise_en_uncal_nofrac" ],
 
     "cl_labels" : ["is_seed","is_calo_matched","is_calo_seed", "in_scluster","in_geom_mustache","in_mustache"],
-    
-    "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster","max_dphi_cluster","max_den_cluster","max_det_cluster",
-                         "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
-                         "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
-    "window_metadata": ["nVtx", "rho", "obsPU", "truePU",
-                         "sim_true_eta", "sim_true_phi",  
-                        "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
-                        "en_true_sim_good", "et_true_sim_good",
-                        "sim_true_eta","sim_true_phi","gen_true_eta","gen_true_phi",
-                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib", "nclusters_insc",
-                        "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
-                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig"  ],
     
-
-     "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
+    "seed_features" : ["seed_eta","seed_phi", "seed_ieta","seed_iphi", "seed_iz", 
                      "en_seed", "et_seed","en_seed_calib","et_seed_calib",
                     "seed_f5_r9","seed_f5_sigmaIetaIeta", "seed_f5_sigmaIetaIphi",
                     "seed_f5_sigmaIphiIphi","seed_f5_swissCross",
                     "seed_r9","seed_sigmaIetaIeta", "seed_sigmaIetaIphi",
                     "seed_sigmaIphiIphi","seed_swissCross",
-                    "seed_nxtals","seed_etaWidth","seed_phiWidth",
+                    "seed_nxtals","seed_etaWidth","seed_phiWidth"
                     ],
 
-     "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
+    "seed_metadata": [ "seed_score", "seed_simen_sig", "seed_simen_PU", "seed_PUfrac"],
 
-     "seed_labels" : [ "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"]
+    "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                           "max_dphi_cluster","max_den_cluster","max_det_cluster",
+                           "min_en_cluster","min_et_cluster","min_deta_cluster",
+                           "min_dphi_cluster","min_den_cluster","min_det_cluster",
+                           "mean_en_cluster","mean_et_cluster","mean_deta_cluster",
+                           "mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
+
+    "window_metadata": ["flavour", "ncls", "nclusters_insc",
+                        "nVtx", "rho", "obsPU", "truePU",
+                        "sim_true_eta", "sim_true_phi",  
+                        "gen_true_eta","gen_true_phi",
+                        "en_true_sim","et_true_sim", "en_true_gen", "et_true_gen",
+                        "en_true_sim_good", "et_true_sim_good",
+                        "en_mustache_raw", "et_mustache_raw","en_mustache_calib", "et_mustache_calib",
+                        "max_en_cluster_insc","max_deta_cluster_insc","max_dphi_cluster_insc",
+                        "event_tot_simen_PU","wtot_simen_PU","wtot_simen_sig",
+                        "is_seed_calo_matched", "is_seed_calo_seed", "is_seed_mustache_matched"],
 }
+
 ```
 
 
+## Datasets logs
+
+- **ndjson_2022_v2**: new ndjson with optimized window dimension and re-computed sim-fraction. (N.B. the in_mustache
+  label is wrong, please use only the in_geom_mustache label.)
+  
+   - **awkward_2022v9_onlycalomatched**:  corresponding awkward dataset. The association normalization factor files and
+     reweighting files are:
+     - normalization_factors_v9_onlycalomatched.json
+     - total_reweighting_v9_calomatched.json
