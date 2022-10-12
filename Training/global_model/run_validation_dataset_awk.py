@@ -76,7 +76,7 @@ for ib, el in enumerate(dataset):
     y_pred = tf.squeeze(tf.cast(pred_prob >= 0.5, tf.float32))
 
     ncls_in_sample = y_target.shape[1]
-    y_mustache = tf.cast(ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_labels.in_mustache, ncls_in_sample), 0.)), tf.float32)
+    y_mustache = tf.cast(ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_labels.in_geom_mustache, ncls_in_sample), 0.)), tf.float32)
     En = ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_features.en_cluster, ncls_in_sample, axis=1), 0.))
     En_calib = ak.to_numpy(ak.fill_none(ak.pad_none(df.meta_cl_features.en_cluster_calib, ncls_in_sample, axis=1), 0.))
     Et = ak.to_numpy(ak.fill_none(ak.pad_none(df.cl_features.et_cluster, ncls_in_sample, axis=1), 0.))
@@ -112,9 +112,9 @@ for ib, el in enumerate(dataset):
     En_sel_mustache_true = tf.reduce_sum(En * y_target * y_mustache, axis=1)
     En_sel_mustache_true_calib = tf.reduce_sum( En_calib * y_target * y_mustache, axis=1)
 
-    fn_sum = tf.math.cumsum(y_target*(1 -  y_pred), axis=-2)
-    fp_sum = tf.math.cumsum(y_pred*(1-y_target), axis=-2)
-    true_sum = tf.math.cumsum(y_target, axis=-2)
+    fn_sum = tf.math.cumsum(y_target*(1 -  y_pred), axis=1)
+    fp_sum = tf.math.cumsum(y_pred*(1-y_target), axis=1)
+    true_sum = tf.math.cumsum(y_target, axis=1)
     mask_first_false_negative =  (fn_sum == 1) & (y_target == 1)
     mask_first_false_positive =   (fp_sum ==1) & (y_target == 0)
     mask_second_false_negative =   (fn_sum==2) & (y_target == 1)
@@ -133,8 +133,7 @@ for ib, el in enumerate(dataset):
     En_second_true = tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=1)
     En_third_true = tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=1)
     En_fourth_true = tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=1)
-    # En_fifth_true = tf.squeeze(tf.reduce_sum(tf.where(mask_fifth, En, En_zero), axis=-2))
-    
+    breakpoint()
     data['ncls_true'].append(tf.reduce_sum(y_target, axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(y_pred, axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(y_pred*y_target, axis=-1).numpy())
@@ -231,7 +230,8 @@ for ib, el in enumerate(dataset):
     data["w_nomatch"].append(pred_prob_window[:,0].numpy())
     data["w_ele"].append(pred_prob_window[:,1].numpy())
     data["w_gamma"].append(pred_prob_window[:,2].numpy())
-    
+
+    data["sample_weight"].append(w.numpy())
     
 print("\n\n>> DONE")
 
