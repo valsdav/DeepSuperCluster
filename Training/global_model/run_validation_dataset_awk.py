@@ -58,7 +58,7 @@ for ib, el in enumerate(dataset):
         nsecond = (cfg.maxevents - batch_size*ib) / rate
         print("Events: {} ({:.1f}Hz). Eta: {:.0f}:{:.0f}".format(ib*batch_size, rate, nsecond//60, nsecond%60))
 
-    (X,y_true, w), df = el
+    (X,y_true, weight), df = el
         
     y_out = model(X, training=False)
 
@@ -133,7 +133,7 @@ for ib, el in enumerate(dataset):
     En_second_true = tf.reduce_sum(tf.where(mask_second, En, En_zero), axis=1)
     En_third_true = tf.reduce_sum(tf.where(mask_third, En, En_zero), axis=1)
     En_fourth_true = tf.reduce_sum(tf.where(mask_fourth, En, En_zero), axis=1)
-    breakpoint()
+
     data['ncls_true'].append(tf.reduce_sum(y_target, axis=-1).numpy())
     data['ncls_sel'].append(tf.reduce_sum(y_pred, axis=-1).numpy())
     data['ncls_sel_true'].append(tf.reduce_sum(y_pred*y_target, axis=-1).numpy())
@@ -231,7 +231,7 @@ for ib, el in enumerate(dataset):
     data["w_ele"].append(pred_prob_window[:,1].numpy())
     data["w_gamma"].append(pred_prob_window[:,2].numpy())
 
-    data["sample_weight"].append(w.numpy())
+    data["sample_weight"].append(weight[0].numpy())
     
 print("\n\n>> DONE")
 
