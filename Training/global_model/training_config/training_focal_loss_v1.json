@@ -3,8 +3,8 @@
 
     "dataset_conf" : {
         "training": {
-            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/training",
-                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/training"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v10_onlycalomatched/training",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v10_onlycalomatched/training"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [
@@ -19,23 +19,23 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v10_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v10.json",
             "norm_type" : "stdscale",
             "padding" : true,  
             "ncls_padding" : -1, 
             "nhits_padding": -1,
             "chunk_size": 5120,
             "batch_size": 512,
-            "maxevents": 1400000,
+            "maxevents": 1500000,
             "nworkers": 3,
             "max_batches_in_memory":300,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
         "validation": {
-            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/validation",
-                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/validation"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v10_onlycalomatched/validation",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v10_onlycalomatched/validation"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [
@@ -50,8 +50,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v10_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v10.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 
@@ -65,8 +65,8 @@
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
         "test": {
-            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v9_onlycalomatched/test",
-                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v9_onlycalomatched/test"],
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_2022v10_onlycalomatched/test",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_2022v10_onlycalomatched/test"],
             "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
             "columns": {
                 "cl_features": [
@@ -81,8 +81,8 @@
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
-            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v9_onlycalomatched.json",
-            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v9_calomatched.json",
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/normalization_factors/normalization_factors_v10_onlycalomatched.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/ACAT2022/reweightings/total_reweighting_v10.json",
             "norm_type" : "stdscale",
             "padding" : true, 
             "ncls_padding" : -1, 

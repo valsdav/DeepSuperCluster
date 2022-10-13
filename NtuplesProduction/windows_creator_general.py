@@ -566,7 +566,7 @@ class WindowCreator():
                 window["nclusters_insc"] = len(assoc_clusters)
                 window["max_en_cluster_insc"] = max( [cl["en_cluster"] for cl in assoc_clusters ] )
                 window["max_deta_cluster_insc"] = max( [abs(cl["cluster_deta"]) for cl in assoc_clusters] )
-                window["max_dphi_cluster_insc"] = max( abs([cl["cluster_dphi"]) for cl in assoc_clusters])
+                window["max_dphi_cluster_insc"] = max( [abs(cl["cluster_dphi"]) for cl in assoc_clusters])
             else:
                 window["nclusters_insc"] = 0
                 window["max_en_cluster_insc"] = -1

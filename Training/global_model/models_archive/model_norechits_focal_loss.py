@@ -12,33 +12,33 @@ def create_padding_masks(rechits):
 
 ###########################
 
-def get_dense(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense", l2reg_alpha=0.001):
+def get_dense(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"):
     layers = [] 
     for i, d in enumerate(spec[:-1]):
         if not L1 and not L2:
             layers.append(tf.keras.layers.Dense(d, activation=act, name=name+"_{}".format(i)))
         if not L1 and L2:
-            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L2(l2reg_alpha), name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L2(0.001), name=name+"_{}".format(i)))
         if not L2 and L1:
-            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L1(l2reg_alpha),name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L1(0.001),name=name+"_{}".format(i)))
         if L1 and L2:
-            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L1L2(l2reg_alpha,l2reg_alpha),name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Dense(d, activation=act, kernel_regularizer=tf.keras.regularizers.L1L2(0.001,0.001),name=name+"_{}".format(i)))
         if dropout > 0.:
             layers.append(tf.keras.layers.Dropout(dropout))
     layers.append(tf.keras.layers.Dense(spec[-1], activation=last_act, name=name+"_{}".format(i+1)))
     return tf.keras.Sequential(layers, name=name)
 
-def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense", l2reg_alpha=0.001):
+def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"):
     layers = [] 
     for i, d in enumerate(spec[:-1]):
         if not L1 and not L2:
             layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, name=name+"_{}".format(i)))
         if not L1 and L2:
-            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L2(l2reg_alpha), name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L2(0.001), name=name+"_{}".format(i)))
         if not L2 and L1:
-            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L1(l2reg_alpha),name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L1(0.001),name=name+"_{}".format(i)))
         if L1 and L2:
-            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L1L2(l2reg_alpha,l2reg_alpha),name=name+"_{}".format(i)))
+            layers.append(tf.keras.layers.Conv1D(filters=d,kernel_size=1, activation=act, kernel_regularizer=tf.keras.regularizers.L1L2(0.001,0.001),name=name+"_{}".format(i)))
         if dropout > 0.:
             layers.append(tf.keras.layers.Dropout(dropout))
     layers.append(tf.keras.layers.Conv1D(filters=spec[-1], kernel_size=1, activation=last_act, name=name+"_{}".format(i+1)))
@@ -281,7 +281,6 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.activation = kwargs.pop("activation", "relu")
         self.dropout = kwargs.get("dropout", 0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.l2reg_alpha = kwargs.get("l2reg_alpha", 0.001)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.reduce = reduce # it can be None, sum, mean, max
@@ -297,7 +296,7 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
 
         # Feed-forward output (1 hidden layer)
         self.dense_out = get_conv1d([self.output_dim, self.output_dim], self.activation, last_act=self.activation,
-                                    L2=self.l2_reg, l2reg_alpha=self.l2reg_alpha, dropout=self.dropout, name="output_sa_"+name)
+                                    L2=self.l2_reg, dropout=self.dropout, name="output_sa_"+name)
         # Layer normalizations
         self.norm1 = tf.keras.layers.LayerNormalization(name="SA_lnorm1_"+name, epsilon=1e-3, axis=-1)
         self.norm2 = tf.keras.layers.LayerNormalization(name="SA_lnorm2_"+name, epsilon=1e-3, axis=-1)
@@ -365,7 +364,6 @@ class RechitsGCN(tf.keras.layers.Layer):
         self.input_dim = input_dim
         self.dropout = kwargs.pop("dropout", 0.01)
         self.l2_reg = kwargs.pop("l2_reg", False)
-        self.l2reg_alpha = kwargs.get("l2reg_alpha", 0.001)
         self.nconv = nconv
     
         super(RechitsGCN, self).__init__(*args, **kwargs)
@@ -382,7 +380,7 @@ class RechitsGCN(tf.keras.layers.Layer):
         #  Dense 
         # Feed-forward output (1 hidden layer)
         self.dense_out = get_conv1d([self.output_dim, self.output_dim], self.activation, last_act=self.activation,
-                                    L2=self.l2_reg, l2reg_alpha=self.l2reg_alpha, dropout=self.dropout, name="dense_rechits")
+                                    L2=self.l2_reg, dropout=self.dropout, name="dense_rechits")
         # Dropouts
         self.drop1 = tf.keras.layers.Dropout(self.dropout)
         self.drop2 = tf.keras.layers.Dropout(self.dropout)
@@ -446,7 +444,6 @@ class GraphBuilding(tf.keras.layers.Layer):
         self.nconv_rechits = kwargs.pop("nconv_rechits",3)
         self.dropout = kwargs.get("dropout", 0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.l2reg_alpha = kwargs.get("l2reg_alpha", 0.001)
         name = kwargs.get("name", None)
 
         # Removing the rechit layers
@@ -456,13 +453,13 @@ class GraphBuilding(tf.keras.layers.Layer):
         #Self-attention for coordinations
         self.SA_coord = SelfAttention(name="coord_SA", input_dim=self.output_dim_nodes, output_dim=self.coord_sa_dim)
         self.dense_coord = get_conv1d([self.coord_sa_dim, self.coord_dim], self.activation, last_act=tf.keras.activations.linear,
-                                      L2=self.l2_reg, l2reg_alpha=self.l2reg_alpha, name="dense_coord")
+                                    L2=self.l2_reg, name="dense_coord")
         self.dist = Distance(batch_dim=1)
         self.concat = tf.keras.layers.Concatenate(axis=-1)
         
         #append last layer dimension that is the output dimension of the node features
         self.dense_feats = get_conv1d(self.layers_input+[self.output_dim_nodes], self.activation,last_act=self.activation,
-                                      L2=self.l2_reg,  l2reg_alpha=self.l2reg_alpha, dropout=self.dropout, name="dense_nodes_feats")
+                                    L2=self.l2_reg, dropout=self.dropout, name="dense_nodes_feats")
         
         #Layer normalizations
         self.feat_layer_normalization = tf.keras.layers.LayerNormalization(name="norm_nodes_feats",epsilon=1e-3)
@@ -559,7 +556,6 @@ class DeepClusterGN(tf.keras.Model):
         self.n_windclasses = kwargs.pop("n_windclasses", 1)
         self.dropout = kwargs.get("dropout",0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.l2reg_alpha = kwargs.get("l2reg_alpha", 0.001)
         self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1., "softF1_beta":1})
         
         super(DeepClusterGN, self).__init__()
@@ -572,22 +568,21 @@ class DeepClusterGN(tf.keras.Model):
         self.SA_clclass = SelfAttentionBlock(name="SA_clclass", input_dim=self.output_dim_gconv, output_dim=self.output_dim_sa_clclass, 
                                         reduce=None, **kwargs)
         self.dense_clclass = get_conv1d(name="dense_clclass", spec=self.layers_clclass+[1], act=self.activation,
-                                        last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg, l2reg_alpha=self.l2reg_alpha)
+                                     last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
         # Window classification head
         # self.concat_gcn_SAcl = tf.keras.layers.Concatenate(axis=-1)
         # self-attention for windows classification with "mean" reduction
         self.SA_windclass = SelfAttentionBlock(name="SA_windclass", input_dim=self.output_dim_gconv + self.output_dim_nodes, output_dim=self.output_dim_sa_windclass,
                                          reduce="sum", **kwargs)
         self.dense_windclass = get_dense(name="dense_windclass", spec=self.layers_windclass+[self.n_windclasses], act=self.activation,
-                                         last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg, l2reg_alpha=self.l2reg_alpha)
+                                     last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
 
         # Energy regression head
         self.SA_enregr = SelfAttentionBlock(name="SA_enregr", input_dim=self.output_dim_gconv + self.output_dim_nodes, output_dim=self.output_dim_sa_enregr,
                                           reduce="sum", **kwargs)
 
         self.dense_enregr = get_dense(name="dense_enregr", spec=self.layers_enregr+[1], act=self.activation,
-                                      last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg,
-                                      l2reg_alpha=self.l2reg_alpha)
+                                     last_act=tf.keras.activations.linear, dropout=self.dropout, L2=self.l2_reg)
 
         #dropout layers
         self.gcn_dropout = tf.keras.layers.Dropout(self.dropout)
@@ -797,7 +792,10 @@ class DeepClusterGN(tf.keras.Model):
 def clusters_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor),  mask_cls  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true        
-    class_loss = tf.keras.losses.binary_crossentropy(y_clclass[:,:,tf.newaxis], dense_clclass, from_logits=True) * mask_cls
+    # Focal loss
+    class_loss = tf.keras.metrics.binary_focal_crossentropy(y_clclass[:,:,tf.newaxis],
+                                                            dense_clclass,
+                                                            gamma=2.0, from_logits=True) * mask_cls
     # This should be replaced by the mean over the not masked elements
     # reduced_loss = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1) * weight) / tf.reduce_sum(weight)
     ncls = tf.reduce_sum(mask_cls, axis=-1)

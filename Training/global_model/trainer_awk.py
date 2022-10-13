@@ -143,7 +143,7 @@ with strategy.scope():
     if "lr_reduce" in config:
         lr_reduce = tf.keras.callbacks.ReduceLROnPlateau(
             monitor='val_loss', factor=config["lr_reduce"]["factor"], patience=config["lr_reduce"]["patience"], verbose=1,
-            mode='auto', min_delta=config["lr_reduce"]["min_delta"], cooldown=0, min_lr=1e-7,
+            mode='auto', min_delta=config["lr_reduce"]["min_delta"], cooldown=0, min_lr=config["lr_reduce"]["min"],
         )
         callbacks.append(lr_reduce)
 

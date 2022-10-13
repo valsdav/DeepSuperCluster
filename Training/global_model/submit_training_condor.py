@@ -12,6 +12,7 @@ parser.add_argument("--basedir", type=str, help="Base dir", default=os.getcwd())
 parser.add_argument("--name", type=str, help="Model version name", required=False, default="base")
 parser.add_argument("--config", type=str, help="config file (relative to base dir)", required=True)
 parser.add_argument("--model", type=str, help="Model.py (relative to basedir)", required=True)
+parser.add_argument("--test", action="store_true", help="Do no run condor job but interactively")
 args = parser.parse_args()
 
 # Checking the input files exists
@@ -22,6 +23,10 @@ if not os.path.exists(os.path.join(args.basedir, args.config)):
     raise ValueError(f"Config file does not exists: {args.config}")
 if not os.path.exists(os.path.join(args.basedir, args.model)):
     raise ValueError(f"Model file does not exists: {args.model}")
+
+if args.test:
+    os.system(f"sh run_training_condor.sh {args.basedir}/{args.config} {args.basedir}/{args.model} {args.name}")
+    exit(0)
 
 sub = htcondor.Submit()
 sub['Executable'] = "run_training_condor.sh"

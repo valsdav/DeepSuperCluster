@@ -16,7 +16,7 @@ class LossPlotter(keras.callbacks.Callback):
         self.batch_mode = batch_mode
         self.output_dir = output_dir
         super(keras.callbacks.Callback, self).__init__()
-n
+
     def on_train_begin(self, logs={}):
         self.i = 0
         self.loss_labels = ['loss','loss_clusters', 'loss_windows','loss_softF1',
