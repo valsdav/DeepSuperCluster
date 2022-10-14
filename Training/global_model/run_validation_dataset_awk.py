@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--model-config", type=str, help="Model configuration", required=True)
 parser.add_argument("--model-weights", type=str, help="Model weights", required=True)
+parser.add_argument("--conf-overwrite", type=str, help="Validation config overwrite", required=False)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 args = parser.parse_args()
 
@@ -24,6 +25,11 @@ features_dict = config["dataset_conf"]["validation"]["columns"]
 features_dict["seed_features"] = [ ]
 for cl_f in features_dict["cl_features"]:
     features_dict["seed_features"] = cl_f.replace("cluster","seed")
+
+if args.conf_overwrite != None and args.conf_overwrite!= "" and args.conf_overwrite!="None":
+    config_overwrite = json.load(open(args.conf_overwrite))
+else:
+    config_overwrite = None
 
 def DeltaPhi(phi1, phi2):
     dphi = phi1 - phi2
@@ -40,8 +46,9 @@ print(">> Load the dataset manually to be able to use all the features")
 
 print(">> Load the dataset and model")
 model, dataset, cfg = loader_awk.get_model_and_dataset(args.model_config, args.model_weights,
-                                                  training=False,
-                                                  awk_dataset=True)
+                                                       training=False,
+                                                       awk_dataset=True,
+                                                       overwrite=config_overwrite)
 
 include_rechits = cfg.include_rechits
 batch_size = cfg.batch_size

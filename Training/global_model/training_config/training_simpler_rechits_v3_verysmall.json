@@ -105,7 +105,8 @@
     "lr_reduce": {
         "factor": 0.6,
         "patience": 10,
-        "min_delta": 0.001
+        "min_delta": 0.001,
+        "min": 1e-6
     },
     "early_stop": {
         "patience": 15,

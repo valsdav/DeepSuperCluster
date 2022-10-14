@@ -12,12 +12,18 @@ if __name__=="__main__":
   parser.add_argument('--config_path', type=str, help="Model configuration path.")
   parser.add_argument('--weights_name', type=str, help="Model weights name.")
   parser.add_argument('--log_folder', type=str, help="Folder for saving tensorboard logs.")
+  parser.add_argument("--conf-overwrite", type=str, help="Validation config overwrite", required=False)
   args = parser.parse_args()
     
   config_path = args.config_path
   weights_name = args.weights_name
   log_folder = args.log_folder
-
+  
+if args.conf_overwrite != None and args.conf_overwrite!= "" and args.conf_overwrite!="None":
+    config_overwrite = json.load(open(args.conf_overwrite))
+else:
+    config_overwrite = None
+    
   os.makedirs(log_folder, exist_ok=True)
   
   # Single CPU thread
@@ -37,7 +43,8 @@ if __name__=="__main__":
 
   print("Starting to load the model...")
   model, dataset, cfg = get_model_and_dataset(config_path, weights_name,
-                            training=False, fixed_X=None, overwrite=None)
+                                              training=False, fixed_X=None,
+                                              config_overwrite=config_overwrite)
   print("Model loaded")
   print("Preload the dataset")
   d = dataset.take(50).cache("/tmp/cache"+weights_name)
