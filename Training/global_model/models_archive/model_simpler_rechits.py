@@ -4,7 +4,7 @@ import numpy as np
 
 #########################3
 # Masking utils
-
+@tf.function
 def create_padding_masks(rechits):
     mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
     mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)
@@ -47,7 +47,7 @@ def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"
 
 ###########################
 #Distance
-
+@tf.function
 def dist(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
     nb = tf.reduce_sum(tf.square(B), -1)
@@ -58,6 +58,7 @@ def dist(A,B):
     D = tf.sqrt(Dsq)
     return D
 
+@tf.function
 def dist_batch2(A,B):
     na = tf.reduce_sum(tf.square(A), -1)
     nb = tf.reduce_sum(tf.square(B), -1)
@@ -189,6 +190,7 @@ class SGConv(tf.keras.layers.Dense):
 
 ############################
 # From https://www.tensorflow.org/tutorials/text/transformer#multi-head_attention
+@tf.function
 def scaled_dot_product_attention(q, k, v, mask):
     """Calculate the attention weights.
     q, k, v must have matching leading dimensions.
