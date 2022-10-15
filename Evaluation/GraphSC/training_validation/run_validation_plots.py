@@ -603,9 +603,7 @@ plt.savefig(outdir +"/window_id/windows_id_bycls.png")
 plt.savefig(outdir +"/window_id/windows_id_bycls.pdf")
 
 
-fig, ax = plt.subplots(1,6, figsize=(48,8),dpi=100)
-
-
+fig, ax = plt.subplots(1,1, figsize=(10,8),dpi=100, )
 ets = [2,4,6,8,10,20,50,100]
 
 for iet in range(len(ets)-1):
@@ -1197,6 +1195,21 @@ hep.cms.text("Preliminary ",loc=0, ax=az)
 
 fig.savefig(outdir + "/recall_purity/cluster_recall_ele_photon_ratio_summary.png")
 fig.savefig(outdir + "/recall_purity/cluster_recall_ele_photon_ratio_summary.pdf")
+
+
+ets =  [1,2,4,6,8,10,15,20,30,40,50,60,70,100]
+nclsx = [-5.5,-4.5,-3.5,-2.5,-1.5,-0.5,0.5, 1.5 ,2.5 ,3.5, 4.5 ,5.5 ]
+for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
+    fig, ax = plt.subplots(1,1, figsize=(10,8),dpi=100)
+    dfb = df[df.ncls_sel != df.ncls_true]
+    A  = ax.hist2d(dfb.ncls_sel - dfb.ncls_true, dfb.et_seed, bins=(nclsx, ets),cmap="plasma",cmin=1e-4,vmax=0.015, density=True )#
+    fig.colorbar(A[3], ax=ax)   
+    ax.set_xlabel("N. cluster selected - N. clusters true")
+    ax.set_ylabel("Seed $E_T$")
+    ax.text(0.75, 0.05, flavour, transform=ax.transAxes)
+    ax.set_yscale("log")
+    fig.savefig(outdir+ "/recall_purity/Ncltrue_norm_lost_{}_byet.png".format(flavour))
+    fig.savefig(outdir+ "/recall_purity/Ncltrue_norm_lost_{}_byet.png".format(flavour))
 
 
 ets = [0,5,10,15, 20,40,60,80,100]

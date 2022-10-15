@@ -106,8 +106,8 @@
     "opt": "adam",
     "activation": "elu",
     "lr_reduce": {
-        "factor": 0.7,
-        "patience": 5,
+        "factor": 0.6,
+        "patience": 4,
         "min_delta": 0.001,
         "min": 1e-7
     },
@@ -116,21 +116,21 @@
         "min_delta": 0.001
     },
     "loss_plot": true, 
-    "output_dim_nodes": 64,
-    "output_dim_gconv": 64,
-    "output_dim_sa_clclass": 64,
-    "output_dim_sa_windclass": 64,
-    "output_dim_sa_enregr": 64,
+    "output_dim_nodes": 32,
+    "output_dim_gconv": 32,
+    "output_dim_sa_clclass": 32,
+    "output_dim_sa_windclass": 32,
+    "output_dim_sa_enregr": 32,
     "coord_dim": 3,
     "coord_dim_sa": 10,
-    "nconv": 2,
+    "nconv": 3,
     "layers_input": [
-        128,
-        128
-    ],
-    "layers_clclass": [
         64,
         64
+    ],
+    "layers_clclass": [
+        32,
+        32
     ],
     "layers_windclass": [
         32,
