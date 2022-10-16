@@ -7,7 +7,7 @@ from pprint import pprint
 import json
 
 
-def get_model(args, model_definition_path, weights_path, X):
+def get_model(args, model_definition_path, weights_path, X, training):
     #Load args
     # Convert the activation function
     args['activation'] = tf.keras.activations.get(args['activation'])
@@ -23,10 +23,10 @@ def get_model(args, model_definition_path, weights_path, X):
     model = model_lib.DeepClusterGN(**args)
     # model.set_metrics()
     #Call the model once
-    y = model(X)    
+    y = model(X, training=training)    
     model.summary()
     #Loading weights
-    model.load_weights(weights_path, by_name=True, skip_mismatch=True)
+    model.load_weights(weights_path, by_name=True, skip_mismatch=False)
     return model 
  
 
@@ -66,11 +66,14 @@ def get_model_and_dataset(config_path, weights_path,
 
         model = get_model(args, args["model_definition_path"],
                           weights_path=os.path.join(args["models_path"],
-                                                    weights_path), X=X)
+                                                    weights_path),
+                          X=X,
+                          training=training)
     else:
         model = get_model(args, args["model_definition_path"],
                           weights_path=os.path.join(args["models_path"],weights_path),
-                          X=fixed_X)
+                          X=fixed_X,
+                          training=training)
 
 
     return model, dataset, cfg

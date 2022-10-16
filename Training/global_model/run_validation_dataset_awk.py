@@ -72,7 +72,7 @@ for ib, el in enumerate(dataset):
     if include_rechits:
         cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
     else:
-        cl_X_initial, wind_X,  is_seed, mask_cls = X
+        cl_X_initial, wind_X,  is_seed, mask_cls = X 
     (dense_clclass,dense_windclass, en_regr_factor),  mask_cls  = y_out
     y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     
