@@ -37,7 +37,13 @@ MODELS_DIR="/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/
 #         --conf-overwrite validation_config_v10_norechits.json 
         
         
-python submit_validation_condor.py --model-config ${MODELS_DIR}/tests_norechits/run_30_datasetv10_verysmall_nconv2_morepatience_lessL2/training_config.json \
+# python submit_validation_condor.py --model-config ${MODELS_DIR}/tests_norechits/run_30_datasetv10_verysmall_nconv2_morepatience_lessL2/training_config.json \
+#        --model-weights weights.best.hdf5 \
+#        -o  ${MODELS_DIR}/tests_norechits/tests_norechits/run_30_datasetv10_verysmall_nconv2_morepatience_lessL2/validation_data \
+#         --conf-overwrite validation_config_v10_norechits.json 
+
+
+python submit_validation_condor.py --model-config ${MODELS_DIR}/tests_simpler_rechits/run_41_datasetv10_verysmall_nconv2_morepatience_lessL2/training_config.json --gpu \
        --model-weights weights.best.hdf5 \
-       -o  ${MODELS_DIR}/tests_norechits/tests_norechits/run_30_datasetv10_verysmall_nconv2_morepatience_lessL2/validation_data \
-        --conf-overwrite validation_config_v10_norechits.json 
+       -o  ${MODELS_DIR}/tests_simpler_rechits/run_41_datasetv10_verysmall_nconv2_morepatience_lessL2/validation_data \
+        --conf-overwrite validation_config_v10.json 

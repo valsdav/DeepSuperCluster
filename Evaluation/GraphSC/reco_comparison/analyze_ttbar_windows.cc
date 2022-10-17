@@ -65,17 +65,21 @@ bool in_window(float seed_eta, float seed_phi, float seed_iz,
 }
 
 float Et(float en, float eta){
-  return en/TMath::CosH(eta);
+  return en/TMath::CosH(std::abs(eta));
 }
 
 auto getNxtal(RVec<float> cl_energy, RVec<float> cl_eta, RVec<float> cl_phi,RVec<int> cl_iz, RVec<double> nrechits){
   std::vector<std::vector<double>> result;
-  result.reserve(40);
+  std::vector<float> result_et;
+  result.reserve(100);
+  result_et.reserve(100);
 
   for (auto icl_seed=0; icl_seed < cl_eta.size(); icl_seed++){
-    if (Et(cl_energy[icl_seed], cl_eta[icl_seed]) < 1) continue;
+    auto seed_et = Et(cl_energy[icl_seed], cl_eta[icl_seed]);
+    if ( seed_et < 1) continue;
+    result_et.push_back(seed_et);
     std::vector<double> rec_per_seed;
-    rec_per_seed.reserve(10);
+    rec_per_seed.reserve(30);
     auto dim = get_dynamic_window(cl_eta[icl_seed]);
 
     for (auto icl=0; icl < cl_eta.size(); icl++){
@@ -86,15 +90,17 @@ auto getNxtal(RVec<float> cl_energy, RVec<float> cl_eta, RVec<float> cl_phi,RVec
     }
     result.push_back(rec_per_seed);
   }
-  return result;
+  return std::make_pair(result, result_et);
 }
 
 
 int main(){
-  ROOT::EnableImplicitMT(6); // Tell ROOT you want to go parallel
+  ROOT::EnableImplicitMT(8); // Tell ROOT you want to go parallel
   ROOT::RDataFrame d("recosimdumper/caloTree", "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA.root"); // Interface to TTree and TChain
   
-  d.Define("nxtals", getNxtal, {"pfCluster_energy","pfCluster_eta", "pfCluster_phi", "pfCluster_iz", "pfCluster_nXtals"}) \
-    .Snapshot("recosimdumper/caloTree", "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA_withRechit.root", {"nxtals"});
+  d.Define("data", getNxtal, {"pfCluster_energy","pfCluster_eta", "pfCluster_phi", "pfCluster_iz", "pfCluster_nXtals"}) \
+    .Define("nxtals", "data.first")       \
+    .Define("seed_et", "data.second") \
+    .Snapshot("recosimdumper/caloTree", "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA_withRechit.root", {"nxtals", "seed_et"});
   
 }
