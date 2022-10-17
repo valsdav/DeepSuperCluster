@@ -2,6 +2,7 @@ import argparse
 import tensorflow as tf
 from loader_awk import get_model_and_dataset
 import os
+import json
 
 if __name__=="__main__":
   """Example:
@@ -19,9 +20,9 @@ if __name__=="__main__":
   weights_name = args.weights_name
   log_folder = args.log_folder
   
-if args.conf_overwrite != None and args.conf_overwrite!= "" and args.conf_overwrite!="None":
+  if args.conf_overwrite != None and args.conf_overwrite!= "" and args.conf_overwrite!="None":
     config_overwrite = json.load(open(args.conf_overwrite))
-else:
+  else:
     config_overwrite = None
     
   os.makedirs(log_folder, exist_ok=True)
@@ -44,10 +45,10 @@ else:
   print("Starting to load the model...")
   model, dataset, cfg = get_model_and_dataset(config_path, weights_name,
                                               training=False, fixed_X=None,
-                                              config_overwrite=config_overwrite)
+                                              overwrite=config_overwrite)
   print("Model loaded")
   print("Preload the dataset")
-  d = dataset.take(50).cache("/tmp/cache"+weights_name)
+  d = dataset.take(100)
 
   print("Profiling the prediction")
   
