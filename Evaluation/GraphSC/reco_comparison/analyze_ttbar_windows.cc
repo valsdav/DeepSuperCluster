@@ -68,30 +68,49 @@ float Et(float en, float eta){
   return en/TMath::CosH(std::abs(eta));
 }
 
-auto getNxtal(RVec<float> cl_energy, RVec<float> cl_eta, RVec<float> cl_phi,RVec<int> cl_iz, RVec<double> nrechits){
+using mytuple_t = std::tuple<std::vector<std::vector<double>>, std::vector<float>, std::vector<float>, std::vector<std::vector<double>>>;
+
+mytuple_t getNxtal(RVec<float> cl_energy, RVec<float> cl_eta, RVec<float> cl_phi,RVec<int> cl_iz, RVec<double> nrechits){
   std::vector<std::vector<double>> result;
-  std::vector<float> result_et;
+  std::vector<std::vector<double>> cl_et;
+  std::vector<float> seed_ets;
+  std::vector<float> seed_eta;
   result.reserve(100);
-  result_et.reserve(100);
+  cl_et.reserve(100);
+  seed_ets.reserve(100);
+  seed_eta.reserve(100);
 
   for (auto icl_seed=0; icl_seed < cl_eta.size(); icl_seed++){
+    // std::cout << "seed: " <<  icl_seed << std::endl;
     auto seed_et = Et(cl_energy[icl_seed], cl_eta[icl_seed]);
     if ( seed_et < 1) continue;
-    result_et.push_back(seed_et);
-    std::vector<double> rec_per_seed;
-    rec_per_seed.reserve(30);
+    seed_ets.push_back(seed_et);
+    seed_eta.push_back(cl_eta[icl_seed]);
+    std::vector<double> rechit_per_cl;
+    std::vector<double> et_per_cl;
+    rechit_per_cl.reserve(30);
+    et_per_cl.reserve(30);
+    
     auto dim = get_dynamic_window(cl_eta[icl_seed]);
+    // std::cout << "seed eta "<< cl_eta[icl_seed] << " seed et " << seed_et <<
+      // "Window " << dim[0] << " " << dim[1] << " " << dim[2] << std::endl;
 
     for (auto icl=0; icl < cl_eta.size(); icl++){
+      // std::cout << "\tcluster eta,phi,iz "<< cl_eta[icl] << " "<<cl_phi[icl] << " " <<
+        // cl_iz[icl] << std::endl;
       if (in_window(cl_eta[icl_seed], cl_phi[icl_seed], cl_iz[icl_seed],
                     cl_eta[icl], cl_phi[icl], cl_iz[icl], dim) || icl_seed==icl){
-        rec_per_seed.push_back(nrechits[icl]);
+        // std::cout << "\t\tInwindow" << std::endl;
+        rechit_per_cl.push_back(nrechits[icl]);
+        et_per_cl.push_back(Et(cl_energy[icl], cl_eta[icl]));
       }
     }
-    result.push_back(rec_per_seed);
+    result.push_back(rechit_per_cl);
+    cl_et.push_back(et_per_cl);
   }
-  return std::make_pair(result, result_et);
+  return std::make_tuple(result, seed_ets, seed_eta, cl_et);
 }
+
 
 
 int main(){
@@ -99,8 +118,12 @@ int main(){
   ROOT::RDataFrame d("recosimdumper/caloTree", "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA.root"); // Interface to TTree and TChain
   
   d.Define("data", getNxtal, {"pfCluster_energy","pfCluster_eta", "pfCluster_phi", "pfCluster_iz", "pfCluster_nXtals"}) \
-    .Define("nxtals", "data.first")       \
-    .Define("seed_et", "data.second") \
-    .Snapshot("recosimdumper/caloTree", "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA_withRechit.root", {"nxtals", "seed_et"});
+    .Define("nxtals",  [](const mytuple_t &data) -> std::vector<std::vector<double>> { return std::get<0>(data); } , {"data"})\
+    .Define("seed_et",[](const mytuple_t &data) -> std::vector<float> { return std::get<1>(data); } , {"data"}) \
+op    .Define("seed_eta",[](const mytuple_t &data) -> std::vector<float> { return std::get<2>(data); } , {"data"}) \
+    .Define("cls_et", [](const mytuple_t &data) -> std::vector<std::vector<double>> { return std::get<3>(data); } , {"data"}) \
+    .Snapshot("recosimdumper/caloTree",
+              "/eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/TTbar_14TeV_TuneCP5_Pythia8/RawDumper_DeepSC_12_5_0/ttbar_Run3_DeepSC_algoA_withRechit_withClEt.root",
+              {"nxtals", "seed_et", "seed_eta", "cls_et"});
   
 }
