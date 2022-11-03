@@ -14,6 +14,14 @@ Code and plotting scripts for the truth level analysis are described in the fold
 
 ## Training dataset preparation
 
+### Software environment
+These scripts do not need CMSSW, but only a recent LCG environment with python>=3.8
+```bash
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos7-gcc11-opt/setup.sh
+```
+
+### First step
+
 - The Dumper is applied on top of RECO dataset to extract TTrees containing all the necessary informations about clusters, caloparticles, rechits, simhits. 
 - The script `windows_creator_general.py` is applied on the dumper output to extract a list of detector windows for each event. 
     - this script creates all the possible windows around all the possible seeds and save the list of clusters inside
