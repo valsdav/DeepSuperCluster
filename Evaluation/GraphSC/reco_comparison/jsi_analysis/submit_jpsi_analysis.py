@@ -50,9 +50,9 @@ cmsRun MiniAOD_fromRaw_Run3_rereco_DeepSC_algoA_Data2022_cfg.py inputFile=${INPU
 
 cd ../../..;
 cd Bmmm/Analysis/test/;
-python3 inspector_bmmm_analysis.py --inputFiles ../../../output.root --filename output_${JOBID}.root
+python3 inspector_kee_analysis.py --inputFiles ../../../output.root --filename output_${JOBID}.root
 
-xrcdp output_${JOBID}.root {OUTPUTDIR};
+cp output_${JOBID}.root {OUTPUTDIR};
 
 """
 
@@ -73,7 +73,7 @@ sub['MY.SendCredential'] = True
 sub['+JobFlavour'] = '"tomorrow"'
 sub['+AccountingGroup'] = "group_u_CMS.CAF.COMM"
 sub["when_to_transfer_output"] = "ON_EXIT"
-sub['request_cpus'] = '2'
+sub['request_cpus'] = '1'
 
 
 log =  open(f"{args.basedir}/condor_logs/deepsc_jpsi_jobs.csv", "a")
