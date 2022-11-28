@@ -48,7 +48,7 @@ MODELS_DIR="/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/
 #        --max-nrechits 60
 
 ## verysmall
-python3 exporter_awk.py --model-config ${MODELS_DIR}/tests_simpler_rechits/orun_41_datasetv10_verysmall_nconv2_morepatience_lessL2/training_config.json \
+python3 exporter_awk.py --model-config ${MODELS_DIR}/tests_simpler_rechits/run_41_datasetv10_verysmall_nconv2_morepatience_lessL2/training_config.json \
        --model-weights weights.best.hdf5 \
        --model-python ${MODELS_DIR}/tests_simpler_rechits/run_41_datasetv10_verysmall_nconv2_morepatience_lessL2/model_forexport.py \
        -o  ${MODELS_DIR}/tests_simpler_rechits/run_41_datasetv10_verysmall_nconv2_morepatience_lessL2/model_smallpadding.pb \
