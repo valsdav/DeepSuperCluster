@@ -11,6 +11,7 @@ import json
 import numpy as np
 import ROOT as R
 R.gROOT.ProcessLine(".L Mustache.C+")
+import correctionlib
 
 '''
 This script extracts the windows and associated clusters from events
@@ -79,7 +80,7 @@ class WindowCreator():
                  min_et_seed=1., assoc_strategy="sim_fraction", overlapping_window=False,  nocalowNmax=0):
         self.seed_min_fraction = seed_min_fraction
         self.cluster_min_fraction = cl_min_fraction
-        self.simfraction_thresholds = simfraction_thresholds
+        self.simfraction_thresholds = correctionlib.CorrectionSet.from_file(simfraction_thresholds)["simfraction_thres"]
         self.simenergy_pu_limit = simenergy_pu_limit
         self.min_et_seed=min_et_seed
         self.assoc_strategy = assoc_strategy
@@ -91,11 +92,7 @@ class WindowCreator():
         '''
         This functions associates a cluster as true matched if it passes a threshold in simfraction
         '''
-        iX = min(max(1,self.simfraction_thresholds.GetXaxis().FindBin(seed_et)      ), self.simfraction_thresholds.GetNbinsX())
-        iY = min(max(1,self.simfraction_thresholds.GetYaxis().FindBin(abs(seed_eta))), self.simfraction_thresholds.GetNbinsY())
-        thre = self.simfraction_thresholds.GetBinContent(iX,iY)
-        #print(seed_eta, seed_et, cluster_calo_score, thre, cluster_calo_score >= thre )
-        return cluster_calo_score >= thre
+        return cluster_calo_score >= self.simfraction_thresholds(seed_et, abs(seed_eta))
 
     def dynamic_window(self,eta, version=2):
         aeta = abs(eta)

@@ -14,6 +14,7 @@ import scipy
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--inputfile", type=str, help="input file. Multiple files can be concatenated with #_#", required=True)
 parser.add_argument("-o","--outputfile", type=str, help="Output file", default="out.csv")
+parser.add_argument("--pu",action="store_true", help="Analyze PU info")
 args = parser.parse_args()
 
 # min simFraction for the cluster to be associated with the caloparticle
@@ -123,14 +124,14 @@ def analyze(file):
         pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
                                 calo_association.get_calo_association(clusters_scores, sort_calo_cl=True,
                                                                       debug=False, min_sim_fraction=CL_MIN_FRACTION)
-        # CaloParticle Pileup information
-        cluster_nXtalsPU = ev.pfCluster_simPU_nSharedXtals 
-        cluster_PU_simenergy = ev.pfCluster_simEnergy_sharedXtalsPU
-
-        cluster_noise = ev.pfCluster_noise
-        cluster_noise_uncalib  = ev.pfCluster_noiseUncalib
-        cluster_noise_nofrac = ev.pfCluster_noiseNoFractions
-        cluster_noise_uncalib_uncalib = ev.pfCluster_noiseUncalibNoFractions
+        if args.pu:
+            # CaloParticle Pileup information
+            cluster_nXtalsPU = ev.pfCluster_simPU_nSharedXtals 
+            cluster_PU_simenergy = ev.pfCluster_simEnergy_sharedXtalsPU
+            cluster_noise = ev.pfCluster_noise
+            cluster_noise_uncalib  = ev.pfCluster_noiseUncalib
+            cluster_noise_nofrac = ev.pfCluster_noiseNoFractions
+            cluster_noise_uncalib_uncalib = ev.pfCluster_noiseUncalibNoFractions
 
         ### DEBUG INFO
         # print(">>> Cluster_calo map")
@@ -156,13 +157,14 @@ def analyze(file):
             for icl, score in clusters:
                 # simen_signal = pfcluster_calo_score[icl] * calo_simenergy[calo]
                 simen_signal = pfCluster_simen_signal[icl][calo]
-                simen_pu = cluster_PU_simenergy[icl]
-                pusimen_frac = simen_pu / simen_signal
+                if args.pu:
+                    simen_pu = cluster_PU_simenergy[icl]
+                    pusimen_frac = simen_pu / simen_signal
                 
                 is_in_window, (detaw, dphiw) = in_window(pfCluster_eta[seed], pfCluster_phi[seed], pfCluster_iz[seed],
                                          pfCluster_eta[icl], pfCluster_phi[icl], pfCluster_iz[icl],
                                         deta_up, deta_down, dphi )
-                data_cl.append({
+                data = {
                     "wi": window_index,
                     "en": pfCluster_rawEnergy[icl],
                     "et": pfCluster_rawEnergy[icl]/ math.cosh(pfCluster_eta[icl]),
@@ -173,15 +175,7 @@ def analyze(file):
                     'iz': pfCluster_iz[icl],
                     "simfrac_sig": score, 
                     "simen_sig": simen_signal,
-                    "simen_pu": simen_pu,
                     "simen_sig_frac": simen_signal/pfCluster_rawEnergy[icl],
-                    "simen_pu_frac":  simen_pu/pfCluster_rawEnergy[icl],
-                    "PUsimen_frac": pusimen_frac ,
-                    
-                    "noise_en" : cluster_noise[icl],
-                    "noise_en_uncal": cluster_noise_uncalib[icl],
-                    "noise_en_nofrac": cluster_noise_nofrac[icl],
-                    "noise_en_uncal_nofrac": cluster_noise_uncalib_uncalib[icl],
                     
                     "nxtals": pfCluster_nXtals[icl],
                     "is_seed": int(seed == icl),
@@ -190,7 +184,6 @@ def analyze(file):
                     "in_window": int(is_in_window),
                     "deta_seed": DeltaEta(pfCluster_eta[seed], pfCluster_eta[icl]) ,
                     "dphi_seed": DeltaPhi(pfCluster_phi[seed], pfCluster_phi[icl]) , 
-                    "nxtals_PU": cluster_nXtalsPU[icl],
                     "nVtx": nVtx, 
                     "obsPU":obsPU,
                     "calo_simen": calo_simenergy[calo],
@@ -202,7 +195,22 @@ def analyze(file):
                     "calo_simphi": calo_simphi[calo],
                     "calo_genen" : calo_genenergy[calo],
                     "calo_genet" : calo_genenergy[calo] / math.cosh(calo_geneta[calo])
-                })
+                }
+                if args.pu:
+                    data.update({
+                        "simen_pu": simen_pu,
+                        "simen_pu_frac":  simen_pu/pfCluster_rawEnergy[icl],
+                        "PUsimen_frac": pusimen_frac ,
+                        "nxtals_PU": cluster_nXtalsPU[icl],
+                         
+                        "noise_en" : cluster_noise[icl],
+                        "noise_en_uncal": cluster_noise_uncalib[icl],
+                        "noise_en_nofrac": cluster_noise_nofrac[icl],
+                        "noise_en_uncal_nofrac": cluster_noise_uncalib_uncalib[icl],
+                   
+                        
+                    })
+                data_cl.append(data)
     f.Close()     
     return data_cl      
 
