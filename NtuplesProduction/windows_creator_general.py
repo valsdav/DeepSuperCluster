@@ -1,5 +1,5 @@
 from __future__ import print_function
-from math import pi, sqrt, cosh
+from math import pi, sqrt, cosh, log
 import random
 import string
 from collections import OrderedDict, defaultdict
@@ -77,7 +77,7 @@ def get_cluster_hits(pfclhit_ieta,pfclhit_iphi,pfclhit_iz,pfclhit_energy, pfclhi
 class WindowCreator():
 
     def __init__(self, simfraction_thresholds,  seed_min_fraction=1e-2, cl_min_fraction=1e-4, simenergy_pu_limit = 1.5,
-                 min_et_seed=1., assoc_strategy="sim_fraction", overlapping_window=False,  nocalowNmax=0):
+                 min_et_seed=1., assoc_strategy="sim_fraction", overlapping_window=False,  nocalowNmax=0, do_pu_sim=False):
         self.seed_min_fraction = seed_min_fraction
         self.cluster_min_fraction = cl_min_fraction
         self.simfraction_thresholds = correctionlib.CorrectionSet.from_file(simfraction_thresholds)["simfraction_thres"]
@@ -86,13 +86,14 @@ class WindowCreator():
         self.assoc_strategy = assoc_strategy
         self.overlapping_window = overlapping_window
         self.nocalowNmax = nocalowNmax
-
+        self.do_pu_sim = do_pu_sim
 
     def pass_simfraction_threshold(self, seed_eta, seed_et, cluster_calo_score ):
         '''
         This functions associates a cluster as true matched if it passes a threshold in simfraction
         '''
-        return cluster_calo_score >= self.simfraction_thresholds(seed_et, abs(seed_eta))
+        minscore = self.simfraction_thresholds.evaluate(seed_et, abs(seed_eta))
+        return cluster_calo_score >= minscore
 
     def dynamic_window(self,eta, version=2):
         aeta = abs(eta)
@@ -153,10 +154,11 @@ class WindowCreator():
         pfCluster_ieta = event.pfCluster_ieta
         pfCluster_iphi = event.pfCluster_iphi
         pfCluster_iz = event.pfCluster_iz
-        pfCluster_noise = event.pfCluster_noise
-        pfCluster_noise_uncalib  = event.pfCluster_noiseUncalib
-        pfCluster_noise_nofrac = event.pfCluster_noiseNoFractions
-        pfCluster_noise_uncalib_uncalib = event.pfCluster_noiseUncalibNoFractions
+        if self.do_pu_sim:
+            pfCluster_noise = event.pfCluster_noise
+            pfCluster_noise_uncalib  = event.pfCluster_noiseUncalib
+            pfCluster_noise_nofrac = event.pfCluster_noiseNoFractions
+            pfCluster_noise_uncalib_uncalib = event.pfCluster_noiseUncalibNoFractions
         calo_simenergy = event.caloParticle_simEnergy
         calo_simenergy_goodstatus = event.caloParticle_simEnergyGoodStatus
         calo_genenergy = event.caloParticle_genEnergy
@@ -201,12 +203,13 @@ class WindowCreator():
         pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
                                 calo_association.get_calo_association(clusters_scores, sort_calo_cl=True, debug=False, min_sim_fraction=self.cluster_min_fraction)
         # CaloParticle Pileup information
-        cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
-        cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
         cluster_signal_simenergy = event.pfCluster_simEnergy_sharedXtals
-        cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
-        total_PU_simenergy = event.caloParticlePU_totEnergy
-
+        if self.do_pu_sim:
+            cluster_nXtalsPU = event.pfCluster_simPU_nSharedXtals 
+            cluster_PU_simenergy = event.pfCluster_simEnergy_sharedXtalsPU
+            cluster_PU_recoenergy = event.pfCluster_recoEnergy_sharedXtalsPU
+            total_PU_simenergy = event.caloParticlePU_totEnergy
+            
         # #total PU simenergy in all clusters in the event
         # total_PU_simenergy = sum([simPU for cl, simPU in cluster_PU_simenergy.items()])
 
@@ -278,8 +281,9 @@ class WindowCreator():
                 if pfcluster_calo_map[icl] !=-1 and pfcluster_calo_score[icl] > self.seed_min_fraction:
                     # ID of the associated caloparticle
                     caloid = pfcluster_calo_map[icl] 
-                    # Do not check PU fraction on the seed
-                    PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][caloid]
+                    if self.do_pu_sim:
+                        # Do not check PU fraction on the seed
+                        PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][caloid]
                     #Check if the caloparticle is in the same window with GEN info
                     if in_window(calo_geneta[caloid],calo_genphi[caloid],calo_simiz[caloid], cl_eta, cl_phi, cl_iz, 
                                                     *self.dynamic_window(cl_eta)):
@@ -315,6 +319,7 @@ class WindowCreator():
                 else:
                     mustache_seed_index = -1
 
+
                 # Create a unique index
                 windex = "".join([ random.choice(string.ascii_lowercase) for _ in range(9)])
                 # Let's create  new window:
@@ -335,9 +340,9 @@ class WindowCreator():
                     # Score of the seed cluster
                     "seed_score": pfcluster_calo_score[icl],
                     "seed_simen_sig": cluster_signal_simenergy[icl][calomatched] if calomatched!=-1 else 0.,
-                    "seed_simen_PU":  cluster_PU_simenergy[icl],
-                    "seed_recoen_PU":  cluster_PU_recoenergy[icl],
-                    "seed_PUfrac" : PU_simenfrac,
+                    "seed_simen_PU":  cluster_PU_simenergy[icl] if self.do_pu_sim else 0.,
+                    "seed_recoen_PU":  cluster_PU_recoenergy[icl] if self.do_pu_sim else 0.,
+                    "seed_PUfrac" : PU_simenfrac if self.do_pu_sim else 0.,
 
                     "seed_eta": cl_eta,
                     "seed_phi": cl_phi, 
@@ -356,6 +361,11 @@ class WindowCreator():
                     "et_seed": pfCluster_rawEnergy[icl] / cosh(cl_eta),
                     "en_seed_calib": pfCluster_energy[icl],
                     "et_seed_calib": pfCluster_energy[icl] / cosh(cl_eta),
+
+                    "en_seed_log": log(pfCluster_rawEnergy[icl]),
+                    "et_seed_log": log(pfCluster_rawEnergy[icl] / cosh(cl_eta)),
+                    "en_seed_calib_log": log(pfCluster_energy[icl]),
+                    "et_seed_calib_log": log(pfCluster_energy[icl] / cosh(cl_eta)),
 
                     # Sim energy and Gen Enerugy of the caloparticle
                     "en_true_sim": calo_simenergy[calomatched] if calomatched!=-1 else 0, 
@@ -376,7 +386,7 @@ class WindowCreator():
                     "rho": rho,
                     "obsPU": obsPU, 
                     "truePU": truePU,
-                    "event_tot_simen_PU": total_PU_simenergy,
+                    "event_tot_simen_PU": total_PU_simenergy if self.do_pu_sim else 0.,
 
                     "seed_f5_r9": pfcl_f5_r9[icl],
                     "seed_f5_sigmaIetaIeta" : pfcl_f5_sigmaIetaIeta[icl],
@@ -445,7 +455,10 @@ class WindowCreator():
                         if is_calo_matched: 
                             # Check the fraction of sim energy and PU energy 
                             # simenergy signal == linked to the caloparticle of the SEED
-                            PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][window["calo_index"]]
+                            if self.do_pu_sim:
+                                PU_simenfrac = cluster_PU_simenergy[icl] / cluster_signal_simenergy[icl][window["calo_index"]]
+                            else:
+                                PU_simenfrac = 0
                             # First of all check the PU sim energy limit
                             if PU_simenfrac < self.simenergy_pu_limit:
                                 #associate the cluster to the caloparticle with simfraction optimized thresholds 
@@ -493,10 +506,10 @@ class WindowCreator():
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster
                         "calo_simen_sig": cluster_signal_simenergy[icl][window["calo_index"]] if is_calo_matched else 0.,
-                        "calo_simen_PU":  cluster_PU_simenergy[icl],
-                        "calo_recoen_PU": cluster_PU_recoenergy[icl],
-                        "calo_nxtals_PU": cluster_nXtalsPU[icl],
-                        "cluster_PUfrac": PU_simenfrac,
+                        "calo_simen_PU":  cluster_PU_simenergy[icl] if self.do_pu_sim else 0.,
+                        "calo_recoen_PU": cluster_PU_recoenergy[icl] if self.do_pu_sim else 0.,
+                        "calo_nxtals_PU": cluster_nXtalsPU[icl] if self.do_pu_sim else 0.,
+                        "cluster_PUfrac": PU_simenfrac if self.do_pu_sim else 0.,
 
                         "cluster_ieta" : cl_ieta,
                         "cluster_iphi" : cl_iphi,
@@ -509,10 +522,15 @@ class WindowCreator():
                         "en_cluster_calib": pfCluster_energy[icl],
                         "et_cluster_calib": pfCluster_energy[icl] /cosh(cl_eta),
 
-                        "noise_en" : pfCluster_noise[icl],
-                        "noise_en_uncal": pfCluster_noise_uncalib[icl],
-                        "noise_en_nofrac": pfCluster_noise_nofrac[icl],
-                        "noise_en_uncal_nofrac": pfCluster_noise_uncalib_uncalib[icl],
+                        "en_cluster_log": log(pfCluster_rawEnergy[icl]),
+                        "et_cluster_log": log(pfCluster_rawEnergy[icl] / cosh(cl_eta)),
+                        "en_cluster_calib_log": log(pfCluster_energy[icl]),
+                        "et_cluster_calib_log": log(pfCluster_energy[icl] /cosh(cl_eta)),
+                        
+                        "noise_en" : pfCluster_noise[icl] if self.do_pu_sim else 0.,
+                        "noise_en_uncal": pfCluster_noise_uncalib[icl] if self.do_pu_sim else 0.,
+                        "noise_en_nofrac": pfCluster_noise_nofrac[icl] if self.do_pu_sim else 0.,
+                        "noise_en_uncal_nofrac": pfCluster_noise_uncalib_uncalib[icl] if self.do_pu_sim else 0.,
                         
                         # Shower shape variables
                         "cl_f5_r9": pfcl_f5_r9[icl],

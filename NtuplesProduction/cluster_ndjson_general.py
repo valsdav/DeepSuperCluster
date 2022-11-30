@@ -35,8 +35,8 @@ if "#_#" in args.inputfile:
 else:
     inputfiles = [args.inputfile]
 
-simfraction_thresholds_file = R.TFile(args.wp_file)
-simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
+# simfraction_thresholds_file = R.TFile(args.wp_file)
+# simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
 
 # Parameters controlling the creation of the window
 # min simFraction for the seed with a signal caloparticle
@@ -46,7 +46,7 @@ CL_MIN_FRACION=1e-4
 # threshold of simEnergy PU / simEnergy signal for each cluster and seed to be matched with a caloparticle
 SIMENERGY_PU_LIMIT= args.pu_limit
 
-windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,
+windows_creator = WindowCreator(args.wp_file, SEED_MIN_FRACTION,
                                 cl_min_fraction=CL_MIN_FRACION,
                                 simenergy_pu_limit = SIMENERGY_PU_LIMIT,
                                 min_et_seed=args.min_et_seed,
