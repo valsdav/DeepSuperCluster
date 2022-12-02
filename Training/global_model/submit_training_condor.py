@@ -32,13 +32,13 @@ sub = htcondor.Submit()
 sub['Executable'] = "run_training_condor.sh"
 sub["arguments"] = f"{args.basedir}/{args.config}  {args.basedir}/{args.model} {args.name}"
 sub['Error'] = args.basedir+"/condor_logs/error/training-$(ClusterId).$(ProcId).err"
-sub['Output'] = args.basedir+"/condor_l ogs/output/training-$(ClusterId).$(ProcId).out"
+sub['Output'] = args.basedir+"/condor_logs/output/training-$(ClusterId).$(ProcId).out"
 sub['Log'] = args.basedir+"/condor_logs/log/training-$(ClusterId).log"
 sub['MY.SendCredential'] = True
 sub['+JobFlavour'] = '"testmatch"'
 sub["transfer_input_files"] = "trainer_awk.py, awk_data.py, plot_loss.py"
 sub["when_to_transfer_output"] = "ON_EXIT"
-sub['request_cpus'] = '3'
+sub['request_cpus'] = '4'
 sub['request_gpus'] = '1'
 
 schedd = htcondor.Schedd()

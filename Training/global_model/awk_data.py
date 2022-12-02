@@ -482,14 +482,17 @@ def preprocessing(config):
             if config.norm_type == "stdscale":
                 # With remasking
                 cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["mean"])/ norm_fact["cluster"]["std"] ) * cls_mask[:,:,None]
-                wind_X_norm =  ((wind_X_np - norm_fact["window"]["mean"])/ norm_fact["window"]["std"] )  
+                wind_X_norm =  ((wind_X_np - norm_fact["window"]["mean"])/ norm_fact["window"]["std"] )
+                #Window features are always scaled with min max
+                # wind_X_norm =  ((wind_X_np - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) ) 
             elif config.norm_type == "minmax":
                 cls_X_pad_norm = ((cls_X_pad_np - norm_fact["cluster"]["min"])/ (norm_fact["cluster"]["max"]-norm_fact["cluster"]["min"])) \
                     * cls_mask[:,:,:None]
-                wind_X_norm =  ((wind_X_np - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) )  
+                wind_X_norm =  ((wind_X_np - norm_fact["window"]["min"])/ (norm_fact["window"]["max"]-norm_fact["window"]["min"]) ) 
             else:
                 cls_X_pad_norm = cls_X_pad_np
                 windo_X_norm = wind_X_norm
+
 
             return size, (cls_X_pad_np, cls_X_pad_norm, cls_Y_pad_np, is_seed_pad_np,
                           in_scluster_pad_np, cl_hits_pad_np, wind_X_np, wind_X_norm,
@@ -638,6 +641,9 @@ def load_tfdataset_and_original(config:LoaderConfig):
     It returns the data in the tf format as required in the config.
     '''
     if config.input_folders:
+        for folder in config.input_folders:
+            if not os.path.exists(folder):
+                raise Exception(f"Folder {folder} does not exists! Check your configuration file")
         config.input_files = list(zip_longest(*[glob(folder+"/*.parquet") for folder in config.input_folders]))
     if not config.input_folders and not config.input_files:
         raise Exception("No input folders or files provided! Please provide some input!")

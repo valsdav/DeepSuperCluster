@@ -33,6 +33,7 @@ if len(gpus) >=1 :
     print("Using 1 GPU")
     tf.config.experimental.set_memory_growth(gpus[0], enable=True)
     strategy = tf.distribute.OneDeviceStrategy("gpu:0")
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 # elif len(gpus):
 #     print("Using {} GPUs".format(len(gpus)))
 #     for gpu in gpus:

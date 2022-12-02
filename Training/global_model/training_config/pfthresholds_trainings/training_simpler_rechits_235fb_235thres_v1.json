@@ -1,10 +1,10 @@
 {
-  "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/PFRechitsThresholsTests/models_235noise_UL18thres/",
+  "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/PFRechitsThresholsTests/models_235noise_235thres/",
   "dataset_conf": {
     "training": {
       "input_folders": [
-        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_235noise_UL18thres/training",
-        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_235noise_UL18thres/training"
+        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_235noise_235thres/training",
+        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_235noise_235thres/training"
       ],
       "file_input_columns": [
         "cl_features",
@@ -15,8 +15,8 @@
       ],
       "columns": {
         "cl_features": [
-            "en_cluster",
-            "et_cluster",
+          "en_cluster",
+          "et_cluster",
           "et_cluster_log",
           "en_cluster_log",
           "cluster_eta",
@@ -59,16 +59,17 @@
           "max_dphi_cluster",
           "max_den_cluster",
           "max_det_cluster"
+         
         ]
       },
-      "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_UL18thres_v1.json",
-      "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_UL18thres_v1.json",
+      "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_235thres_v1.json",
+      "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_235thres_v1.json",
       "norm_type": "stdscale",
       "padding": true,
       "ncls_padding": -1,
       "nhits_padding": -1,
       "chunk_size": 5120,
-      "batch_size": 512,
+      "batch_size": 128,
       "maxevents": 2000000,
       "nworkers": 3,
       "max_batches_in_memory": 300,
@@ -95,8 +96,8 @@
     },
     "validation": {
       "input_folders": [
-        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_235noise_UL18thres/validation",
-        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_235noise_UL18thres/validation"
+        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/awkward_235noise_235thres/validation",
+        "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/awkward_235noise_235thres/validation"
       ],
       "file_input_columns": [
         "cl_features",
@@ -107,8 +108,8 @@
       ],
       "columns": {
         "cl_features": [
-            "en_cluster",
-            "et_cluster",
+          "en_cluster",
+          "et_cluster",
           "et_cluster_log",
           "en_cluster_log",
           "cluster_eta",
@@ -150,17 +151,17 @@
           "max_deta_cluster",
           "max_dphi_cluster",
           "max_den_cluster",
-          "max_det_cluster"
+          "max_det_cluster",
         ]
       },
-      "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_UL18thres_v1.json",
-      "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_UL18thres_v1.json",
+      "norm_factors_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_235thres_v1.json",
+      "reweighting_file": "/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_235thres_v1.json",
       "norm_type": "stdscale",
       "padding": true,
       "ncls_padding": -1,
       "nhits_padding": -1,
       "chunk_size": 5120,
-      "batch_size": 512,
+      "batch_size": 128,
       "maxevents": 400000,
       "nworkers": 3,
       "max_batches_in_memory": 300,
