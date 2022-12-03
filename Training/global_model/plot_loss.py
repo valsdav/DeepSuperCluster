@@ -2,6 +2,7 @@
 keras callback to plot loss
 '''
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from IPython.display import clear_output
 
@@ -33,6 +34,7 @@ class LossPlotter(keras.callbacks.Callback):
         self.performance_save(logs)
         # if not self.batch_mode:
         self.performance_plot()
+        self.save_metrics()
 
     def performance_save(self, logs):
         self.logs.append(logs)
@@ -59,6 +61,18 @@ class LossPlotter(keras.callbacks.Callback):
             clear_output(wait=True)
             plt.show()
         self.figure.savefig(self.output_dir+ "/loss_plot.png")
+        plt.close(self.figure)
+
+
+    def save_metrics(self):
+        metrics = {}
+        for l,v in self.losses.items():
+            metrics[l] = v
+        for l,v in self.val_losses.items():
+            metrics[f"val_{l}"] = v
+        df = pd.DataFrame(metrics)
+        df.to_csv(self.output_dir + "/metrics_history.csv")
+        
 
     def save_figure(self, fname):
         if self.batch_mode:
