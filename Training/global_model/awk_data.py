@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from collections import namedtuple
 import correctionlib
+import os
 
 tf_minor_version = int(tf.__version__.split(".")[1])
 
@@ -610,6 +611,9 @@ def load_dataset (config: LoaderConfig, output_type="tf"):
     '''
     # Check if folders instead of files have been provided
     if config.input_folders:
+        for folder in config.input_folders:
+            if not os.path.exists(folder):
+                raise Exception(f"Folder {folder} does not exists! Check your configuration file")
         config.input_files = list(zip_longest(*[glob(folder+"/*.parquet") for folder in config.input_folders]))
     if not config.input_folders and not config.input_files:
         raise Exception("No input folders or files provided! Please provide some input!")
