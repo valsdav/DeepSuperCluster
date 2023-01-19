@@ -118,8 +118,8 @@ ifile_used = 0
 ifile_curr = 0
 
 
-for file in files_training:
-    files_groups.append(args.inputdir + "/" + file)
+for file in inputfiles:
+    files_groups.append(file)
     ifile_used +=1 
     ifile_curr +=1
 
