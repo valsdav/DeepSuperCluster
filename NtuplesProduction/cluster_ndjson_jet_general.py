@@ -15,7 +15,7 @@ import numpy as np
 import argparse
 import pickle
 import pandas as pd
-from windows_creator_dynamic_global_nooverlap_jet_global import WindowCreator
+from windows_creator_dynamic_global_nooverlap_jet_general import WindowCreator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i","--inputfile", type=str, help="inputfile", required=True)

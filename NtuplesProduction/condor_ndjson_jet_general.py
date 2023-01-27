@@ -71,7 +71,7 @@ PULIM=$8;
 
 echo -e "Running ndjson dumper.."
 
-python cluster_ndjson_dynamic_global_nooverlap_jet_general.py -i ${INPUTFILE} -o output.ndjson \
+python cluster_ndjson_jet_general.py -i ${INPUTFILE} -o output.ndjson \
             -a ${ASSOC} --wp-file ${WPFILE} --min-et-seed ${ET_SEED} --maxnocalow $MAXNOCALO \
           {overlap} --pu-limit ${PULIM} {debug};
 

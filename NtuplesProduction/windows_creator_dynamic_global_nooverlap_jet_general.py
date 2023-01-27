@@ -1,5 +1,5 @@
 from __future__ import print_function
-from math import pi, sqrt, cosh
+from math import pi, sqrt, cosh, log
 import random
 import string
 from collections import OrderedDict, defaultdict
@@ -10,6 +10,7 @@ from pprint import pprint
 import json
 import numpy as np
 import ROOT as R
+import correctionlib
 R.gROOT.ProcessLine(".L Mustache.C+")
 
 '''
@@ -139,7 +140,7 @@ class WindowCreator():
 
 
 
-    def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1, debug=False):
+    def get_windows(self, event, debug=False):
         # Metadata for debugging
         metadata = {
             "n_windows_matched" : 0,
@@ -206,7 +207,7 @@ class WindowCreator():
         # pfclhit_eta = event.pfClusterHit_eta
         # pfclhit_phi = event.pfClusterHit_phi
 
-        clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
+        clusters_scores = getattr(event, "pfCluster_"+self.assoc_strategy)
         # Get Association between pfcluster and calo
         # Sort the clusters for each calo in order of score. 
         # # This is needed to understand which cluster is the seed of the calo
@@ -269,7 +270,7 @@ class WindowCreator():
             #print(icl, clenergy_T)
 
             # No seeds with Et< min_et_seed GeV
-            if clenergy_T < min_et_seed: continue
+            if clenergy_T < self.min_et_seed: continue
 
             cl_eta = pfCluster_eta[icl]
             cl_phi = pfCluster_phi[icl]
@@ -398,8 +399,8 @@ class WindowCreator():
                     
                     "en_seed_log": log(pfCluster_rawEnergy[icl]),
                     "et_seed_log": log(pfCluster_rawEnergy[icl] / cosh(cl_eta)),
-                    "en_seed_calib_log": log(pfCluster_energy[icl]),
-                    "et_seed_calib_log": log(pfCluster_energy[icl] / cosh(cl_eta)),
+                    "en_seed_calib_log": np.log(pfCluster_energy[icl]),
+                    "et_seed_calib_log": np.log(pfCluster_energy[icl] / cosh(cl_eta)),
 
                     # Sim energy and Gen Enerugy of the caloparticle
                     "en_true_sim": calo_simenergy[calomatched] if calomatched!=-1 else 0, 
@@ -552,10 +553,10 @@ class WindowCreator():
                         "calo_score": pfcluster_calo_score[icl],
                         # Simenergy of the signal and PU in the cluster
                         "calo_simen_sig": cluster_signal_simenergy[icl][window["calo_index"]] if is_calo_matched else 0.,
-                        "calo_simen_PU":  cluster_PU_simenergy[icl],
-                        "calo_recoen_PU": cluster_PU_recoenergy[icl],
-                        "calo_nxtals_PU": cluster_nXtalsPU[icl],
-                        "cluster_PUfrac": PU_simenfrac,
+                        "calo_simen_PU":  cluster_PU_simenergy[icl] if self.do_pu_sim else 0.,
+                        "calo_recoen_PU": cluster_PU_recoenergy[icl] if self.do_pu_sim else 0.,
+                        "calo_nxtals_PU": cluster_nXtalsPU[icl] if self.do_pu_sim else 0.,
+                        "cluster_PUfrac": PU_simenfrac if self.do_pu_sim else 0.,
 
                         "cluster_ieta" : cl_ieta,
                         "cluster_iphi" : cl_iphi,
