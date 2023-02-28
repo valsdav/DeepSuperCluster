@@ -42,8 +42,10 @@ tf.config.threading.set_intra_op_parallelism_threads(
 )
     
 if len(gpus) >=1 :
+    print("Using 1 GPU")
+    # tf.config.experimental.set_memory_growth(gpus[0], enable=True)
     print("Using 1 GPU: ", os.environ['CUDA_VISIBLE_DEVICES'])
-    # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     strategy = tf.distribute.OneDeviceStrategy(f"gpu:{os.environ['CUDA_VISIBLE_DEVICES']}")
 # elif len(gpus):
 #     print("Using {} GPUs".format(len(gpus)))
