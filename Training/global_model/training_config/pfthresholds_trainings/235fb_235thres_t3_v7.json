@@ -1,0 +1,238 @@
+{
+  "models_path": "/work/dvalsecc/Clustering/models_archive/gcn_models/PFRechitsThresholsTests/models_235noise_235thres/",
+  "dataset_conf": {
+    "training": {
+      "input_folders": [
+        "/work/dvalsecc/Clustering/dataset/electrons_awkward_235noise_235thres/training",
+        "/work/dvalsecc/Clustering/dataset/gammas_awkward_235noise_235thres/training"
+      ],
+      "file_input_columns": [
+        "cl_features",
+        "cl_labels",
+        "window_features",
+        "window_metadata",
+        "cl_h"
+      ],
+      "columns": {
+        "cl_features": [
+          "en_cluster",
+            "et_cluster",
+            "en_cluster_log",
+            "et_cluster_log",
+          "cluster_eta",
+          "cluster_phi",
+          "cluster_ieta",
+          "cluster_iphi",
+          "cluster_iz",
+          "cluster_deta",
+          "cluster_dphi",
+          "cluster_den_seed",
+          "cluster_det_seed",
+          "cl_etaWidth",
+          "cl_phiWidth",
+          "cl_swissCross",
+          "cl_nxtals"
+        ],
+        "cl_labels": [
+          "in_scluster",
+          "is_seed"
+        ],
+        "window_metadata": [
+          "flavour",
+          "nVtx",
+          "rho",
+          "obsPU",
+          "truePU",
+          "ncls",
+          "nclusters_insc",
+          "en_true_gen",
+          "en_true_sim"
+        ],
+        "window_features": [
+          "max_en_cluster",
+          "max_et_cluster",
+          "max_deta_cluster",
+          "max_dphi_cluster",
+          "max_den_cluster",
+          "max_det_cluster"
+         
+        ]
+      },
+      "norm_factors_file": "/work/dvalsecc/Clustering/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_235thres_v1.json",
+      "reweighting_file": "/work/dvalsecc/Clustering/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_235thres_v1.json",
+      "norm_type": "stdscale",
+      "padding": true,
+      "ncls_padding": -1,
+      "nhits_padding": -1,
+      "chunk_size": 1280,
+      "batch_size": 128,
+      "maxevents": 2000000,
+      "nworkers": 3,
+      "max_batches_in_memory": 300,
+      "output_tensors": [
+        [
+          "cl_X_norm",
+          "wind_X_norm",
+          "cl_hits",
+          "is_seed",
+          "cls_mask",
+          "hits_mask"
+        ],
+        [
+          "in_scluster",
+          "flavour",
+          "cl_X",
+          "wind_X",
+          "wind_meta"
+        ],
+        [
+          "weight"
+        ]
+      ]
+    },
+    "validation": {
+      "input_folders": [
+        "/work/dvalsecc/Clustering/dataset/electrons_awkward_235noise_235thres/validation",
+        "/work/dvalsecc/Clustering/dataset/gammas_awkward_235noise_235thres/validation"
+      ],
+      "file_input_columns": [
+        "cl_features",
+        "cl_labels",
+        "window_features",
+        "window_metadata",
+        "cl_h"
+      ],
+      "columns": {
+        "cl_features": [
+            "en_cluster",
+            "et_cluster",
+            "en_cluster_log",
+            "et_cluster_log",
+          "cluster_eta",
+          "cluster_phi",
+          "cluster_ieta",
+          "cluster_iphi",
+          "cluster_iz",
+          "cluster_deta",
+          "cluster_dphi",
+          "cluster_den_seed",
+          "cluster_det_seed",
+          "cl_etaWidth",
+          "cl_phiWidth",
+          "cl_swissCross",
+          "cl_nxtals"
+        ],
+        "cl_labels": [
+          "in_scluster",
+          "is_seed"
+        ],
+        "window_metadata": [
+          "flavour",
+          "nVtx",
+          "rho",
+          "obsPU",
+          "truePU",
+          "ncls",
+          "nclusters_insc",
+          "en_true_gen",
+          "en_true_sim"
+        ],
+        "window_features": [
+          "max_en_cluster",
+          "max_et_cluster",
+          "max_deta_cluster",
+          "max_dphi_cluster",
+          "max_den_cluster",
+          "max_det_cluster"
+        ]
+      },
+      "norm_factors_file": "/work/dvalsecc/Clustering/DeepSuperCluster/Training/global_model/normalization_factors/normalization_factors_235noise_235thres_v1.json",
+      "reweighting_file": "/work/dvalsecc/Clustering/DeepSuperCluster/Training/global_model/reweightings/total_reweighting_235noise_235thres_v1.json",
+      "norm_type": "stdscale",
+      "padding": true,
+      "ncls_padding": -1,
+      "nhits_padding": -1,
+      "chunk_size": 5120,
+      "batch_size": 1024,
+      "maxevents": 600000,
+      "nworkers": 3,
+      "max_batches_in_memory": 300,
+      "output_tensors": [
+        [
+          "cl_X_norm",
+          "wind_X_norm",
+          "cl_hits",
+          "is_seed",
+          "cls_mask",
+          "hits_mask"
+        ],
+        [
+          "in_scluster",
+          "flavour",
+          "cl_X",
+          "wind_X",
+          "wind_meta"
+        ],
+        [
+          "weight"
+        ]
+      ]
+    }
+  },
+  "nepochs": 300,
+  "lr": 0.0001,
+  "opt": "adam",
+  "activation": "elu",
+  "lr_reduce": {
+    "factor": 0.8,
+    "patience": 4,
+    "min_delta": 0.002,
+    "min": 1e-06
+  },
+  "early_stop": {
+    "patience": 15,
+    "min_delta": 0.001
+  },
+  "loss_plot": true,
+  "output_dim_rechits": 10,
+  "output_dim_nodes": 32,
+  "output_dim_gconv": 32,
+  "output_dim_sa_clclass": 32,
+  "output_dim_sa_windclass": 32,
+  "output_dim_sa_enregr": 32,
+  "coord_dim": 3,
+  "coord_dim_sa": 10,
+  "nconv_rechits": -1,
+  "nconv": 2,
+  "layers_input": [
+      32,
+      32,
+      32
+  ],
+  "layers_clclass": [
+      32,
+      32,
+      32
+  ],
+  "layers_windclass": [
+    32,
+    32
+  ],
+  "layers_enregr": [
+    32,
+    32
+  ],
+  "n_windclasses": 3,
+  "dropout": 0.05,
+  "l2_reg": true,
+  "l2reg_alpha": 0.0002,
+  "loss_weights": {
+    "clusters": 200,
+    "window": 1,
+    "softF1": 1,
+    "en_resol": 0,
+    "en_softF1": 100,
+    "en_regr": 0.01,
+    "softF1_beta": 1.5
+  }
+}

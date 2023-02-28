@@ -29,29 +29,30 @@ print('version={}, CUDA={}, GPU={}'.format(
       
 gpus =  tf.config.list_physical_devices('GPU')
 
+num_threads = 5
+os.environ["OMP_NUM_THREADS"] = str(num_threads)
+os.environ["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
+os.environ["TF_NUM_INTEROP_THREADS"] = str(num_threads)
+
+tf.config.threading.set_inter_op_parallelism_threads(
+    num_threads
+)
+tf.config.threading.set_intra_op_parallelism_threads(
+    num_threads
+)
+    
 if len(gpus) >=1 :
     print("Using 1 GPU")
     # tf.config.experimental.set_memory_growth(gpus[0], enable=True)
+    print("Using 1 GPU: ", os.environ['CUDA_VISIBLE_DEVICES'])
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
-    strategy = tf.distribute.OneDeviceStrategy("gpu:0")
+    strategy = tf.distribute.OneDeviceStrategy(f"gpu:{os.environ['CUDA_VISIBLE_DEVICES']}")
 # elif len(gpus):
 #     print("Using {} GPUs".format(len(gpus)))
 #     for gpu in gpus:
 #         tf.config.experimental.set_memory_growth(gpu, enable=True)
 #     strategy = tf.distribute.MirroredStrategy()-
 else:
-    num_threads = 5
-    os.environ["OMP_NUM_THREADS"] = str(num_threads)
-    os.environ["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
-    os.environ["TF_NUM_INTEROP_THREADS"] = str(num_threads)
-
-    tf.config.threading.set_inter_op_parallelism_threads(
-        num_threads
-    )
-    tf.config.threading.set_intra_op_parallelism_threads(
-        num_threads
-    )
     tf.config.set_soft_device_placement(True)
     strategy = tf.distribute.OneDeviceStrategy("cpu:0")
 

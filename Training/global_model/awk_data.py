@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from collections import namedtuple
 import correctionlib
+import os
 
 tf_minor_version = int(tf.__version__.split(".")[1])
 
@@ -126,7 +127,7 @@ def get_tensors_spec(config):
         "wind_X_norm" : tf.TensorSpec(shape=(None,len(config.columns["window_features"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "wind_meta": tf.TensorSpec(shape=(None,len(config.columns["window_metadata"])), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "cl_hits" : tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float32), #hits  (batch, ncls, nhits, 4)
-        "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # is seed (batch, ncls,)
+        "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.float32),  # is seed (batch, ncls,)
         "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # in_supercluster (batch, ncls,)
         "cl_Y": tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
         "flavour" : tf.TensorSpec(shape=(None), dtype=tf.float32),  #windox_X (batch, #wind_x)
@@ -144,7 +145,7 @@ def get_tensors_spec(config):
             "wind_X_norm": tf.float32,
             "wind_meta": tf.float32,
             "cl_hits": tf.float32,
-            "is_seed": tf.int64,
+            "is_seed": tf.float32,
             "in_scluster": tf.int64,
             "cl_y": tf.bool,
             "flavour": tf.float32,
@@ -610,6 +611,9 @@ def load_dataset (config: LoaderConfig, output_type="tf"):
     '''
     # Check if folders instead of files have been provided
     if config.input_folders:
+        for folder in config.input_folders:
+            if not os.path.exists(folder):
+                raise Exception(f"Folder {folder} does not exists! Check your configuration file")
         config.input_files = list(zip_longest(*[glob(folder+"/*.parquet") for folder in config.input_folders]))
     if not config.input_folders and not config.input_files:
         raise Exception("No input folders or files provided! Please provide some input!")
