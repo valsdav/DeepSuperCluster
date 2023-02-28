@@ -17,7 +17,7 @@
         "cl_features": [
             "en_cluster",
             "et_cluster",
-                        "en_cluster_log",
+            "en_cluster_log",
             "et_cluster_log",
           "cluster_eta",
           "cluster_phi",
@@ -63,11 +63,11 @@
       "padding": true,
       "ncls_padding": -1,
       "nhits_padding": -1,
-      "chunk_size": 2560,
+      "chunk_size": 1280,
       "batch_size": 256,
-      "maxevents": 2000000,
+      "maxevents": 1500000,
       "nworkers": 3,
-      "max_batches_in_memory": 150,
+      "max_batches_in_memory": 100,
       "output_tensors": [
         [
           "cl_X_norm",
@@ -105,7 +105,7 @@
         "cl_features": [
             "en_cluster",
             "et_cluster",
-                        "en_cluster_log",
+            "en_cluster_log",
             "et_cluster_log",
           "cluster_eta",
           "cluster_phi",
@@ -151,11 +151,11 @@
       "padding": true,
       "ncls_padding": -1,
       "nhits_padding": -1,
-      "chunk_size": 5120,
-      "batch_size": 512,
+        "chunk_size": 1280,
+      "batch_size": 256,
       "maxevents": 500000,
       "nworkers": 3,
-      "max_batches_in_memory": 150,
+      "max_batches_in_memory": 100,
       "output_tensors": [
         [
           "cl_X_norm",
@@ -203,10 +203,10 @@
   "coord_dim_sa": 10,
   "nconv_rechits": -1,
   "nconv": 2,
-  "layers_input": [
-      128,
-      64,
-      64
+    "layers_input": [
+        128,
+        64,
+        64
   ],
   "layers_clclass": [
       64,

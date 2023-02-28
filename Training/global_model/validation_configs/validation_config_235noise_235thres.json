@@ -17,6 +17,8 @@
         "cl_features": [
             "en_cluster",
             "et_cluster",
+              "en_cluster_log",
+            "et_cluster_log",
           "cluster_eta",
           "cluster_phi",
           "cluster_ieta",

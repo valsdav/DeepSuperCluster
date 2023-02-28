@@ -214,7 +214,7 @@ hep.cms.text("Preliminary ",loc=0, ax=ax)
 
 fig.savefig(outdir+ "/dataset_check/seed_et_elegamma_comparison.pdf")
 fig.savefig(outdir+ "/dataset_check/seed_et_elegamma_comparison.png")
-
+plt.close(fig)
 
 fig, ax = plt.subplots(1,1, figsize=(8,8),dpi=150)
 ax.hist(df_ele.eta, bins=50, range=(0,3), histtype="step", label="Electron", linewidth=2, density=True)
@@ -226,7 +226,7 @@ ax.set_ylim(0, 0.6)
 
 fig.savefig(outdir+ "/dataset_check/seed_eta_elegamma_comparison.pdf")
 fig.savefig(outdir+ "/dataset_check/seed_eta_elegamma_comparison.png")
-
+plt.close(fig)
 
 
 fig, (ax,ay) = plt.subplots(1,2, figsize=(17,8),dpi=100)
@@ -247,7 +247,7 @@ hep.cms.text("Preliminary ",loc=0, ax=ay)
 
 fig.savefig(outdir + "/dataset_check/seed_en_fraction_elegamma.pdf")
 fig.savefig(outdir + "/dataset_check/seed_en_fraction_elegamma.png")
-
+plt.close(fig)
 
 #######################
 #number of clusters
@@ -270,7 +270,7 @@ for i in range(len(etas)-1):
     
 fig.savefig(outdir + "/clusters_check/ncluster_distribution_2d.pdf")
 fig.savefig(outdir + "/clusters_check/ncluster_distribution_2d.png")
-
+plt.close(fig)
 
 
 for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
@@ -303,7 +303,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
             
     fig.savefig(outdir + f"/clusters_check/ncluster_distribution_log_{flavour}.pdf")
     fig.savefig(outdir + f"/clusters_check/ncluster_distribution_log_{flavour}.png")
-
+    plt.close(fig)
 
 
 for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
@@ -335,7 +335,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
 
     fig.savefig(outdir + "/clusters_check/nclustur_distribution_"+flavour + ".pdf")
     fig.savefig(outdir + "/clusters_check/nclustur_distribution_"+flavour + ".png")
-
+    plt.close(fig)
 #################3
 # distribution of resolution
 print("Resolution plots")
@@ -378,7 +378,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
 
     fig.savefig(outdir + "/EovEtrue_"+flavour + ".pdf")
     fig.savefig(outdir + "/EovEtrue_"+flavour + ".png")
-
+    plt.close(fig)
 
 fig, (ax, ay) = plt.subplots(1,2, figsize=(18,8),dpi=100, )
 
@@ -436,7 +436,7 @@ hep.cms.text("Preliminary", loc=0, ax=ay)
 
 plt.savefig(outdir +"/resol_ratio_by_eta.png")
 plt.savefig(outdir +"/resol_ratio_by_eta.pdf")
-
+plt.close(fig)
 
 fig, (ax, ay) = plt.subplots(1,2, figsize=(18,8),dpi=100, )
 
@@ -497,6 +497,7 @@ hep.cms.text("Preliminary", loc=0, ax=ay)
 
 plt.savefig(outdir +"/resol_ratio_by_ncls_tot.png")
 plt.savefig(outdir +"/resol_ratio_by_ncls_tot.pdf")
+plt.close(fig)
 
 
 fig, (ax, ay) = plt.subplots(1,2, figsize=(18,8),dpi=100, )
@@ -569,6 +570,8 @@ for i, v in enumerate(['w_nomatch','w_ele','w_gamma']):
     
 plt.savefig(outdir +"/window_id/windows_id_incl.png")
 plt.savefig(outdir +"/window_id/windows_id_incl.png")
+plt.close(fig)
+
 
 
 fig, ax = plt.subplots(1,6, figsize=(48,8),dpi=100)
@@ -585,7 +588,7 @@ for iet in range(len(ets)-1):
     
 plt.savefig(outdir +"/window_id/windows_id_byet.png")
 plt.savefig(outdir +"/window_id/windows_id_byet.pdf")
-
+plt.close(fig)
 
 fig, ax = plt.subplots(1,6, figsize=(48,8),dpi=100)
 
@@ -601,7 +604,7 @@ for iet in range(len(ncls)-1):
     
 plt.savefig(outdir +"/window_id/windows_id_bycls.png")
 plt.savefig(outdir +"/window_id/windows_id_bycls.pdf")
-
+plt.close(fig)
 
 fig, ax = plt.subplots(1,1, figsize=(10,8),dpi=100, )
 ets = [2,4,6,8,10,20,50,100]
@@ -617,7 +620,7 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(outdir +"/window_id/window_roc_ET.pdf")
 plt.savefig(outdir +"/window_id/window_roc_ET.png")
-
+plt.close(fig)
 
 ets = [2,4,6,8,10,20,50,100]
 etas = [0, 0.4,0.8, 1.2,1.44, 1.57, 1.75,2.,2.3,2.6,3]
@@ -644,7 +647,7 @@ ax.set_xlabel("Seed $\eta$")
 
 fig.savefig(outdir+ "/window_id/roc_seed_et_eta.png")
 fig.savefig(outdir+ "/window_id/roc_seed_et_eta.pdf")
-
+plt.close(fig)
 
 
 ets = [2,4,6,8,10,20,50,100]
@@ -672,6 +675,7 @@ ax.set_xlabel("N. clusters total")
 
 plt.savefig(outdir +"/window_id/roc_ncls_et.png")
 plt.savefig(outdir +"/window_id/roc_ncls_et.pdf")
+plt.close(fig)
 
 etas = [0, 0.4,0.8, 1.2,1.44, 1.57, 1.75,2.,2.3,2.6,3]
 
@@ -686,6 +690,7 @@ plt.legend()
 
 plt.savefig(outdir +"/window_id/roc_eta.pdf")
 plt.savefig(outdir +"/window_id/roc_eta.png")
+plt.close(fig)
 
 ncls = [1,2,3,4,5,6,8,10,15]
 fig = plt.figure(dpi=72)
@@ -702,6 +707,7 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(outdir +"/window_id/roc_ncls.pdf")
 plt.savefig(outdir +"/window_id/roc_ncls.png")
+plt.close(fig)
 
 ################################3
 
@@ -728,6 +734,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
                  .apply( lambda gr:  (gr.Et_sel_must_true / gr.Et_sel_must).mean())\
                  .unstack(fill_value=0).stack()
 
+    breakpoint()
     vmin=0.9
 
     fig, (ax, ab) = plt.subplots(1,2, figsize=(18,8),dpi=100)
@@ -774,7 +781,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     plt.tight_layout()
     fig.savefig(outdir + "/recall_purity/energy_purity_{}.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/energy_purity_{}.png".format(flavour))
-
+    plt.close(fig)
 
 for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     res_dsc =  df.groupby(["eta_bin", "ncls_bin"])\
@@ -831,7 +838,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     plt.tight_layout()
     fig.savefig(outdir + "/recall_purity/energy_recall_{}.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/energy_recall_{}.png".format(flavour))
-
+    plt.close(fig)
 
 
 for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
@@ -900,6 +907,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     plt.tight_layout()
     fig.savefig(outdir + "/recall_purity/cluster_purity_{}.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/cluster_purity_{}.png".format(flavour))
+    plt.close(fig)
 
 for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     
@@ -967,6 +975,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     plt.tight_layout()
     fig.savefig(outdir + "/recall_purity/cluster_recall_{}.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/cluster_recall_{}.png".format(flavour))
+    plt.close(fig)
 
 
 
@@ -986,7 +995,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     fig.tight_layout()
     fig.savefig(outdir+ "/clusters_check/Ncltot_lost_{}.png".format(flavour))
     fig.savefig(outdir+ "/clusters_check/Ncltot_lost_{}.pdf".format(flavour))
-
+    plt.close(fig)
 
     
 
@@ -1012,7 +1021,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     fig.tight_layout()
     fig.savefig(outdir+ "/clusters_check/Ncltot_norm_lost_{}.png".format(flavour))
     fig.savefig(outdir+ "/clusters_check/Ncltot_norm_lost_{}.pdf".format(flavour))
-
+    plt.close(fig)
 
 ncls = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5]
 nclsx = [-5.5,-4.5,-3.5,-2.5,-1.5,-0.5,0.5, 1.5 ,2.5 ,3.5, 4.5 ,5.5 ]
@@ -1028,7 +1037,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     fig.tight_layout()
     fig.savefig(outdir+ "/clusters_check/Ncltrue_lost_{}.png".format(flavour))
     fig.savefig(outdir+ "/clusters_check/Ncltrue_lost_{}.pdf".format(flavour))
-
+    plt.close(fig)
 
     
 ncls = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5]
@@ -1055,7 +1064,8 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     fig.tight_layout()
     fig.savefig(outdir+ "/clusters_check/Ncltrue_norm_lost_{}.png".format(flavour))
     fig.savefig(outdir+ "/clusters_check/Ncltrue_norm_lost_{}.pdf".format(flavour))
-
+    plt.close(fig)
+    
     
 etas =  [0, 0.4,0.8, 1.2,1.44, 1.57, 1.75,2.,2.3,2.6,3]
 nclsx = [-5.5,-4.5,-3.5,-2.5,-1.5,-0.5,0.5, 1.5 ,2.5 ,3.5, 4.5 ,5.5 ]
@@ -1069,7 +1079,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
     ax.text(0.75, 0.05, flavour, transform=ax.transAxes)
     fig.savefig(outdir+ "/clusters_check/Ncltrue_norm_lost_{}_byeta.png".format(flavour))
     fig.savefig(outdir+ "/clusters_check/Ncltrue_norm_lost_{}_byeta.pdf".format(flavour))
-    
+    plt.close(fig)
 
 ets = [0,5,10,15, 20,40,60,80,100]
 etas = [0, 0.4,0.8, 1.2,1.479, 1.75,2.,2.5,3]
@@ -1154,7 +1164,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
 
     fig.savefig(outdir + "/recall_purity/cluster_recall_{}_summary.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/cluster_recall_{}_summary.png".format(flavour))
-
+    plt.close(fig)
     
 
 
@@ -1195,7 +1205,7 @@ hep.cms.text("Preliminary ",loc=0, ax=az)
 
 fig.savefig(outdir + "/recall_purity/cluster_recall_ele_photon_ratio_summary.png")
 fig.savefig(outdir + "/recall_purity/cluster_recall_ele_photon_ratio_summary.pdf")
-
+plt.close(fig)
 
 ets =  [1,2,4,6,8,10,15,20,30,40,50,60,70,100]
 nclsx = [-5.5,-4.5,-3.5,-2.5,-1.5,-0.5,0.5, 1.5 ,2.5 ,3.5, 4.5 ,5.5 ]
@@ -1300,7 +1310,7 @@ for df, flavour in zip([df_ele,df_gamma],["Electron","Photon"]):
 
     fig.savefig(outdir + "/recall_purity/energy_recall_{}_summary.pdf".format(flavour))
     fig.savefig(outdir + "/recall_purity/energy_recall_{}_summary.png".format(flavour))
-
+    plt.close(fig)
 
 fig, (ax,ay,az) = plt.subplots(1,3, figsize=(24,8),dpi=100)
 plt.subplots_adjust( wspace=0.3)
@@ -1338,7 +1348,7 @@ hep.cms.text("Preliminary ",loc=0, ax=az)
 
 fig.savefig(outdir + "/recall_purity/energy_recall_ele_photon_ratio_summary.png")
 fig.savefig(outdir + "/recall_purity/energy_recall_ele_photon_ratio_summary.pdf")
-
+plt.close(fig)
 
 
 ##################################3
@@ -1406,7 +1416,7 @@ az.text(0.01, 1.02, "DeepSC", transform=az.transAxes,  fontsize="small")
 
 fig.savefig(outdir + "/deepsc_wrt_truth_comparison.png")
 fig.savefig(outdir + "/deepsc_wrt_truth_comparison.pdf")
-
+plt.close(fig)
 
 
 fig, (ax, ay,az) = plt.subplots(1,3, figsize=(30, 8),dpi=100, )
@@ -1471,7 +1481,7 @@ az.text(0.01, 1.02, "Mustache", transform=az.transAxes,  fontsize="small")
 
 fig.savefig(outdir + "/mustache_wrt_truth_comparison.png")
 fig.savefig(outdir + "/mustache_wrt_truth_comparison.pdf")
-
+plt.close(fig)
 
 
 
@@ -1588,7 +1598,7 @@ ax.text(0.01, 1.02, "Mustache / simTruth", transform=ax.transAxes,  fontsize="sm
 
 fig.savefig(outdir + "/performance_comparison_simtruth_algo.pdf")
 fig.savefig(outdir + "/performance_comparison_simtruth_algo.png")
-
+plt.close(fig)
 
 
 fig, axs = plt.subplots(1,2, figsize=(20, 8),dpi=100, )
@@ -1671,7 +1681,7 @@ ax.text(0.01, 1.02, "Mustache / simTruth", transform=ax.transAxes,  fontsize="sm
 
 fig.savefig(outdir + "/scale_comparison_simtruth_algo.pdf")
 fig.savefig(outdir + "/scale_comparison_simtruth_algo.png")
-
+plt.close(fig)
 
 
 fig, axs = plt.subplots(1,2, figsize=(20, 8),dpi=100, )
@@ -1753,8 +1763,7 @@ ax.text(0.75, 1.02, "Photon", transform=ax.transAxes,  fontsize="small")
 ax.text(0.01, 1.02, "DeepSC / Mustache", transform=ax.transAxes,  fontsize="small")
 fig.savefig(outdir + "/performance_comparison_deepsc_mustache.pdf")
 fig.savefig(outdir + "/performance_comparison_deepsc_mustache.png")
-
-
+plt.close(fig)
 
 
 
@@ -1838,7 +1847,7 @@ ax.text(0.55, 1.02, "Electron / Photon", transform=ax.transAxes,  fontsize="smal
 ax.text(0.01, 1.02, "Mustache / simTruth", transform=ax.transAxes,  fontsize="small")
 fig.savefig(outdir + "/performance_comparison_simtruth_algo_byseedet_ncls.pdf")
 fig.savefig(outdir + "/performance_comparison_simtruth_algo_byseedet_ncls.png")
-
+plt.close(fig)
 
 
 
@@ -1921,7 +1930,7 @@ ax.text(0.75, 1.02, "Photon", transform=ax.transAxes,  fontsize="small")
 ax.text(0.01, 1.02, "DeepSC / Mustache", transform=ax.transAxes,  fontsize="small")
 fig.savefig(outdir + "/scale_comparison_simtruth_deepsc_mustache.pdf")
 fig.savefig(outdir + "/scale_comparison_simtruth_deepsc_mustache.png")
-
+plt.close(fig)
 
 
 
@@ -2004,7 +2013,7 @@ ax.text(0.75, 1.02, "Photon", transform=ax.transAxes,  fontsize="small")
 ax.text(0.01, 1.02, "DeepSC / simTruth", transform=ax.transAxes,  fontsize="small")
 fig.savefig(outdir + "/scale_comparison_simtruth_deepsc.pdf")
 fig.savefig(outdir + "/scale_comparison_simtruth_deepsc.png")
-
+plt.close(fig)
 
 
 fig, axs = plt.subplots(1,2, figsize=(20, 8),dpi=100, )
@@ -2081,7 +2090,7 @@ ax.text(0.01, 1.02, "Mustache / simTruth", transform=ax.transAxes,  fontsize="sm
 
 fig.savefig(outdir + "/scale_comparison_simtruth_mustache.pdf")
 fig.savefig(outdir + "/scale_comparison_simtruth_mustache.png")
-
+plt.close(fig)
 
 fig, axs = plt.subplots(2,2, figsize=(22, 17),dpi=100, )
 plt.subplots_adjust( wspace=0.2)
@@ -2189,7 +2198,7 @@ ax.text(0.01, 1.02, "Mustache / simTruth", transform=ax.transAxes,  fontsize="sm
 
 fig.savefig(outdir + "/scale_comparison_simtruth_algo.pdf")
 fig.savefig(outdir + "/scale_comparison_simtruth_algo.png")
-
+plt.close(fig)
 
 
 ##########################################
@@ -2278,7 +2287,7 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_byEnergy_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_byEnergy_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_byEnergy_{}_ratio.svg".format(flavour))
-
+    plt.close(fig)
 
 
 dfs = [df_ele, df_gamma]
@@ -2375,7 +2384,7 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_byeta_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_byeta_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_byeta_{}_ratio.svg".format(flavour))
-
+    plt.close(fig)
 
 dfs = [df_ele, df_gamma]
 flavours = ["Electron","Photon"]
@@ -2459,7 +2468,7 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_byPU_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_byPU_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_byPU_{}_ratio.svg".format(flavour))
-
+    plt.close(fig)
 
 dfs = [df_ele, df_gamma]
 flavours = ["Electron","Photon"]
@@ -2512,6 +2521,7 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_byncls_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_byncls_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_byncls_{}_ratio.svg".format(flavour))
+    plt.close(fig)
 
 dfs = [df_ele, df_gamma]
 flavours = ["Electron","Photon"]
@@ -2594,7 +2604,7 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_truth_byEnergy_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_truth_byEnergy_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_truth_byEnergy_{}_ratio.svg".format(flavour))
-
+    plt.close(fig)
 
 dfs = [df_ele, df_gamma]
 flavours = ["Electron","Photon"]
@@ -2677,3 +2687,4 @@ for df,flavour in zip(dfs, flavours):
     fig.savefig(outdir + "/resolution_byEnergy_Ncls_{}_ratio.png".format(flavour))
     fig.savefig(outdir + "/resolution_byEnergy_Ncls_{}_ratio.pdf".format(flavour))
     fig.savefig(outdir + "/resolution_byEnergy_Ncls_{}_ratio.svg".format(flavour))
+    plt.close(fig)

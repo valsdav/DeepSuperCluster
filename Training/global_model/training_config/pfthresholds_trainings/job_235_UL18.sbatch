@@ -1,0 +1,36 @@
+#!/bin/bash
+
+#SBATCH -J training_235_UL18_v1
+#SBATCH --account=gpu_gres               # to access gpu resources
+#SBATCH --partition=gpu
+#SBATCH --nodes=1                        # request to run job on single node
+#SBATCH --ntasks=5                      # request 10 CPU's (t3gpu01/02: balance between CPU and GPU : 5CPU/1GPU)
+#SBATCH --gres=gpu:1                     # request  for two GPU's on machine, this is total  amount of GPUs for job
+#SBATCH --mem=20G                        # memory (per job)
+#SBATCH --time=03-00:00:00
+#SBATCH --gres-flags=disable-binding
+
+__conda_setup="$('/work/dvalsecc/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/work/dvalsecc/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/work/dvalsecc/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/work/dvalsecc/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+
+#Activate the env
+conda activate tfgpu
+
+#Activation cuda libs
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/
+export PATH=$CONDA_PREFIX/bin/:$PATH
+
+
+cd /work/dvalsecc/Clustering/DeepSuperCluster/Training/global_model
+
+python trainer_awk.py --config training_config/pfthresholds_trainings/235fb_UL18thres_t3_v4.json --model models_archive/model_simpler_rechits.py --name noise235_UL18thres_largerL2drop_smallerLR
+
