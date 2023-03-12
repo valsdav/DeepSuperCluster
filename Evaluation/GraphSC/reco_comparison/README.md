@@ -33,7 +33,8 @@ optional arguments:
   -i INPUTDIR, --inputdir INPUTDIR
                         Inputdir
   -nfg NFILE_GROUP, --nfile-group NFILE_GROUP
-                        How many files per numpy file
+
+How many files per numpy file
   -o OUTPUTDIR, --outputdir OUTPUTDIR
                         Outputdir
   -a ASSOC_STRATEGY, --assoc-strategy ASSOC_STRATEGY

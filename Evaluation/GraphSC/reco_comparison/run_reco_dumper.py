@@ -38,9 +38,6 @@ else:
     inputfiles = [args.inputfile]
 
 
-simfraction_thresholds_file = R.TFile(args.wp_file)
-simfraction_thresholds = simfraction_thresholds_file.Get("h2_Minimum_simScore_seedBins")
-
 # Parameters controlling the creation of the window
 # min simFraction for the seed with a signal caloparticle
 SEED_MIN_FRACTION=1e-2
@@ -49,40 +46,43 @@ CL_MIN_FRACION=1e-4
 # threshold of simEnergy PU / simEnergy signal for each cluster and seed to be matched with a caloparticle
 SIMENERGY_PU_LIMIT=1.0
 
-windows_creator = WindowCreator(simfraction_thresholds, SEED_MIN_FRACTION,cl_min_fraction=CL_MIN_FRACION, simenergy_pu_limit = SIMENERGY_PU_LIMIT)
+windows_creator = WindowCreator(args.wp_file, SEED_MIN_FRACTION,cl_min_fraction=CL_MIN_FRACION, simenergy_pu_limit = SIMENERGY_PU_LIMIT)
 
 debug = args.debug
 nocalowNmax = args.maxnocalow
 
 
 def run(inputfile):
-    f = R.TFile(inputfile);
-    tree = f.Get("recosimdumper/caloTree")
+    try:
+        f = R.TFile("root://"+inputfile);
+        tree = f.Get("recosimdumper/caloTree")
 
-    if args.nevents and len(args.nevents) >= 1:
-        nevent = args.nevents[0]
-        if len(args.nevents) == 2:
-            nevent2 = args.nevents[1]
-        else:
-            nevent2 = nevent+1
-        tree = islice(tree, nevent, nevent2)
+        if args.nevents and len(args.nevents) >= 1:
+            nevent = args.nevents[0]
+            if len(args.nevents) == 2:
+                nevent2 = args.nevents[1]
+            else:
+                nevent2 = nevent+1
+            tree = islice(tree, nevent, nevent2)
 
-    print ("Starting")
-    output_events = []
-    output_objects = [] 
-    for iev, event in enumerate(tree):
-        obj, ev = windows_creator.get_windows(event, args.assoc_strategy, 
-                                    nocalowNmax= args.maxnocalow,
-                                    min_et_seed= args.min_et_seed,
-                                    sc_collection=args.sc_collection,
-                                    reco_collection=args.reco_collection,
-                                    loop_on_calo=args.loop_on_calo,
-                                    debug= args.debug)
-        output_objects += obj
-        output_events += ev
-    f.Close()
-    return  output_objects, output_events
- 
+        print ("Starting")
+        output_events = []
+        output_objects = [] 
+        for iev, event in enumerate(tree):
+            obj, ev = windows_creator.get_windows(event, args.assoc_strategy, 
+                                        nocalowNmax= args.maxnocalow,
+                                        min_et_seed= args.min_et_seed,
+                                        sc_collection=args.sc_collection,
+                                        reco_collection=args.reco_collection,
+                                        loop_on_calo=args.loop_on_calo,
+                                        debug= args.debug)
+            output_objects += obj
+            output_events += ev
+        f.Close()
+        return  output_objects, output_events
+    except:
+        return [],[]
+
 
 # p = Pool2()
 # data = p.map(run, inputfiles)
