@@ -24,6 +24,7 @@ parser.add_argument("-q", "--queue", type=str, help="Condor queue", default="lon
 parser.add_argument("-e", "--eos", type=str, default="user", help="EOS instance user/cms", required=False)
 parser.add_argument('-c', "--compress", action="store_true",  help="Compress output")
 parser.add_argument("--redo", action="store_true", default=False, help="Redo all files")
+parser.add_argument("--overwrite-runid", action="store_true",  help="Overwrite runId with filename", default=False)
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 parser.add_argument("--loop-on-calo", action="store_true",  help="If true, loop only on calo-seeds, not on all the SC", default=False)
 parser.add_argument("-s","--sc-collection", type=str, help="SuperCluster collection", default="superCluster")
@@ -65,7 +66,7 @@ WPFILE=$5;
 echo -e "Running reco comparison dumper.."
 
 python run_reco_dumper.py -i ${INPUTFILE} -o output_{type}.csv \
-            -a ${ASSOC} --wp-file ${WPFILE} --sc-collection {SC_COLL} --reco-collection {RECO_COLL} {LOOP_CALO} {debug};
+            -a ${ASSOC} --wp-file ${WPFILE} --sc-collection {SC_COLL} --reco-collection {RECO_COLL} {LOOP_CALO} {debug} {overwrite_runid};
 
 {compress}
 echo -e "Copying result to: $OUTPUTDIR";
@@ -85,6 +86,10 @@ if args.debug:
     script = script.replace("{debug}", "--debug")
 else: 
     script = script.replace("{debug}", "")
+if args.overwrite_runid:
+    script = script.replace("{overwrite_runid}", "--overwrite-runid")
+else: 
+    script = script.replace("{overwrite_runid}", "")
 if args.loop_on_calo:
     script = script.replace("{LOOP_CALO}","--loop-on-calo")
 else:
