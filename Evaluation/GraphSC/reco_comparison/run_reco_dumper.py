@@ -24,6 +24,7 @@ parser.add_argument("-o","--outputfile", type=str, help="outputfile", default="c
 parser.add_argument("-a","--assoc-strategy", type=str, help="Association strategy", default="sim_fraction")
 parser.add_argument("--wp-file", type=str,  help="File with sim fraction thresholds")
 parser.add_argument("-n","--nevents", type=int,nargs="+", help="n events iterator", required=False)
+parser.add_argument("--overwrite-runid", action="store_true",  help="Overwrite runId with filename", default=False)
 parser.add_argument("-d","--debug", action="store_true",  help="debug", default=False)
 parser.add_argument("--maxnocalow", type=int,  help="Number of no calo window per event", default=15)
 parser.add_argument("--min-et-seed", type=float,  help="Min Et of the seeds", default=1.)
@@ -69,18 +70,27 @@ def run(inputfile):
         output_events = []
         output_objects = [] 
         for iev, event in enumerate(tree):
+            if args.overwrite_runid:
+                # get the runId from the name of the file
+                g = inputfile.split("/")
+                runId = int("1" + g[-2] + "_" + g[-1].replace("output_","").replace(".root","") )
+            else:
+                runId = None
+                
             obj, ev = windows_creator.get_windows(event, args.assoc_strategy, 
                                         nocalowNmax= args.maxnocalow,
                                         min_et_seed= args.min_et_seed,
                                         sc_collection=args.sc_collection,
                                         reco_collection=args.reco_collection,
                                         loop_on_calo=args.loop_on_calo,
+                                        overwrite_runid = runId,
                                         debug= args.debug)
             output_objects += obj
             output_events += ev
         f.Close()
         return  output_objects, output_events
-    except:
+    except Exception as e:
+        print(e)
         return [],[]
 
 
