@@ -15,6 +15,7 @@ from pprint import pprint
 hep.style.use(hep.style.ROOT)
 import vector
 vector.register_awkward()
+import sys
 
 import numba
 from collections.abc import Iterable
@@ -336,7 +337,7 @@ class GenMatchingProcessor(processor.ProcessorABC):
         }
 
     def postprocess(self, accumulator):
-        pass
+        return accumulator
 
 
 # Dask cluster
@@ -347,33 +348,45 @@ n_port = 8790
 
 log_folder = os.getcwd()+"/condor_log"
 print("Starting Dask cluster")
-# Creating a CERN Cluster, special configuration for dask-on-lxplus
-cluster = CernCluster(
-    cores=1,
-    memory="2000MB",
-    disk="5GB",
-    image_type="singularity",
-    worker_image="/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/batch-team/dask-lxplus/lxdask-cc7:latest",
-    death_timeout="3600",
-    scheduler_options={"port": n_port, "host": socket.gethostname()},
-    log_directory = log_folder,
-    # shared_temp_directory="/tmp"
-    job_extra={
-        "log": f"{log_folder}/dask_job_output.log",
-        "output": f"{log_folder}/dask_job_output.out",
-        "error": f"{log_folder}/dask_job_output.err",
-        "should_transfer_files": "Yes",
-        "when_to_transfer_output": "ON_EXIT",
-        "+JobFlavour": f'"microcentury"'
-    },
-    env_extra=["source /afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/myenv/bin/activate"],
-)
+# # Creating a CERN Cluster, special configuration for dask-on-lxplus
+# cluster = CernCluster(
+#     cores=1,
+#     memory="2000MB",
+#     disk="5GB",
+#     image_type="singularity",
+#     worker_image="/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/batch-team/dask-lxplus/lxdask-cc7:latest",
+#     death_timeout="3600",
+#     scheduler_options={"port": n_port, "host": socket.gethostname()},
+#     log_directory = log_folder,
+#     # shared_temp_directory="/tmp"
+#     job_extra={
+#         "log": f"{log_folder}/dask_job_output.log",
+#         "output": f"{log_folder}/dask_job_output.out",
+#         "error": f"{log_folder}/dask_job_output.err",
+#         "should_transfer_files": "Yes",
+#         "when_to_transfer_output": "ON_EXIT",
+#         "+JobFlavour": f'"microcentury"'
+#     },
+#     env_extra=["source /afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/myenv/bin/activate"],
+# )
+from dask_jobqueue import SLURMCluster, HTCondorCluster
+cluster = SLURMCluster(
+                queue="short",
+                cores=1,
+                processes=1,
+                memory="3GB",
+                walltime="01:00:00",
+                env_extra=[f"source {sys.prefix}/bin/activate"],
+                local_directory=f"{os.getcwd()}/logs",
+            )
 
-cluster.scale(args.n_workers)
-client = Client(cluster)
-print("Waiting for the first job to start")
-client.wait_for_workers(1)
-print("Ready to start")
+
+
+# cluster.scale(args.n_workers)
+# client = Client(cluster)
+# print("Waiting for the first job to start")
+# client.wait_for_workers(1)
+# print("Ready to start")
 
 # In[9]:
 
@@ -384,20 +397,30 @@ fileset = {
     "Mustache": glob(input_folder_must+"/*/*.root", recursive=True)
 }
 
+output = processor.run_uproot_job(fileset,
+                                  treename="recosimdumper/caloTree",
+                                  processor_instance=GenMatchingProcessor(),
+                                  executor= processor.iterative_executor,
+                                  executor_args={
+                                      #'client': client,
+                                      'schema': BaseSchema,
+                                  },
+                                  chunksize=200,
+                                )
 
-iterative_run = processor.Runner(
-            executor = processor.DaskExecutor(
-                client=client,
-            ),
-            schema=BaseSchema,
-            chunksize=200,
-        )
+# iterative_run = processor.Runner(
+#             executor = processor.DaskExecutor(
+#                 client=client,
+#             ),
+#             schema=BaseSchema,
+#             chunksize=200,
+#         )
 
-out = iterative_run(
-    fileset,
-    treename="recosimdumper/caloTree",
-    processor_instance=GenMatchingProcessor(),
-)
+# out = iterative_run(
+#     fileset,
+#     treename=
+#     processor_instance=GenMatchingProcessor(),
+# )
 
 from coffea.util import save, load
 save(out, f"{output_folder}/output_genmatching.coffea")
