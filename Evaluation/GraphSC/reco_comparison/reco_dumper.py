@@ -89,6 +89,7 @@ class WindowCreator():
         return cls_in_window, true_cls
                     
     def dynamic_window(self,eta):
+        ## This is version 1
         aeta = abs(eta)
 
         if aeta >= 0 and aeta < 0.1:
@@ -220,7 +221,25 @@ class WindowCreator():
                 genParticle_patElectron_matching[igen] = (best_match[1], best_match[0])
                 patElectron_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
                 
-        
+        #Gen association - patPhotons
+        genParticle_patPhoton_matching = {}
+        patPhoton_genParticle_matching = {}        
+        for igen in genpart_good:
+            dR = []
+            for iele in range(len(event.patPhoton_energy)):
+                # print(f"genphi {genpart_phi[igen]}, geneta{genpart_eta[igen]},elephi {event.patElectron_phi[iele]},eleeta={event.patElectron_eta[iele]}, ele{iele}")
+                dR.append((DeltaR(genpart_phi[igen],genpart_eta[igen],
+                                  event.patPhoton_phi[iele],event.patPhoton_eta[iele] ),
+                            iele))
+            if dR:
+                sortedDR = list(sorted(dR, key=itemgetter(0)))
+                best_match = sortedDR[0]
+                # print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
+                            
+                genParticle_patPhoton_matching[igen] = (best_match[1], best_match[0])
+                patPhotonpatElectron_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
+
+                
         # Map of seedRawId neeed to match electron/photon with SC
         superCluster_seedRawId_map = {}
         for sc, rawid in enumerate(event.superCluster_seedRawId):
@@ -642,7 +661,12 @@ class WindowCreator():
                     iSC = genParticle_superCluster_matching.get(igen, -999)
                     iEle, deltaR_genPart_ele =  genParticle_patElectron_matching.get(igen, [-999,999.])
 
+                    iPho, deltaR_genPart_pho = genParticle_patPhoton_matching.get(igen, [-999, 999.])
+
+                    
+
                     ele_matched = iEle != -999
+                    pho_matched = iPho != -999
                     sel_true_energy = 0.
                     true_energy = 0.
                     selected_energy = 0.
@@ -760,10 +784,6 @@ class WindowCreator():
                         "ele_egmMVAElectronIDloose": event.patElectron_egmMVAElectronIDloose[iEle]  if ele_matched else -999,
                         "ele_egmMVAElectronIDmedium": event.patElectron_egmMVAElectronIDmedium[iEle]  if ele_matched else -999,
 
-
-                        "ele_pAtCalo": event.patElectron_pAtCalo[iEle]  if ele_matched else -999,
-                        "ele_deltaEtaIn": event.patElectron_deltaEtaIn[iEle]  if ele_matched else -999,
-                        "ele_deltaPhiIn": event.patElectron_deltaPhiIn[iEle]  if ele_matched else -999,
                         
                         "ele_isEcalDriven" : int(event.patElectron_isEcalDriven[iEle]) if ele_matched else 0,
                         "ele_isTrackerDriven" : int(event.patElectron_isTrackerDriven[iEle]) if ele_matched else 0,
@@ -780,9 +800,34 @@ class WindowCreator():
                         "ncls_tot": len(cls_in_window),
                         "ncls_missing": len(missing_cls),
 
-                        "ele_nclsRefinedSC": event.patElectron_refinedSCNPFClusters[iEle] if ele_matched else -999,
+                        "ele_nclsRefinedSC": event.patElectron_scNPFClusters[iEle] if ele_matched else -999,
                         "ele_nclsEcalSC": event.patElectron_ecalSCNPFClusters[iEle] if ele_matched else -999,
                         "ele_passConversionVeto": event.patElectron_passConversionVeto[iEle] if ele_matched else -999,
+                        "ele_nOverlapPhotons": event.patElectron_nOverlapPhotons[ele] if ele_matched else -999,
+                        "ele_overlapPhotonIndices": event.patElectron_overlapPhotonIndices[ele] if ele_matched else -999,
+                        "ele_trackPAtCalo": event.patElectron_pAtCalo[ele] if ele_matched else -999,
+
+                        "ele_trackDeltaEtaIn": event.patElectron_deltaEtaIn[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiIn": event.patElectron_deltaPhiIn[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaEtaSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaEtaEleClusterAtCalo": event.patElectron_deltaEtaEleClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle]  if ele_matched else -999,
+
+                        "ele_misHits": event.patElectron_misHits[iEle]  if ele_matched else -999,
+                        "ele_nAmbiguousGsfTracks" : event.patElectron_nAmbiguousGsfTracks[iEle]  if ele_matched else -999,
+                        "ele_trackFbrem": event.patElectron_trackFbrem[iEle]  if ele_matched else -999,
+                        "ele_superClusterFbrem": event.patElectron_superClusterFbrem[iEle]  if ele_matched else -999,
+                        "ele_dz": event.patElectron_dz[iEle]  if ele_matched else -999,
+                        "ele_dxy": event.patElectron_dxy[iEle]  if ele_matched else -999,
+                        "ele_dzError": event.patElectron_dzError[iEle]  if ele_matched else -999,
+                        "ele_dxyError": event.patElectron_dxyError[iEle]  if ele_matched else -999,
+
+                        "ele_isEBEEGap": event.patElectron_isEBEEGap[iEle] if ele_matched else -999,
+                        "ele_isEBEtaGap": event.patElectron_isEBEtaGap[iEle] if ele_matched else -999,
+                        "ele_isEBPhiGap": event.patElectron_isEBPhiGap[iEle] if ele_matched else -999,
+                        "ele_isEEDeeGap": event.patElectron_isEEGap[iEle] if ele_matched else -999,
+                        "ele_isEERingGap": event.patElectron_isEEGap[iEle] if ele_matched else -999,
 
                         "cl2_en": pfCluster_energy[pfcl_in_sc[iSC][1]] if sc_matched and sc_nCls[iSC] >= 2 else -999,
                         "cl3_en": pfCluster_energy[pfcl_in_sc[iSC][2]] if sc_matched and sc_nCls[iSC] >= 3 else -999,
