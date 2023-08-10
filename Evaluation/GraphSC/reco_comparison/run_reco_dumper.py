@@ -55,7 +55,7 @@ nocalowNmax = args.maxnocalow
 
 def run(inputfile):
     try:
-        f = R.TFile("root://"+inputfile);
+        f = R.TFile.Open("root://"+inputfile);
         tree = f.Get("recosimdumper/caloTree")
 
         if args.nevents and len(args.nevents) >= 1:
@@ -87,8 +87,12 @@ def run(inputfile):
                                         debug= args.debug)
             output_objects += obj
             output_events += ev
-        f.Close()
-        return  output_objects, output_events
+        try:
+            f.Close()
+        except:
+            print("exception closing the file")
+        finally:
+            return  output_objects, output_events
     except Exception as e:
         print(e)
         return [],[]
