@@ -383,7 +383,8 @@ class WindowCreator():
                     seedRawId = event.patElectron_seedRawId[iEle]
                     cls_in_window, missing_cls, correct_cls, spurious_cls, true_cls = [],[],[],[],[]
                     calomatched = False
-                    genmatched = False
+                    genmatched = iEle in patElectron_genParticle_matching
+                    genindex = patElectron_genParticle_matching[iEle] if genmatched else -999
                     if seedRawId in superCluster_seedRawId_map:
                         sc_matched = 1
                         iSC = superCluster_seedRawId_map[seedRawId]
@@ -396,8 +397,7 @@ class WindowCreator():
                             calomatched = False
                             caloindex = -999
 
-                        genmatched = iEle in patElectron_genParticle_matching
-                        genindex = patElectron_genParticle_matching[iEle] if genmatched else -999
+                        
                     
                         seed_eta = pfCluster_eta[seed]
                         seed_phi = pfCluster_phi[seed]
@@ -422,9 +422,6 @@ class WindowCreator():
                         # There is no matched supercluster
                         sc_matched = 0
                         calomatched = False
-                        # Check if it is genMatched
-                        genmatched = iEle in patElectron_genParticle_matching
-                        genindex = patElectron_genParticle_matching[iEle] if genmatched else -999
                     
                         # print(f"Unmatched electron: {seedRawId}, eta: {event.patElectron_eta[iEle]}, et: { event.patElectron_et[iEle]}, trackerseeded: {event.patElectron_isEcalDriven[iEle]}")
                                     
@@ -718,6 +715,7 @@ class WindowCreator():
                         "ele_index" : iEle,
                         "pho_index": iPho, 
                         "deltaR_genPart_ele": deltaR_genPart_ele,
+                        "deltaR_genPart_pho": deltaR_genPart_pho,
                         "calomatched" : int(calomatched),
                         "caloindex": caloindex if calomatched else -999,
                         "sc_matched" : int(sc_matched), 
