@@ -183,6 +183,7 @@ def bin_analysis_cruijff(col, nbins=300, prange=0.95):
 
 
 # ### Generic plotting function
+
 def do_plot(*, name, df1, df2, res_var1, res_var2, 
             bins1, bins2, binlabel1, binlabel2, binvar1, binvar2, binleg,
             xlabel, ylabel, general_label, ylabelratio,
@@ -193,9 +194,7 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
             logx = False,
             exclude_x_bin=-1,
             exclude_y_bin=-1,
-            nbins_fit=250, prange=1,
-            legend1="DeepSC",
-            legend2="Mustache",
+            nbins_fit=250, prange=1, 
             legendExt = "",
             xlabel_fit = "$E/E_{true}$",
             fill_between=None,  output_folder=None, 
@@ -254,7 +253,7 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
     
 
     for iet, et in enumerate(bins2[:-1]):
-        if iet in exclude_y_bin: continue
+        if iet == exclude_y_bin: continue
         if not yvar_err:
             l = axs[0].errorbar(x, res_must[res_must[binCol2] == iet][yvar], xerr=errx, 
                                 label=f"[{bins2[iet]}, {bins2[iet+1]}]", fmt = ".")
@@ -266,7 +265,7 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
 
     i = 0
     for iet, et in enumerate(bins2[:-1]):
-        if iet in exclude_y_bin: continue
+        if iet == exclude_y_bin: continue
         if not yvar_err:
             l = axs[0].errorbar(x, res[res[binCol2]== iet][yvar],  
                             xerr=errx,                    
@@ -286,7 +285,7 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
 
 
     for iet, et in enumerate(bins2[:-1]):
-        if iet in exclude_y_bin: continue
+        if iet == exclude_y_bin: continue
         rd = res[res[binCol2]==iet][yvar]
         rm = res_must[res_must[binCol2]==iet][yvar]
         var = rd/rm
@@ -312,8 +311,8 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
 
     l1= axs[0].legend(handles=mustl, title=binleg, title_fontsize=18, loc="upper left", fontsize=18)
 
-    ml = mlines.Line2D([], [], color='black', marker='.', linestyle='None', markersize=10, label=legend2+ legendExt )
-    dl = mlines.Line2D([], [], color='black', marker='s', markerfacecolor='none', linestyle='None', markersize=10, label=legend1+ legendExt)
+    ml = mlines.Line2D([], [], color='black', marker='.', linestyle='None', markersize=10, label='Mustache'+ legendExt )
+    dl = mlines.Line2D([], [], color='black', marker='s', markerfacecolor='none', linestyle='None', markersize=10, label='DeepSC'+ legendExt)
     axs[0].legend(handles=[ml,dl], title="Algorithm", title_fontsize=18, loc="upper right", 
                   bbox_to_anchor=(0.93, 1), fontsize=18)
     axs[0].add_artist(l1)
@@ -378,12 +377,12 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
                 ax.plot(xd, y_cr_D, label="Cruijiff DeepSC", linewidth =3, zorder=11, color="red")
 
                 ax.legend(loc="upper right", bbox_to_anchor=(1, 1), fontsize=17)
-                ax.text(0.05, 0.9, f"Mustache:\nm={fit_must.m.values[0]:.3f}, $\sigma_L$={fit_must.sigmaL.values[0]:.3f}, $\sigma_R$={fit_must.sigmaR.values[0]:.3f}",
+                ax.text(0.05, 0.9, f"Mustache:\nm={fit_must.m.values[0]:.3f}, $\sigma_L$={fit_must.sigmaL.values[0]:.4f}, $\sigma_R$={fit_must.sigmaR.values[0]:.4f}",
                         transform=ax.transAxes, fontsize=15, color="green")
-                ax.text(0.05, 0.8, f"DeepSC:\nm={fit_deep.m.values[0]:.3f}, $\sigma_L$={fit_deep.sigmaL.values[0]:.3f}, $\sigma_R$={fit_deep.sigmaR.values[0]:.3f}",
+                ax.text(0.05, 0.8, f"DeepSC:\nm={fit_deep.m.values[0]:.3f}, $\sigma_L$={fit_deep.sigmaL.values[0]:.4f}, $\sigma_R$={fit_deep.sigmaR.values[0]:.4f}",
                         transform=ax.transAxes, fontsize=15, color="red")
 
-                ax.text(0.05, 0.65, f"{xlabel} [{bins1[iBin1]},{bins1[iBin1+1]}] \n{binleg}: [{bins2[iBin2]},{bins2[iBin2+1]}]",
+                ax.text(0.05, 0.65, f"{xlabel} [{bins1[iBin1]:.2f},{bins1[iBin1+1]:.2f}] \n{binleg}: [{bins2[iBin2]:.2f},{bins2[iBin2+1]:.2f}]",
                         transform=ax.transAxes, fontsize=17)
                 
                 ax.text(0.65, 0.65, general_label, transform=ax.transAxes, fontsize=20)
@@ -399,60 +398,12 @@ def do_plot(*, name, df1, df2, res_var1, res_var2,
                 plt.close()
                 
     if output_folder:
+        res.loc[:, binCol1+"_min"] = np.array(bins1)[res[binCol1].values]
+        res.loc[:, binCol1+"_max"] = np.array(bins1)[res[binCol1].values+1]
+        res_must.loc[:, binCol1+"_min"] = np.array(bins1)[res_must[binCol1].values]
+        res_must.loc[:, binCol1+"_max"] = np.array(bins1)[res_must[binCol1].values+1]
         res.to_csv(f"{output_folder}/resolution_{name}_deepsc.csv", sep=',', index=False)
         res_must.to_csv(f"{output_folder}/resolution_{name}_mustache.csv", sep=',', index=False)
     
     return res, res_must
-# EXAMPLE
-#res_d, res_m = do_plot(name="ele_gen_matched_corr",
-#         df=df_join, 
-#         res_var="Ecorr_ov_EGen", 
-#         bins1=[0, 0.5,0.8,1.0,1.2, 1.485, 1.566, 1.75, 2.,2.25,2.5,3],
-#         bins2=[4,10,20,40,60], 
-#         binlabel1="eta",
-#         binlabel2="et",
-#         binleg="$E_T^{Gen}$", 
-#         binvar1="seed_eta_new", 
-#         binvar2="calo_et_gen_new", 
-#         nbins_fit=250, 
-#         prange=0.98, 
-#         exclude_bin=5, 
-#         general_label="Electron \n(GEN-matched)", 
-#         xlabel="$|\eta_{Gen}|$", 
-#         ylabel="$\sigma_{avg}(E_{Calib}/E_{Gen})$",
-#         ylabelratio="$\sigma_{DeepSC}/\sigma_{Must}$", 
-#         yvar="sigma_avg",
-#         ylims1=(5e-3,1e1),
-#         ylims2=(0.75, 1.15),
-#         fill_between=[1.485, 1.566],
-#         output_folder=None)
-
-
-# # In[59]:
-
-
-# res_d, res_m = do_plot(name="ele_gen_matched_corr_byEt",
-#         df=df_join, 
-#         res_var="Ecorr_ov_EGen", 
-#         bins1=[4, 8, 12,16, 20,25 ,30,35,40, 45, 50, 60, 70, 80, 90 ,100],
-#         bins2=[0, 1, 1.485, 1.566, 3], 
-#         exclude_bin=2, 
-#         binlabel1="et", 
-#         binlabel2="eta", 
-#         binleg= "$\eta_{Gen}$",
-#         binvar1="calo_et_gen_new", 
-#         binvar2="seed_eta_new", 
-#         nbins_fit=250, 
-#         prange=0.98, 
-#         general_label="Electron \n(GEN-matched)", 
-#         xlabel="$E_T^{Gen}$", 
-#         ylabel="$\sigma_{avg} (E_{Calib}/E_{Gen})$",
-#         ylabelratio="$\sigma_{DeepSC}/\sigma_{Must}$", 
-#         yvar="sigma_avg",
-#         ylims1=(5e-3,1.5),
-#         ylims2=(0.75, 1.15),
-#         output_folder=None)
-
-
-# # In[63]:
 

@@ -10,6 +10,7 @@ from pprint import pprint
 import json
 import numpy as np
 import ROOT as R
+import correctionlib
 
 '''
 This script extracts the windows and associated clusters from events
@@ -54,18 +55,14 @@ class WindowCreator():
         self.cluster_min_fraction = cl_min_fraction
         self.simfraction_thresholds = simfraction_thresholds
         self.simenergy_pu_limit = simenergy_pu_limit
-
+        self.simfraction_thresholds = correctionlib.CorrectionSet.from_file(simfraction_thresholds)["simfraction_thres"]
 
     def pass_simfraction_threshold(self, seed_eta, seed_et, cluster_calo_score ):
         '''
         This functions associates a cluster as true matched if it passes a threshold in simfraction
         '''
-        iX = min(max(1,self.simfraction_thresholds.GetXaxis().FindBin(seed_et)      ), self.simfraction_thresholds.GetNbinsX())
-        iY = min(max(1,self.simfraction_thresholds.GetYaxis().FindBin(abs(seed_eta))), self.simfraction_thresholds.GetNbinsY())
-        thre = self.simfraction_thresholds.GetBinContent(iX,iY)
-        #print(seed_eta, seed_et, cluster_calo_score, thre, cluster_calo_score >= thre )
-        return cluster_calo_score >= thre
-
+        minscore = self.simfraction_thresholds.evaluate(seed_et, abs(seed_eta))
+        return cluster_calo_score >= minscore
 
     def get_clusters_inside_window(self,seed_et, seed_eta, seed_phi, seed_iz, cls_eta, cls_phi, cls_iz,
                                    pfcluster_calo_map, pfcluster_calo_score, caloindex):
@@ -92,6 +89,7 @@ class WindowCreator():
         return cls_in_window, true_cls
                     
     def dynamic_window(self,eta):
+        ## This is version 1
         aeta = abs(eta)
 
         if aeta >= 0 and aeta < 0.1:
@@ -124,8 +122,11 @@ class WindowCreator():
 
 
     def get_windows(self, event, assoc_strategy,  nocalowNmax, min_et_seed=1,
-                    sc_collection="superCluster", reco_collection="none", loop_on_calo=False,  debug=False):
+                    sc_collection="superCluster", reco_collection="none",
+                    overwrite_runid = None,
+                    loop_on_calo=False,  debug=False,):
         ## output
+        available_branches = [f.GetName() for f in event.GetListOfBranches()]
         output_object = []
         output_event = []
         # Branches
@@ -136,15 +137,18 @@ class WindowCreator():
         pfCluster_ieta = event.pfCluster_ieta
         pfCluster_iphi = event.pfCluster_iphi
         pfCluster_iz = event.pfCluster_iz
-        calo_simenergy = event.caloParticle_simEnergy
-        calo_simenergy_goodstatus = event.caloParticle_simEnergyGoodStatus
-        calo_genenergy = event.caloParticle_genEnergy
-        calo_simeta = event.caloParticle_simEta
-        calo_simphi = event.caloParticle_simPhi
-        calo_geneta = event.caloParticle_genEta
-        calo_genphi = event.caloParticle_genPhi
-        calo_genpt = event.caloParticle_genPt
-        calo_simiz = event.caloParticle_simIz
+
+        calo_in_tree = "caloParticle_simEnergy" in available_branches
+        if calo_in_tree:
+            calo_simenergy = event.caloParticle_simEnergy
+            calo_simenergy_goodstatus = event.caloParticle_simEnergyGoodStatus
+            calo_genenergy = event.caloParticle_genEnergy
+            calo_simeta = event.caloParticle_simEta
+            calo_simphi = event.caloParticle_simPhi
+            calo_geneta = event.caloParticle_genEta
+            calo_genphi = event.caloParticle_genPhi
+            calo_genpt = event.caloParticle_genPt
+            calo_simiz = event.caloParticle_simIz
         # calo_geniz = event.caloParticle_genIzt
         # calo_isPU = event.caloParticle_isPU
         # calo_isOOTPU = event.caloParticle_isOOTPU
@@ -153,7 +157,6 @@ class WindowCreator():
         rho = event.rho
         obsPU = event.obsPU
         truePU = event.truePU
-
         #SuperCluster branches
         sc_rawEn = getattr(event, f"{sc_collection}_rawEnergy")
         #sc_rawESEn = event.superCluster_rawESEnergy
@@ -169,54 +172,107 @@ class WindowCreator():
         genpart_eta = event.genParticle_eta
         genpart_phi = event.genParticle_phi
         genpart_pt = event.genParticle_pt
+        genpart_pdgId = event.genParticle_pdgId
+        genpart_status = event.genParticle_status
+        genpart_statusFlag = event.genParticle_statusFlag if "genParticle_statusFlag" in available_branches else None
+        genpart_good = []
+        for igen in range(len(genpart_status)):
+            if genpart_status[igen] != 1: continue
+            if genpart_statusFlag != None:
+                if genpart_statusFlag[igen] & 1 != 1:
+                    continue
+            if abs(genpart_pdgId[igen]) in [11,22]:
+                genpart_good.append(igen)
         
-
-        superCluster_genParticle_dR = getattr(event,f"{sc_collection}_dR_genScore")
-        genParticle_superCluster_dR_list = getattr(event,f"genParticle_{sc_collection}_dR_genScore_MatchedIndex")
+                
+        ## GenParticle SuperCluster matching
+        # deltaR genParticle and SuperCluster seed
         genParticle_superCluster_matching = {}
-        superCluster_genParticle_matching = {}
+        superCluster_genParticle_matching = {}        
+        for igen in genpart_good:
+            dR = []
+            for isc in range(len(sc_eta)):
+                dR.append((DeltaR(genpart_phi[igen],genpart_eta[igen],
+                                  pfCluster_phi[sc_seedIndex[isc]],pfCluster_eta[sc_seedIndex[isc]] ),
+                            isc))
+            if dR:
+                best_match = list(sorted(dR, key=itemgetter(0)))[0]
+                if best_match[0] > 0.2:
+                    # print(f"No SC matched to genPart {igen}")
+                    continue
+                genParticle_superCluster_matching[igen] = best_match[1]
+                superCluster_genParticle_matching[best_match[1]] = igen
+                
+        #Gen association - patElectrons
+        genParticle_patElectron_matching = {}
+        patElectron_genParticle_matching = {}        
+        for igen in genpart_good:
+            dR = []
+            for iele in range(len(event.patElectron_energy)):
+                #print(f"PatElectron genphi {genpart_phi[igen]}, geneta{genpart_eta[igen]},elephi {event.patElectron_phi[iele]},eleeta={event.patElectron_eta[iele]}, ele{iele}")
+                dR.append((DeltaR(genpart_phi[igen],genpart_eta[igen],
+                                  event.patElectron_phi[iele],event.patElectron_eta[iele] ),
+                            iele))
+            if dR:
+                sortedDR = list(sorted(dR, key=itemgetter(0)))
+                best_match = sortedDR[0]
+                # print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
+                            
+                genParticle_patElectron_matching[igen] = (best_match[1], best_match[0])
+                patElectron_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
+                
+        #Gen association - patPhotons
+        genParticle_patPhoton_matching = {}
+        patPhoton_genParticle_matching = {}        
+        for igen in genpart_good:
+            dR = []
+            for ipho in range(len(event.patPhoton_energy)):
+                #print(f"patPhoton genphi {genpart_phi[igen]}, geneta{genpart_eta[igen]},elephi {event.patPhoton_phi[ipho]},eleeta={event.patPhoton_eta[ipho]}, pho{ipho}")
+                dR.append((DeltaR(genpart_phi[igen],genpart_eta[igen],
+                                  event.patPhoton_phi[ipho],event.patPhoton_eta[ipho] ),
+                           ipho))
+            if dR:
+                sortedDR = list(sorted(dR, key=itemgetter(0)))
+                best_match = sortedDR[0]
+                # print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
+                            
+                genParticle_patPhoton_matching[igen] = (best_match[1], best_match[0])
+                patPhoton_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
 
+                
         # Map of seedRawId neeed to match electron/photon with SC
         superCluster_seedRawId_map = {}
         for sc, rawid in enumerate(event.superCluster_seedRawId):
             superCluster_seedRawId_map[rawid] = sc
 
-        #Gen association
-        for igen , sc_vec in enumerate(genParticle_superCluster_dR_list):
-            # getting the list (iSC,deltaR  ) to the iGen particle
-            dRs = [ (isc,  superCluster_genParticle_dR[isc][igen])  for isc in sc_vec]
-            if len(dRs) == 0: continue
-            bestSC = list(sorted(dRs, key=itemgetter(1)))[0][0]
-            genParticle_superCluster_matching[igen] = bestSC
-            superCluster_genParticle_matching[bestSC] = igen
 
-            
-        clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
-        # Get Association between pfcluster and calo
-        # Sort the clusters for each calo in order of score. 
-        # # This is needed to understand which cluster is the seed of the calo
-        # Working only on signal caloparticle
-        pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
-            calo_association.get_calo_association(clusters_scores, sort_calo_cl=True,
-                                                  debug=False, min_sim_fraction=self.cluster_min_fraction)
+        if calo_in_tree:
+            clusters_scores = getattr(event, "pfCluster_"+assoc_strategy)
+            # Get Association between pfcluster and calo
+            # Sort the clusters for each calo in order of score. 
+            # # This is needed to understand which cluster is the seed of the calo
+            # Working only on signal caloparticle
+            pfcluster_calo_map, pfcluster_calo_score, calo_pfcluster_map = \
+                calo_association.get_calo_association(clusters_scores, sort_calo_cl=True,
+                                                      debug=False, min_sim_fraction=self.cluster_min_fraction)
 
-        calo_seeds_init = [(cls[0][0], calo)  for calo, cls in calo_pfcluster_map.items()] # [(seed,caloindex),..]
-        calo_seeds =[]
-        # clean the calo seeds
-        for calo_seed, icalo in calo_seeds_init:
-            # Check the minimum sim fraction
-            if pfcluster_calo_score[calo_seed] < self.seed_min_fraction:
-                print("Seed score too small")
-                continue
-            # Check if the calo and the seed are in the same window
-            calo_inwindow = in_window(calo_geneta[icalo],calo_genphi[icalo],
-                                      calo_simiz[icalo], pfCluster_eta[calo_seed],
-                                      pfCluster_phi[calo_seed], pfCluster_iz[calo_seed],
-                                      *self.dynamic_window(pfCluster_eta[calo_seed]))
-            if not calo_inwindow:
-                print("Seed not in window")
-                continue 
-            calo_seeds.append(calo_seed)
+            calo_seeds_init = [(cls[0][0], calo)  for calo, cls in calo_pfcluster_map.items()] # [(seed,caloindex),..]
+            calo_seeds =[]
+            # clean the calo seeds
+            for calo_seed, icalo in calo_seeds_init:
+                # Check the minimum sim fraction
+                if pfcluster_calo_score[calo_seed] < self.seed_min_fraction:
+                    print("Seed score too small")
+                    continue
+                # Check if the calo and the seed are in the same window
+                calo_inwindow = in_window(calo_geneta[icalo],calo_genphi[icalo],
+                                          calo_simiz[icalo], pfCluster_eta[calo_seed],
+                                          pfCluster_phi[calo_seed], pfCluster_iz[calo_seed],
+                                          *self.dynamic_window(pfCluster_eta[calo_seed]))
+                if not calo_inwindow:
+                    print("Seed not in window")
+                    continue 
+                calo_seeds.append(calo_seed)
 
         #print("SuperCluster seeds index: ", sc_seedIndex)
         #print("Calo-seeds index: ", calo_seeds)
@@ -323,20 +379,25 @@ class WindowCreator():
 
             ## Analyze the reco_collection
             elif reco_collection == "electron":
-                for iEle in range(len(event.electron_index)):
-                    seedRawId = event.electron_seedRawId[iEle]
+                for iEle in range(len(event.patElectron_index)):
+                    seedRawId = event.patElectron_seedRawId[iEle]
                     cls_in_window, missing_cls, correct_cls, spurious_cls, true_cls = [],[],[],[],[]
                     calomatched = False
-                    genmatched = False
+                    genmatched = iEle in patElectron_genParticle_matching
+                    genindex = patElectron_genParticle_matching[iEle] if genmatched else -999
                     if seedRawId in superCluster_seedRawId_map:
-                        sc_matched = True
+                        sc_matched = 1
                         iSC = superCluster_seedRawId_map[seedRawId]
                         seed = sc_seedIndex[iSC]
-                        calomatched = seed in calo_seeds
-                        caloindex = pfcluster_calo_map[seed] if calomatched else -999
 
-                        genmatched = iSC in superCluster_genParticle_matching
-                        genindex = superCluster_genParticle_matching[iSC] if genmatched else -999
+                        if calo_in_tree:
+                            calomatched = seed in calo_seeds
+                            caloindex = pfcluster_calo_map[seed] if calomatched else -999
+                        else:
+                            calomatched = False
+                            caloindex = -999
+
+                        
                     
                         seed_eta = pfCluster_eta[seed]
                         seed_phi = pfCluster_phi[seed]
@@ -344,34 +405,38 @@ class WindowCreator():
                         seed_en = pfCluster_rawEnergy[seed]
                         seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
 
-                        cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                        if calo_in_tree:
+                            cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
                                                                               pfCluster_eta,  pfCluster_phi, pfCluster_iz,
                                                                               pfcluster_calo_map, pfcluster_calo_score, caloindex)
-                        for icl in cls_in_window:
-                            if icl in true_cls:
-                                if icl in pfcl_in_sc[iSC]:
-                                    correct_cls.append(icl)
+                            for icl in cls_in_window:
+                                if icl in true_cls:
+                                    if icl in pfcl_in_sc[iSC]:
+                                        correct_cls.append(icl)
+                                    else:
+                                        missing_cls.append(icl)
                                 else:
-                                    missing_cls.append(icl)
-                            else:
-                                if icl in pfcl_in_sc[iSC]:
-                                    spurious_cls.append(icl)
+                                    if icl in pfcl_in_sc[iSC]:
+                                        spurious_cls.append(icl)
                     else:
                         # There is no matched supercluster
-                        sc_matched = False
-                        print(f"Unmatched electron: {seedRawId}, eta: {event.electron_eta[iEle]}, et: { event.electron_et[iEle]}, trackerseeded: {event.electron_ecalDrivenSeed[iEle]}")
+                        sc_matched = 0
+                        calomatched = False
+                    
+                        # print(f"Unmatched electron: {seedRawId}, eta: {event.patElectron_eta[iEle]}, et: { event.patElectron_et[iEle]}, trackerseeded: {event.patElectron_isEcalDriven[iEle]}")
                                     
 
                     out = {
                         "ele_index" : iEle,
                         "sc_matched" : sc_matched, 
-                        "calomatched" : int(calomatched) if sc_matched else -999,
-                        "caloindex": caloindex if sc_matched else -999,
-                        "genmatched" : int(genmatched) if sc_matched else -999,
-                        "genindex": genindex if sc_matched else -999,
+                        "calomatched" : int(calomatched),
+                        "caloindex": caloindex if calomatched else -999,
                         "sc_index": iSC if sc_matched else -199,
                         "seed_index": seed if sc_matched else -999,
-                
+
+                        "genmatched" : int(genmatched) if genmatched else 0,
+                        "genindex": genindex if genmatched else -999,
+                        
                         "en_seed": pfCluster_rawEnergy[seed] if sc_matched else -999,
                         "et_seed": seed_et if sc_matched else -999,
                         "en_seed_calib": pfCluster_energy[seed] if sc_matched else -999,
@@ -380,25 +445,50 @@ class WindowCreator():
                         "seed_phi": seed_phi if sc_matched else -999,
                         "seed_iz": seed_iz if sc_matched else -999, 
 
-                        "ele_eta" : event.electron_eta[iEle],
-                        "ele_phi" : event.electron_phi[iEle],
-                        "ele_energy": event.electron_energy[iEle],
-                        "ele_et": event.electron_et[iEle],
-                        "ele_ecalEnergy": event.electron_ecalEnergy[iEle],
-                        "ele_scRawEnergy": event.electron_scRawEnergy[iEle],
-                        "ele_scRawESEnergy": event.electron_scRawESEnergy[iEle],
-                        "ele_fbrem" : event.electron_fbrem[iEle],
-                        "ele_e5x5": event.electron_e5x5[iEle],
-                        "ele_e3x3": event.electron_e3x3[iEle],
-                        "ele_sigmaIEtaIEta": event.electron_sigmaIEtaIEta[iEle],
-                        "ele_sigmaIEtaIPhi" : event.electron_sigmaIEtaIPhi[iEle],
-                        "ele_sigmaIPhiIPhi" : event.electron_sigmaIPhiIPhi[iEle],
-                        "ele_ecalDriveSeed" : event.electron_ecalDrivenSeed[iEle],
-                        "ele_hademCone": event.electron_hademCone[iEle],
-                        "ele_trkPModeErr": event.electron_trkPModeErr[iEle],
-                        "ele_trkPMode": event.electron_trkPMode[iEle],
-                        "ele_trkEtaMode": event.electron_trkEtaMode[iEle],
-                        "ele_trkPhiMode": event.electron_trkPhiMode[iEle],
+                        "ele_eta" : event.patElectron_eta[iEle],
+                        "ele_phi" : event.patElectron_phi[iEle],
+                        "ele_energy": event.patElectron_energy[iEle],
+                        "ele_et": event.patElectron_et[iEle],
+                        "ele_ecalEnergy": event.patElectron_ecalEnergy[iEle],
+                        "ele_ecalSCEnergy": event.patElectron_ecalSCEnergy[iEle],
+                        "ele_scRawEnergy": event.patElectron_ecalSCRawEnergy[iEle],
+                        "ele_scRawESEnergy": event.patElectron_ecalSCRawESEnergy[iEle],
+                        "ele_SCfbrem" : event.patElectron_superClusterFbrem[iEle],
+                        "ele_tracfbrem" : event.patElectron_trackFbrem[iEle],
+                        "ele_e5x5": event.patElectron_scE5x5[iEle],
+                        "ele_e3x3": event.patElectron_scE3x3[iEle],
+                        "ele_sigmaIEtaIEta": event.patElectron_scSigmaIEtaIEta[iEle],
+                        "ele_sigmaIEtaIPhi" : event.patElectron_scSigmaIEtaIPhi[iEle],
+                        "ele_sigmaIPhiIPhi" : event.patElectron_scSigmaIPhiIPhi[iEle],
+
+                        "ele_ecalIso03": event.patElectron_ecalIso03[iEle],
+                        "ele_trkIso03": event.patElectron_trkIso03[iEle],
+                        "ele_hcalIso03": event.patElectron_hcalIso03[iEle],
+                        "ele_pfChargedHadronIso" : event.patElectron_pfChargedHadronIso[iEle],
+                        "ele_pfNeutralHadronIso" : event.patElectron_pfNeutralHadronIso[iEle],
+                        "ele_pfPhotonIso" : event.patElectron_pfPhotonIso[iEle],
+                        
+                        "ele_isEcalDriven" : int(event.patElectron_isEcalDriven[iEle]) ,
+                        "ele_isTrackerDriven" : int(event.patElectron_isTrackerDriven[iEle]),
+
+                        "ele_HoE" : event.patElectron_HoE[iEle],
+                        "ele_deltaEtaSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle],
+                        "ele_deltaPhiSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle],
+                        "ele_deltaEtaEleClusterAtCalo": event.patElectron_deltaEtaEleClusterAtCalo[iEle],
+                        "ele_deltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle],
+
+                        "ele_egmMVAElectronIDtight": event.patElectron_egmMVAElectronIDtight[iEle] ,
+                        "ele_egmMVAElectronIDloose": event.patElectron_egmMVAElectronIDloose[iEle] ,
+                        "ele_egmMVAElectronIDmedium": event.patElectron_egmMVAElectronIDmedium[iEle] ,
+
+
+                        "ele_pAtCalo": event.patElectron_pAtCalo[iEle] ,
+                        "ele_deltaEtaIn": event.patElectron_deltaEtaIn[iEle] ,
+                        "ele_deltaPhiIn": event.patElectron_deltaPhiIn[iEle] ,
+                        # "ele_trkPModeErr": event.patElectron_trkPModeErr[iEle],
+                        # "ele_trkPMode": event.patElectron_trkPMode[iEle],
+                        # "ele_trkEtaMode": event.patElectron_trkEtaMode[iEle],
+                        # "ele_trkPhiMode": event.patElectron_trkPhiMode[iEle],
                         
                         "ncls_sel": sc_nCls[iSC] if sc_matched else -999,
                         "ncls_sel_true": len(correct_cls),
@@ -412,7 +502,9 @@ class WindowCreator():
                         #"en_sc_raw_ES" : sc_rawESEn[iSC],
                         #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
                         "en_sc_calib": sc_corrEn[iSC] if sc_matched else -999, 
-                        "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999, 
+                        "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999,
+                        "sc_etaWidth": event.superCluster_etaWidth[iSC] if sc_matched else -999,
+                        "sc_phiWidth": event.superCluster_phiWidth[iSC] if sc_matched else -999,
 
                         # Sim energy and Gen Enerugy of the caloparticle
                         "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
@@ -428,9 +520,9 @@ class WindowCreator():
                         # GenParticle info
                         "genpart_en": genpart_energy[genindex] if genmatched else -1,
                         "genpart_et": genpart_energy[genindex]/cosh(genpart_eta[genindex]) if genmatched else -1,
-                        "gen_eta": genpart_eta[genindex] if genmatched else -1,
-                        "gen_phi": genpart_phi[genindex] if genmatched else -1,
-                        "gen_pt": genpart_pt[genindex] if genmatched else -1,
+                        "genpart_eta": genpart_eta[genindex] if genmatched else -1,
+                        "genpart_phi": genpart_phi[genindex] if genmatched else -1,
+                        "genpart_pt": genpart_pt[genindex] if genmatched else -1,
 
                         # PU information
                         "nVtx": nVtx, 
@@ -440,7 +532,7 @@ class WindowCreator():
 
                         #Evt number
                         "eventId" : event.eventId,
-                        "runId": event.runId
+                        "runId": event.runId if not overwrite_runid else overwrite_runid
 
                     }
                     output_object.append(out)
@@ -554,6 +646,255 @@ class WindowCreator():
                             
                         }
                         output_object.append(out)
+
+            ##############################################################
+            ##############################################################
+            #### Analyze the genParticles to get info about the matching
+            elif reco_collection == "genparticle":
+                for igen in genpart_good:
+                    cls_in_window, missing_cls, correct_cls, spurious_cls, true_cls = [],[],[],[],[]
+
+                    # Take the matched SC and ele
+                    iSC = genParticle_superCluster_matching.get(igen, -999)
+                    iEle, deltaR_genPart_ele =  genParticle_patElectron_matching.get(igen, [-999,999.])
+                    iPho, deltaR_genPart_pho = genParticle_patPhoton_matching.get(igen, [-999, 999.])
+                    #print(iSC, iEle, iPho)
+                
+                    ele_matched = iEle != -999
+                    pho_matched = iPho != -999
+                    sel_true_energy = 0.
+                    true_energy = 0.
+                    selected_energy = 0.
+                    missing_energy = 0.
+                    spurious_energy = 0.
+                    
+                    if iSC != -999:
+                        sc_matched = 1
+                        seed = sc_seedIndex[iSC]
+
+                        if calo_in_tree:
+                            calomatched = seed in calo_seeds
+                            caloindex = pfcluster_calo_map[seed] if calomatched else -999
+                        else:
+                            calomatched = False
+                            caloindex = -999
+
+                        seed_eta = pfCluster_eta[seed]
+                        seed_phi = pfCluster_phi[seed]
+                        seed_iz = pfCluster_iz[seed]
+                        seed_en = pfCluster_rawEnergy[seed]
+                        seed_et = pfCluster_rawEnergy[seed] / cosh(pfCluster_eta[seed])
+                        
+                        if calo_in_tree:
+                            cls_in_window, true_cls = self.get_clusters_inside_window(seed_et, seed_eta, seed_phi, seed_iz,
+                                                                              pfCluster_eta,  pfCluster_phi, pfCluster_iz,
+                                                                              pfcluster_calo_map, pfcluster_calo_score, caloindex)
+                            for icl in cls_in_window:
+                                if icl in true_cls:
+                                    if icl in pfcl_in_sc[iSC]:
+                                        correct_cls.append(icl)
+                                    else:
+                                        missing_cls.append(icl)
+                                else:
+                                    if icl in pfcl_in_sc[iSC]:
+                                        spurious_cls.append(icl)
+                            true_energy = sum([ pfCluster_energy[icl] for  icl in true_cls])
+                            sel_true_energy = sum([ pfCluster_energy[icl] for  icl in correct_cls])
+                            missing_energy = sum([ pfCluster_energy[icl] for  icl in missing_cls])
+                            spurious_energy = sum([ pfCluster_energy[icl] for  icl in spurious_cls])
+                            selected_energy = sum([pfCluster_energy[icl] for icl in pfcl_in_sc[iSC]])
+                    else:
+                        # There is no matched supercluster
+                        sc_matched = 0
+                        calomatched = False
+
+                    out = {
+                        "genindex": igen,
+                        "elematched": int(ele_matched),
+                        "phomatched": int(pho_matched),
+                        "ele_index" : iEle,
+                        "pho_index": iPho, 
+                        "deltaR_genPart_ele": deltaR_genPart_ele,
+                        "deltaR_genPart_pho": deltaR_genPart_pho,
+                        "calomatched" : int(calomatched),
+                        "caloindex": caloindex if calomatched else -999,
+                        "sc_matched" : int(sc_matched), 
+                        "sc_index": iSC if sc_matched else -199,
+                        "seed_index": seed if sc_matched else -999,
+                        
+                        "en_seed": pfCluster_rawEnergy[seed] if sc_matched else -999,
+                        "et_seed": seed_et if sc_matched else -999,
+                        "en_seed_calib": pfCluster_energy[seed] if sc_matched else -999,
+                        "et_seed_calib": pfCluster_energy[seed] / cosh(pfCluster_eta[seed]) if sc_matched else -999,
+                        "seed_eta": seed_eta if sc_matched else -999,
+                        "seed_phi": seed_phi if sc_matched else -999,
+                        "seed_iz": seed_iz if sc_matched else -999,
+                        "sc_eta": sc_eta[iSC] if sc_matched else -999,
+                        "sc_phi": sc_phi[iSC] if sc_matched else -999,
+
+
+                        "sc_swissCross": event.superCluster_swissCross[iSC] if sc_matched else -999,
+                        "sc_r9": event.superCluster_r9[iSC] if sc_matched else -999,
+                        "sc_sigmaIetaIeta": event.superCluster_sigmaIetaIeta[iSC] if sc_matched else -999,
+                        "sc_sigmaIetaIphi": event.superCluster_sigmaIetaIphi[iSC] if sc_matched else -999,
+                        "sc_sigmaIphiIphi": event.superCluster_sigmaIphiIphi[iSC] if sc_matched else -999,
+                        "sc_e5x5": event.superCluster_e5x5[iSC] if sc_matched else -999,
+
+                        "sc_swissCross_f5x5": event.superCluster_full5x5_swissCross[iSC] if sc_matched else -999,
+                        "sc_r9_f5x5": event.superCluster_full5x5_r9[iSC] if sc_matched else -999,
+                        "sc_sigmaIetaIeta_f5x5": event.superCluster_full5x5_sigmaIetaIeta[iSC] if sc_matched else -999,
+                        "sc_sigmaIetaIphi_f5x5": event.superCluster_full5x5_sigmaIetaIphi[iSC] if sc_matched else -999,
+                        "sc_sigmaIphiIphi_f5x5": event.superCluster_full5x5_sigmaIphiIphi[iSC] if sc_matched else -999,
+
+                        "sc_e5x5_f5x5": event.superCluster_full5x5_e5x5[iSC] if sc_matched else -999,
+
+                        "ele_eta" : event.patElectron_eta[iEle] if ele_matched else -999,
+                        "ele_phi" : event.patElectron_phi[iEle] if ele_matched else -999,
+                        "ele_energy": event.patElectron_energy[iEle] if ele_matched else -999,
+                        "ele_et": event.patElectron_et[iEle] if ele_matched else -999,
+                        "ele_ecalEnergy": event.patElectron_ecalEnergy[iEle] if ele_matched else -999,
+                        "ele_ecalSCEnergy": event.patElectron_ecalSCEnergy[iEle] if ele_matched else -999,
+                        "ele_scRawEnergy": event.patElectron_ecalSCRawEnergy[iEle] if ele_matched else -999,
+                        "ele_scRawESEnergy": event.patElectron_ecalSCRawESEnergy[iEle] if ele_matched else -999,
+                        "ele_SCfbrem" : event.patElectron_superClusterFbrem[iEle] if ele_matched else -999,
+                        "ele_tracfbrem" : event.patElectron_trackFbrem[iEle] if ele_matched else -999,
+                        "ele_e5x5": event.patElectron_scE5x5[iEle] if ele_matched else -999,
+                        "ele_e3x3": event.patElectron_scE3x3[iEle] if ele_matched else -999,
+                        "ele_sigmaIEtaIEta": event.patElectron_scSigmaIEtaIEta[iEle] if ele_matched else -999,
+                        "ele_sigmaIEtaIPhi" : event.patElectron_scSigmaIEtaIPhi[iEle] if ele_matched else -999,
+                        "ele_sigmaIPhiIPhi" : event.patElectron_scSigmaIPhiIPhi[iEle] if ele_matched else -999,
+
+                        "ele_ecalIso03": event.patElectron_ecalIso03[iEle] if ele_matched else -999,
+                        "ele_trkIso03": event.patElectron_trkIso03[iEle] if ele_matched else -999,
+                        "ele_hcalIso03": event.patElectron_hcalIso03[iEle] if ele_matched else -999,
+                        "ele_pfChargedHadronIso" : event.patElectron_pfChargedHadronIso[iEle] if ele_matched else -999,
+                        "ele_pfNeutralHadronIso" : event.patElectron_pfNeutralHadronIso[iEle] if ele_matched else -999,
+                        "ele_pfPhotonIso" : event.patElectron_pfPhotonIso[iEle] if ele_matched else -999,\
+
+                        "ele_HoE" : event.patElectron_HoE[iEle] if ele_matched else -999,
+
+                        "ele_deltaEtaSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle] if ele_matched else -999,
+                        "ele_deltaPhiSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle] if ele_matched else -999,
+                        "ele_deltaEtaEleClusterAtCalo": event.patElectron_deltaEtaEleClusterAtCalo[iEle] if ele_matched else -999,
+                        "ele_deltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle] if ele_matched else -999,
+
+                        "ele_egmMVAElectronIDtight": event.patElectron_egmMVAElectronIDtight[iEle]  if ele_matched else -999,
+                        "ele_egmMVAElectronIDloose": event.patElectron_egmMVAElectronIDloose[iEle]  if ele_matched else -999,
+                        "ele_egmMVAElectronIDmedium": event.patElectron_egmMVAElectronIDmedium[iEle]  if ele_matched else -999,
+
+                        
+                        "ele_isEcalDriven" : int(event.patElectron_isEcalDriven[iEle]) if ele_matched else 0,
+                        "ele_isTrackerDriven" : int(event.patElectron_isTrackerDriven[iEle]) if ele_matched else 0,
+
+                        "ele_clsAdded_eta": [i for i in event.patElectron_clsAdded_eta[iEle]] if ele_matched else [],
+                        "ele_clsAdded_phi": [i for i in event.patElectron_clsAdded_phi[iEle]] if ele_matched else [],
+                        "ele_clsAdded_energy": [i for i in event.patElectron_clsAdded_energy[iEle]] if ele_matched else [],
+                        "ele_clsRemoved_eta": [i for i in event.patElectron_clsRemoved_eta[iEle]] if ele_matched else [],
+                        "ele_clsRemoved_phi": [i for i in event.patElectron_clsRemoved_phi[iEle]] if ele_matched else [],
+                        "ele_clsRemoved_energy": [i for i in event.patElectron_clsRemoved_energy[iEle]] if ele_matched else [],
+                                             
+                        "ncls_sel": sc_nCls[iSC] if sc_matched else -999,
+                        "ncls_sel_true": len(correct_cls),
+                        "ncls_sel_false": len(spurious_cls),
+                        "ncls_true": len(true_cls),
+                        "ncls_tot": len(cls_in_window),
+                        "ncls_missing": len(missing_cls),
+
+                        "ele_nclsRefinedSC": event.patElectron_scNPFClusters[iEle] if ele_matched else -999,
+                        "ele_nclsEcalSC": event.patElectron_ecalSCNPFClusters[iEle] if ele_matched else -999,
+                        "ele_passConversionVeto": event.patElectron_passConversionVeto[iEle] if ele_matched else -999,
+                        "ele_nOverlapPhotons": event.patElectron_nOverlapPhotons[iEle] if ele_matched else -999,
+                        "ele_overlapPhotonIndices": [i for i in event.patElectron_overlapPhotonIndices[iEle]] if ele_matched else -999,
+                        "ele_trackPAtCalo": event.patElectron_pAtCalo[iEle] if ele_matched else -999,
+
+                        "ele_trackDeltaEtaIn": event.patElectron_deltaEtaIn[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiIn": event.patElectron_deltaPhiIn[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaEtaSeedClusterAtCalo": event.patElectron_deltaEtaSeedClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaEtaEleClusterAtCalo": event.patElectron_deltaEtaEleClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle]  if ele_matched else -999,
+                        "ele_trackDeltaPhiEleClusterAtCalo": event.patElectron_deltaPhiEleClusterAtCalo[iEle]  if ele_matched else -999,
+
+                        "ele_misHits": event.patElectron_misHits[iEle]  if ele_matched else -999,
+                        "ele_nAmbiguousGsfTracks" : event.patElectron_nAmbiguousGsfTracks[iEle]  if ele_matched else -999,
+                        "ele_trackFbrem": event.patElectron_trackFbrem[iEle]  if ele_matched else -999,
+                        "ele_superClusterFbrem": event.patElectron_superClusterFbrem[iEle]  if ele_matched else -999,
+                        "ele_dz": event.patElectron_dz[iEle]  if ele_matched else -999,
+                        "ele_dxy": event.patElectron_dxy[iEle]  if ele_matched else -999,
+                        "ele_dzError": event.patElectron_dzError[iEle]  if ele_matched else -999,
+                        "ele_dxyError": event.patElectron_dxyError[iEle]  if ele_matched else -999,
+
+                        "ele_isEBEEGap": event.patElectron_isEBEEGap[iEle] if ele_matched else -999,
+                        "ele_isEBEtaGap": event.patElectron_isEBEtaGap[iEle] if ele_matched else -999,
+                        "ele_isEBPhiGap": event.patElectron_isEBPhiGap[iEle] if ele_matched else -999,
+                        "ele_isEEDeeGap": event.patElectron_isEEDeeGap[iEle] if ele_matched else -999,
+                        "ele_isEERingGap": event.patElectron_isEERingGap[iEle] if ele_matched else -999,
+
+                           
+                        "pho_eta" : event.patPhoton_eta[iPho] if pho_matched else -999,
+                        "pho_phi" : event.patPhoton_phi[iPho] if pho_matched else -999,
+                        "pho_energy": event.patPhoton_energy[iPho] if pho_matched else -999,
+                        "pho_et" : event.patPhoton_et[iPho] if pho_matched else -999,
+                        "pho_scRawEnergy": event.patPhoton_scRawEnergy[iPho] if pho_matched else -999,
+                        "pho_e5x5": event.patPhoton_scE5x5[iPho] if pho_matched else -999,
+                        "pho_e3x3": event.patPhoton_scE3x3[iPho] if pho_matched else -999,
+                        "pho_sigmaIEtaIEta": event.patPhoton_scSigmaIEtaIEta[iPho] if pho_matched else -999,
+                        "pho_sigmaIEtaIPhi" : event.patPhoton_scSigmaIEtaIPhi[iPho] if pho_matched else -999,
+                        "pho_sigmaIPhiIPhi" : event.patPhoton_scSigmaIPhiIPhi[iPho] if pho_matched else -999,
+                        "pho_HoE": event.patPhoton_HoE[iPho] if pho_matched else -999,
+
+                        
+
+                        "cl2_en": pfCluster_energy[pfcl_in_sc[iSC][1]] if sc_matched and sc_nCls[iSC] >= 2 else -999,
+                        "cl3_en": pfCluster_energy[pfcl_in_sc[iSC][2]] if sc_matched and sc_nCls[iSC] >= 3 else -999,
+                        "cl4_en": pfCluster_energy[pfcl_in_sc[iSC][3]] if sc_matched and sc_nCls[iSC] >= 4 else -999,
+
+                        "en_sc_raw": sc_rawEn[iSC] if sc_matched else -999, 
+                        "et_sc_raw": sc_rawEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999,
+                        #"en_sc_raw_ES" : sc_rawESEn[iSC],
+                        #"et_sc_raw_ES" : sc_rawESEn[iSC]/ cosh(sc_eta[iSC]),
+                        "en_sc_calib": sc_corrEn[iSC] if sc_matched else -999, 
+                        "et_sc_calib": sc_corrEn[iSC]/cosh(sc_eta[iSC]) if sc_matched else -999,
+                        "sc_etaWidth": event.superCluster_etaWidth[iSC] if sc_matched else -999,
+                        "sc_phiWidth": event.superCluster_phiWidth[iSC] if sc_matched else -999,
+
+                        "true_energy_cls": true_energy,
+                        "sel_true_energy_cls": sel_true_energy,
+                        "missing_energy_cls": missing_energy,
+                        "sel_false_energy_cls": spurious_energy,
+                        "selected_energy_cls": selected_energy,
+
+                        # Sim energy and Gen Enerugy of the caloparticle
+                        "calo_en_gen": calo_genenergy[caloindex] if calomatched else -1, 
+                        "calo_et_gen": calo_genenergy[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_en_sim": calo_simenergy_goodstatus[caloindex] if calomatched else -1, 
+                        "calo_et_sim": calo_simenergy_goodstatus[caloindex]/cosh(calo_geneta[caloindex]) if calomatched else -1,
+                        "calo_geneta": calo_geneta[caloindex] if calomatched else -1,
+                        "calo_genphi": calo_genphi[caloindex] if calomatched else -1,
+                        "calo_simeta": calo_simeta[caloindex] if calomatched else -1,
+                        "calo_simphi": calo_simphi[caloindex] if calomatched else -1,
+                        "calo_genpt": calo_genpt[caloindex] if calomatched else -1,
+
+                        # GenParticle info
+                        "genpart_en": genpart_energy[igen],
+                        "genpart_et": genpart_energy[igen]/cosh(genpart_eta[igen]),
+                        "genpart_eta": genpart_eta[igen],
+                        "genpart_phi": genpart_phi[igen],
+                        "genpart_pt": genpart_pt[igen],
+
+                        # PU information
+                        "nVtx": nVtx, 
+                        "rho": rho,
+                        "obsPU": obsPU, 
+                        "truePU": truePU,
+
+                        #Evt number
+                        "eventId" : event.eventId,
+                        "runId": event.runId if not overwrite_runid else overwrite_runid
+
+                    }
+                    output_object.append(out)
+
+
         ##############################################  
         ##########################
         ## IF we want to loop on calo-matched seeds instead of SC object
