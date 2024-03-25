@@ -85,7 +85,7 @@ def in_window(seed_eta, seed_phi, seed_iz, eta, phi, iz, window_deta_up, windows
 
 
 def analyze(file):
-    scipy.random.seed()
+    random.seed()
     data_cl = [ ]
     print("Working on file: ", file)
     try:
