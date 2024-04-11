@@ -104,9 +104,12 @@ def plot_comparison(dfB, dfA, var, label, bins, xrange, output_folder,
                      1.) 
     
     centers = (np.roll(binX, -1) + binX)/2
- 
-    axr.errorbar(centers[:-1], ratio, xerr=0, yerr=errR,
+
+    if not density:
+        axr.errorbar(centers[:-1], ratio, xerr=0, yerr=errR,
                                 fmt=".", linestyle='none', elinewidth=1, c="black")
+    else:
+        axr.plot(centers[:-1], ratio, ".", linestyle='none', c="black")
     
     if ratio_lim =="auto":
         deltaMax = max([np.max(ratio), 1.1])
