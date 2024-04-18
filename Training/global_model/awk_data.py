@@ -21,6 +21,7 @@ default_features_dict = {
                       "cluster_ieta","cluster_iphi","cluster_iz",
                       "cluster_deta", "cluster_dphi",
                       "cluster_den_seed","cluster_det_seed",
+                      "cluster_den_seed_log","cluster_det_seed_log",
                       "en_cluster_calib", "et_cluster_calib",
                       "en_cluster_calib_log", "et_cluster_calib_log",
                       "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
