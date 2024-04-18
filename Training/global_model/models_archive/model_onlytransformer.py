@@ -45,148 +45,6 @@ def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"
     return tf.keras.Sequential(layers, name=name)
 
 
-###########################
-#Distance
-@tf.function
-def dist(A,B):
-    na = tf.reduce_sum(tf.square(A), -1)
-    nb = tf.reduce_sum(tf.square(B), -1)
- 
-    na = tf.reshape(na, [tf.shape(na)[0], -1, 1])
-    nb = tf.reshape(nb, [tf.shape(na)[0], 1, -1])
-    Dsq = tf.clip_by_value(na - 2*tf.linalg.matmul(A, B, transpose_a=False, transpose_b=True) + nb, 1e-12, 1e12)
-    D = tf.sqrt(Dsq)
-    return D
-
-@tf.function
-def dist_batch2(A,B):
-    na = tf.reduce_sum(tf.square(A), -1)
-    nb = tf.reduce_sum(tf.square(B), -1)
- 
-    na = tf.reshape(na, [tf.shape(na)[0],tf.shape(na)[1], -1, 1])
-    nb = tf.reshape(nb, [tf.shape(nb)[0],tf.shape(nb)[1], 1, -1])
-    Dsq = tf.clip_by_value(na - 2*tf.linalg.matmul(A, B, transpose_a=False, transpose_b=True) + nb, 1e-12, 1e12)
-    D = tf.sqrt(Dsq)
-    return D
-
-
-#Given a list of [Nbatch, Nelem, Nfeat] input nodes, computes the dense [Nbatch, Nelem, Nelem] adjacency matrices
-class Distance(tf.keras.layers.Layer):
-
-    def __init__(self, *args, **kwargs):
-        self.batch_dim = kwargs.pop('batch_dim',1)
-        super(Distance, self).__init__(*args, **kwargs)
-        
-    def call(self, inputs1, inputs2):
-        #compute the pairwise distance matrix between the vectors defined by the first two components of the input array
-        #inputs1, inputs2: [Nbatch, Nelem, distance_dim] embedded coordinates used for element-to-element distance calculation
-        if self.batch_dim == 1:
-            D = dist(inputs1, inputs2)
-        if self.batch_dim == 2:
-            D = dist_batch2(inputs1, inputs2)
-      
-        #adjacency between two elements should be high if the distance is small.
-        #this is equivalent to radial basis functions. 
-        #self-loops adj_{i,i}=1 are included, as D_{i,i}=0 by construction
-        adj = tf.math.exp(-1.0*D)
-
-        #optionally set the adjacency matrix to 0 for low values in order to make the matrix sparse.
-        #need to test if this improves the result.
-        #adj = tf.keras.activations.relu(adj, threshold=0.01)
-        return adj
-
-###############################################
-# https://arxiv.org/pdf/2004.04635.pdf
-#https://github.com/gcucurull/jax-ghnet/blob/master/models.py 
-class GHConvI(tf.keras.layers.Layer):
-    def __init__(self, input_dim, hidden_dim, n_iter, *args, **kwargs):
-        self.activation = kwargs.pop("activation")
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.k = n_iter
-        name = kwargs.get("name", "ghc")
-
-        super(GHConvI, self).__init__(*args, **kwargs)
-
-        self.W_t = self.add_weight(shape=(self.input_dim, self.hidden_dim), name="w_t_"+name, initializer="random_normal")
-        self.b_t = self.add_weight(shape=(self.hidden_dim, ), name="b_t_"+name, initializer="zeros")
-        self.theta = self.add_weight(shape=(self.input_dim, self.hidden_dim), name="theta_"+name, initializer="random_normal")
-    
-    def call(self, x, adj):
-        #compute the normalization of the adjacency matrix
-        in_degrees = tf.reduce_sum(adj, axis=-1)
-        #add epsilon to prevent numerical issues from 1/sqrt(x)
-        norm = tf.expand_dims(tf.pow(in_degrees + 1e-6, -0.5), -1)
-        norm_k = tf.pow(norm, self.k)
-        adj_k = tf.pow(adj, self.k)
-
-        f_het = tf.linalg.matmul(x, self.theta)  #inner infusion
-        # Added activation to homogenous component
-        f_hom = self.activation(tf.linalg.matmul(adj_k, f_het*norm_k)*norm_k)
-
-        gate = tf.nn.sigmoid(tf.linalg.matmul(x, self.W_t) + self.b_t)
-        #tf.print(tf.reduce_mean(f_hom), tf.reduce_mean(f_het), tf.reduce_mean(gate))
-
-        out = gate*f_hom + (1-gate)*f_het
-        return out
-
-class GHConvO(tf.keras.layers.Layer):
-    def __init__(self, k, *args, **kwargs):
-        self.activation = kwargs.pop("activation")
-        self.hidden_dim = args[0]
-        self.k = k
-
-        super(GHConvO, self).__init__(*args, **kwargs)
-
-        self.W_t = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="w_t", initializer="random_normal")
-        self.b_t = self.add_weight(shape=(self.hidden_dim, ), name="b_t", initializer="zeros")
-        self.W_h = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="w_h", initializer="random_normal")
-        self.theta = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="theta", initializer="random_normal")
-    
-    def call(self, x, adj):
-        #compute the normalization of the adjacency matrix
-        in_degrees = tf.reduce_sum(adj, axis=-1)
-        #add epsilon to prevent numerical issues from 1/sqrt(x)
-        norm = tf.expand_dims(tf.pow(in_degrees + 1e-6, -0.5), -1)
-        norm_k = tf.pow(norm, self.k)
-        adj_k = tf.pow(adj, self.k)
-
-        f_hom = tf.linalg.matmul(x, self.theta)
-        # Added activation to homogenous component
-        f_hom = self.activation(tf.linalg.matmul(adj_k, f_hom*norm_k)*norm_k)
-
-        f_het = tf.linalg.matmul(x, self.W_h)  #outer infusion
-        gate = tf.nn.sigmoid(tf.linalg.matmul(x, self.W_t) + self.b_t)
-        #tf.print(tf.reduce_mean(f_hom), tf.reduce_mean(f_het), tf.reduce_mean(gate))
-
-        out = gate*f_hom + (1-gate)*f_het
-        return out
-
-#######################
-## Simple Graph Conv layer
-class SGConv(tf.keras.layers.Dense):
-    def __init__(self, k, *args, **kwargs):
-        super(SGConv, self).__init__(*args, **kwargs)
-        self.k = k
-    
-    def call(self, inputs, adj):
-        W = self.weights[0]
-        b = self.weights[1]
-
-        #compute the normalization of the adjacency matrix
-        in_degrees = tf.reduce_sum(adj, axis=-1)
-        #add epsilon to prevent numerical issues from 1/sqrt(x)
-        norm = tf.expand_dims(tf.pow(in_degrees + 1e-6, -0.5), -1)
-        norm_k = tf.pow(norm, self.k)
-
-        support = (tf.linalg.matmul(inputs, W))
-     
-        #k-th power of the normalized adjacency matrix is nearly equivalent to k consecutive GCN layers
-        adj_k = tf.pow(adj, self.k)
-        out = tf.linalg.matmul(adj_k, support*norm_k)*norm_k
-
-        return self.activation(out + b)
-
 
 ############################
 # From https://www.tensorflow.org/tutorials/text/transformer#multi-head_attention
@@ -359,8 +217,8 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
 class RechitsTransformer(tf.keras.layers.Layer):
     '''Transformer for rechits feature extraction
     A single features vector of dimension output_dim is built from arbitrary list of rechits. '''
-    def __init__(self, nconv, input_dim, output_dim, 
-                 num_transf_layers, transf_num_heads,
+    def __init__(self, input_dim, output_dim, 
+                 num_transf_layers, num_transf_heads,
                  transf_ff_dim, *args, **kwargs):
         self.activation = kwargs.pop("activation", tf.keras.activations.relu)
         self.output_dim = output_dim
@@ -440,9 +298,9 @@ class FeaturesBuilding(tf.keras.layers.Layer):
     
     def __init__(self,  **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
-        self.layers_input = kwargs.pop("layers_input",[64,64])
+        self.layers_input = kwargs.pop("features_builder_layers_input",[64,64])
         self.output_dim_rechits = kwargs.pop("output_dim_rechits",16)
-        self.output_dim_nodes = kwargs.pop("output_dim_nodes",32)
+        self.output_dim_features = kwargs.pop("output_dim_features",32)
         self.rechit_num_transf_layers = kwargs.pop("rechit_num_transf_layers", 2)
         self.rechit_num_transf_heads = kwargs.pop("rechit_num_transf_heads", 4)
         self.rechit_transf_ff_dim = kwargs.pop("rechit_transf_ff_dim", 64)
@@ -463,7 +321,7 @@ class FeaturesBuilding(tf.keras.layers.Layer):
         self.concat = tf.keras.layers.Concatenate(axis=-1)
         
         #append last layer dimension that is the output dimension of the node features
-        self.dense_feats = get_conv1d(self.layers_input+[self.output_dim_nodes],
+        self.dense_feats = get_conv1d(self.layers_input+[self.output_dim_features],
                                       self.activation,last_act=self.activation,
                                       L2=self.l2_reg, dropout=self.dropout,
                                       name="dense_nodes_feats")
@@ -475,9 +333,9 @@ class FeaturesBuilding(tf.keras.layers.Layer):
 
     def get_config(self):
         return {
-            "layers_input": self.layers_input,
+            "features_builder_layers_input": self.layers_input,
             "output_dim_rechits": self.output_dim_rechits,
-            "output_dim_nodes": self.output_dim_nodes,
+            "output_dim_features": self.output_dim_features,
             "rechit_num_transf_layers": self.rechit_num_transf_layers,
             "rechit_num_transf_heads": self.rechit_num_transf_heads,
             "rechit_transf_ff_dim": self.rechit_transf_ff_dim,
@@ -514,9 +372,8 @@ class DeepClusterTransformer(tf.keras.Model):
     '''
     Model parameters:
     - activation
-    - output_dim_nodes: latent space dimension for clusters node built from rechits and cluster features
     - output_dim_rechits:  latent space dimension for the rechits per-cluster feature vector
-    - output_dim_features: output of the features building step(default==output_dim_nodes)\
+    - output_dim_features: output of the features building step (features per cluster)
     - output_dim_sa_clclass: output of the self-attention layer for cluster classification (default==output_dim_gconv)
     - output_dim_sa_windclass: output of the self-attention layer for windows classification (default==output_dim_gconv)
     - coord_dim:  coordinated space dimension
@@ -538,8 +395,7 @@ class DeepClusterTransformer(tf.keras.Model):
     '''
     def __init__(self, **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
-        self.output_dim_nodes = kwargs.get("output_dim_nodes",32)
-        self.output_dim_features = kwargs.pop("output_dim_features",self.output_dim_nodes)
+        self.output_dim_features = kwargs.pop("output_dim_features", 32)
         self.rechit_num_transf_layers = kwargs.pop("rechit_num_transf_layers", 2)
         self.rechit_num_transf_heads = kwargs.pop("rechit_num_transf_heads", 4)
         self.rechit_transf_ff_dim = kwargs.pop("rechit_transf_ff_dim", 64)
@@ -561,7 +417,7 @@ class DeepClusterTransformer(tf.keras.Model):
         
         super(DeepClusterTransformer, self).__init__()
         
-        self.features_building = FeaturesBuilding(name="graph_builder", **kwargs)
+        self.features_building = FeaturesBuilding(name="features_builder", **kwargs)
 
         self.transf_global = [ MultiSelfAttentionBlock(output_dim=self.output_dim_features,
                                                        num_heads=self.global_transf_heads,
@@ -608,10 +464,10 @@ class DeepClusterTransformer(tf.keras.Model):
 
     def get_config(self):
         return {
-            "layers_input": self.graphbuild.layers_input,
-            "rechits_num_transf_layers": self.graphbuild.rechit_num_transf_layers,
-            "rechits_num_transf_heads": self.graphbuild.rechit_num_transf_heads,
-            "rechits_transf_ff_dim": self.graphbuild.rechit_transf_ff_dim,
+            "features_builder_layers_input": self.feature_building.features_builder_layers_input,
+            "rechits_num_transf_layers": self.feature_building.rechit_num_transf_layers,
+            "rechits_num_transf_heads": self.feature_building.rechit_num_transf_heads,
+            "rechits_transf_ff_dim": self.feature_building.rechit_transf_ff_dim,
             "global_transf_layers": self.global_transf_layers,
             "global_transf_heads": self.global_transf_heads,
             "global_transf_ff_dim": self.global_transf_ff_dim,
@@ -623,8 +479,7 @@ class DeepClusterTransformer(tf.keras.Model):
             "accumulator_windclass": self.accumulator_windclass,
             "accumulator_enregr": self.accumulator_enregr,
 
-            "output_dim_rechits": self.graphbuild.output_dim_rechits,
-            "output_dim_nodes": self.output_dim_nodes,
+            "output_dim_rechits": self.feature_building.output_dim_rechits,
             "output_dim_features": self.output_dim_features,
             
             "n_windclasses": self.n_windclasses,
