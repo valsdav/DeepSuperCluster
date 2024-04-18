@@ -111,37 +111,49 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             "name": self.name
         }
 
-  def split_heads(self, x, batch_size):
+  def split_heads(self, x, batch_size, obj_size=-1):
     """Split the last dimension into (num_heads, depth).
     Transpose the result such that the shape is (batch_size, num_heads, seq_len, depth)
+    In case it is used for rechits allow for an additional axis
     """
-    x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
-    return tf.transpose(x, perm=[0, 2, 1, 3])
+    if obj_size==-1:
+        x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
+        return tf.transpose(x, perm=[0, 2, 1, 3])
+    else:
+        x = tf.reshape(x, (batch_size, obj_size, -1, self.num_heads, self.depth))
+        return tf.transpose(x, perm=[0, 1, 3, 2, 4])
 
   def call(self, v, k, q, mask):
     batch_size = tf.shape(q)[0]
+    obj_size = -1 if len(tf.shape(q))==3 else tf.shape(q)[1]
 
-    mask_att = mask[:,tf.newaxis,tf.newaxis,:]
+    if obj_size==-1:
+        mask_att = mask[:,tf.newaxis,tf.newaxis,:]
+    else:
+        mask_att = mask[:,:,tf.newaxis, tf.newaxis,:]
     
-    q = self.Wq(q)  # (batch_size, seq_len, d_model)
-    k = self.Wk(k)  # (batch_size, seq_len, d_model)
-    v = self.Wv(v)  # (batch_size, seq_len, d_model)
+    q = self.Wq(q)  # (batch_size, seq_len, (n_rechits,) d_model)
+    k = self.Wk(k)  # (batch_size, seq_len, (n_rechits,) d_model)
+    v = self.Wv(v)  # (batch_size, seq_len, (n_rechits,) d_model)
 
-    q = self.split_heads(q, batch_size)  # (batch_size, num_heads, seq_len_q, depth)
-    k = self.split_heads(k, batch_size)  # (batch_size, num_heads, seq_len_k, depth)
-    v = self.split_heads(v, batch_size)  # (batch_size, num_heads, seq_len_v, depth)
+    q = self.split_heads(q, batch_size, obj_size)  # (batch_size, num_heads, seq_len_q, depth)
+    k = self.split_heads(k, batch_size, obj_size)  # (batch_size, num_heads, seq_len_k, depth)
+    v = self.split_heads(v, batch_size, obj_size)  # (batch_size, num_heads, seq_len_v, depth)
 
     # scaled_attention.shape == (batch_size, num_heads, seq_len_q, depth)
     # attention_weights.shape == (batch_size, num_heads, seq_len_q, seq_len_k)
     scaled_attention, attention_weights = scaled_dot_product_attention(
         q, k, v, mask_att)
-    
-    scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])  # (batch_size, seq_len_q, num_heads, depth)
-    concat_attention = tf.reshape(scaled_attention,
-                                  (batch_size, -1, self.d_model))  # (batch_size, seq_len_q, d_model)
+
+    if obj_size==-1:
+        scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])  # (batch_size, seq_len_q, num_heads, depth)
+        concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))  # (batch_size, seq_len_q, d_model)
+    else:
+        scaled_attention = tf.transpose(scaled_attention, perm=[0, 1, 3, 2, 4])  # (batch_size, cl_size, seq_len_q (rechits), num_heads, depth)
+        concat_attention = tf.reshape(scaled_attention, (batch_size, obj_size, -1, self.d_model))  # (batch_size, cl_size,seq_len_q, d_model)
 
     # the output is not masked
-    output = self.dense(concat_attention) # (batch_size, seq_len_q, d_model)
+    output = self.dense(concat_attention) # (batch_size, (clsize), seq_len_q, d_model)
 
     # To be checked if dense here is needed
     return output, attention_weights
@@ -164,7 +176,7 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
     self.inputW = tf.keras.layers.Conv1D(filters=self.output_dim, kernel_size=1, use_bias=False)
 
     # Change this 
-    self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_msa", )
+    self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_mha", )
     self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
                                     L2=self.l2_reg, dropout=self.dropout, name=self.name+"_ff")
       
@@ -185,7 +197,14 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
         }
     
   def call(self, x, mask, training):
-    mask_out = mask[:,:,tf.newaxis]
+    # needed to understand if the layer is used on the clusters or on the rechits
+    obj_size = -1 if len(tf.shape(x))==3 else tf.shape(x)[1]
+
+    if obj_size == -1:
+        mask_out = mask[:,:,tf.newaxis]
+    else:
+        mask_out = mask[:,:,:,tf.newaxis]
+        
     #projecting the input on the MSA dim
     msa_input = self.inputW(x)
     attn_output, attn_weights = self.mha(msa_input,msa_input,msa_input, mask)    # (batch_size, input_seq_len, d_model)
@@ -233,26 +252,18 @@ class RechitsTransformer(tf.keras.layers.Layer):
 
         self.transformer = [
             MultiSelfAttentionBlock(output_dim=self.output_dim,
-                                    num_transf_heads=self.num_transf_head,
+                                    num_heads=self.num_transf_heads,
                                     ff_dim=self.transf_ff_dim,
                                     reduce=None,
                                     name=f"rechits_transf_{i}")
             for i in range(self.num_transf_layers)
         ]
 
-
-        #  Dense 
-        # Feed-forward output (1 hidden layer)
+        # Feed-forward output (1 hidden layer) for accumulation
         self.dense_out = get_conv1d([self.output_dim, self.output_dim],
                                     self.activation, last_act=self.activation,
                                     L2=self.l2_reg, dropout=self.dropout,
                                     name="dense_rechits")
-        # Dropouts
-        self.drop1 = tf.keras.layers.Dropout(self.dropout)
-        self.drop2 = tf.keras.layers.Dropout(self.dropout)
-        #Layer normalizations
-        #self.sa_normalization = tf.keras.layers.LayerNormalization(name="sa_norm_rechits", epsilon=1e-3, axis=-1)
-        self.out_normalization = tf.keras.layers.LayerNormalization(name="out_norm_rechits", epsilon=1e-3, axis=-1)
 
     def get_config():
         return {
@@ -269,23 +280,15 @@ class RechitsTransformer(tf.keras.layers.Layer):
     def call(self, x, mask, training):
         # x has structure  [Nbatch, Nclusters, Nrechits, 4]
         # coord = x[:,:,:,0:2] #ieta and iphi as coordinated
-        
         out = x
         for layer in self.transformer:
             out, att_weights = layer(out, mask, training)
         # The last layer is already 
         # Mask for the attention output
         mask_for_output = mask[:,:,:,tf.newaxis]
-        # Layer normalizationa and dropout on SA output
-        out = self.drop1(out, training=training)
         # Apply dense layer on each rechit output before the final sum
         dense_output = self.dense_out(out, training=training) 
-        dense_output = self.drop2(dense_output, training=training)
-        # Add + Norm
-        dense_output = self.out_normalization(dense_output + sa_output) * mask_for_output
         # Sum the rechits vectors
-        # output = tf.reduce_sum(convout * mask_for_output, -2)
-        # Or doing the mean 
         N_rechits = tf.reduce_sum(mask,-1)[:,:,tf.newaxis]
         output = tf.math.divide_no_nan( tf.reduce_sum(dense_output, -2), N_rechits)
         return output
@@ -395,10 +398,10 @@ class DeepClusterTransformer(tf.keras.Model):
     '''
     def __init__(self, **kwargs):
         self.activation = kwargs.get("activation", tf.nn.selu)
-        self.output_dim_features = kwargs.pop("output_dim_features", 32)
-        self.rechit_num_transf_layers = kwargs.pop("rechit_num_transf_layers", 2)
-        self.rechit_num_transf_heads = kwargs.pop("rechit_num_transf_heads", 4)
-        self.rechit_transf_ff_dim = kwargs.pop("rechit_transf_ff_dim", 64)
+        self.output_dim_features = kwargs.get("output_dim_features", 32)
+        self.rechit_num_transf_layers = kwargs.get("rechit_num_transf_layers", 2)
+        self.rechit_num_transf_heads = kwargs.get("rechit_num_transf_heads", 4)
+        self.rechit_transf_ff_dim = kwargs.get("rechit_transf_ff_dim", 64)
 
         #global transformer config
         self.global_transf_layers = kwargs.pop("global_transf_layers", 4)
@@ -430,7 +433,7 @@ class DeepClusterTransformer(tf.keras.Model):
                                         last_act=tf.keras.activations.linear,
                                         dropout=self.dropout, L2=self.l2_reg)
 
-        self.accumulator_windclass = get_dense(name="accumulator_windclass",
+        self.accum_windclass = get_dense(name="accumulator_windclass",
                                                spec=self.accumulator_windclass + [self.output_dim_features],
                                                act=self.activation,
                                                last_act=tf.keras.activations.linear,
@@ -441,7 +444,7 @@ class DeepClusterTransformer(tf.keras.Model):
                                          last_act=tf.keras.activations.linear,
                                          dropout=self.dropout, L2=self.l2_reg)
 
-        self.accumulator_enregr = get_dense(name="accumulator_enregr",
+        self.accum_enregr = get_dense(name="accumulator_enregr",
                                                spec=self.accumulator_windclass + [self.output_dim_features],
                                                act=self.activation,
                                                last_act=tf.keras.activations.linear,
@@ -453,10 +456,10 @@ class DeepClusterTransformer(tf.keras.Model):
         #self.global_dropout = tf.keras.layers.Dropout(self.dropout)
         #self.global_layernorm = tf.keras.layers.LayerNormalization(name="global_layernorm", epsilon=1e-3)
         #self.windclass_output_dropout = tf.keras.layers.Dropout(self.dropout)
-        self.enregr_dropout = tf.keras.layers.Dropout(self.dropout)
+        #self.enregr_dropout = tf.keras.layers.Dropout(self.dropout)
         # Layer normalizations
-        self.windclass_layernorm = tf.keras.layers.LayerNormalization(name="SA_windclass_layernorm", epsilon=1e-3)
-        self.enregr_layernorm = tf.keras.layers.LayerNormalization(name="SA_enregr_layernorm", epsilon=1e-3)
+        self.windclass_layernorm = tf.keras.layers.LayerNormalization(name="windclass_layernorm", epsilon=1e-3)
+        self.enregr_layernorm = tf.keras.layers.LayerNormalization(name="enregr_layernorm", epsilon=1e-3)
         # Concatenation layers
         self.concat_inputs = tf.keras.layers.Concatenate(axis=-1)
         self.concat_inputs_enregr = tf.keras.layers.Concatenate(axis=-1)
@@ -510,17 +513,18 @@ class DeepClusterTransformer(tf.keras.Model):
         #out_ = self.global_layernorm(out_) * mask_cls_to_apply
 
         # Clusters classification block
-        in_clcalss = self.concat_inputs([cl_X,out_])
+        in_clclass = self.concat_inputs([cl_X,out_])
         
         clclass_out = self.dense_clclass(in_clclass, training=training) * mask_cls_to_apply
 
+
         # Windows classification block
         # Concatenate with window level features
-        in_windcl = self.concat_wind_feats([in_clclass,  wind_X, clclass_out])
+        in_windcl = self.concat_wind_feats([in_clclass,  tf.repeat(wind_X[:, tf.newaxis, :], 17, axis=1), clclass_out])
         # Norm before dense for wind classification because the sum is performed in the SA layer
-        in_windcl = self.SA_windclass_layernorm(in_windcl)
+        in_windcl = self.windclass_layernorm(in_windcl)
         # Now apply the accumulator dense before accumulating
-        in_windcl = self.accumulator_windclass(in_windcl, training=training)*mask_cls_to_apply
+        in_windcl = self.accum_windclass(in_windcl, training=training)*mask_cls_to_apply
         # accumulate
         in_windcl = tf.reduce_sum(in_windcl, 1) / tf.reduce_sum(mask_cls, 1)[:,tf.newaxis]
         # Apply dense for classification
@@ -532,11 +536,11 @@ class DeepClusterTransformer(tf.keras.Model):
         in_en_regr = self.concat_inputs_enregr([in_clclass, clclass_out, output_rechits])
         input_en_regr = self.enregr_layernorm(in_en_regr)
         # now apply the accumulator dense before accumulating
-        input_en_regr = self.accumulator_enregr(input_en_regr, training=training)*mask_cls_to_apply
+        input_en_regr = self.accum_enregr(input_en_regr, training=training)*mask_cls_to_apply
         # accumulate
         input_en_regr = tf.reduce_sum(input_en_regr, 1) / tf.reduce_sum(mask_cls, 1)[:,tf.newaxis]
         # apply dense
-        enregr_out = self.dense_enregr(out_SA_enregr, training=training)
+        enregr_out = self.dense_enregr(input_en_regr, training=training)
                
         return (clclass_out, windclass_out, enregr_out), mask_cls
 
