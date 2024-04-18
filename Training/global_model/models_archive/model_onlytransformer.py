@@ -89,9 +89,10 @@ def scaled_dot_product_attention(q, k, v, mask):
 
 
 class MultiHeadAttention(tf.keras.layers.Layer):
-  def __init__(self, d_model, num_heads, **kwargs):
+  def __init__(self, d_model, num_heads, add_axis=False, **kwargs):
     self.num_heads = num_heads
     self.d_model = d_model
+    self.add_axis = add_axis
     name = kwargs.pop("name", None)
     super(MultiHeadAttention, self).__init__(name=name)
 
@@ -108,26 +109,27 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return {
             "num_heads" : self.num_heads,
             "d_model": self.d_model,
-            "name": self.name
+            "name": self.name,
+            "add_axis": self.add_axis
         }
 
-  def split_heads(self, x, batch_size, obj_size=-1):
+  def split_heads(self, x, batch_size):
     """Split the last dimension into (num_heads, depth).
     Transpose the result such that the shape is (batch_size, num_heads, seq_len, depth)
     In case it is used for rechits allow for an additional axis
     """
-    if obj_size==-1:
+    if not self.add_axis :
         x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
         return tf.transpose(x, perm=[0, 2, 1, 3])
     else:
-        x = tf.reshape(x, (batch_size, obj_size, -1, self.num_heads, self.depth))
+        x = tf.reshape(x, (batch_size, tf.shape(x)[1], -1, self.num_heads, self.depth))
         return tf.transpose(x, perm=[0, 1, 3, 2, 4])
 
   def call(self, v, k, q, mask):
     batch_size = tf.shape(q)[0]
-    obj_size = -1 if len(tf.shape(q))==3 else tf.shape(q)[1]
-
-    if obj_size==-1:
+    obj_size = tf.shape(q)[1]
+   
+    if not self.add_axis:
         mask_att = mask[:,tf.newaxis,tf.newaxis,:]
     else:
         mask_att = mask[:,:,tf.newaxis, tf.newaxis,:]
@@ -136,16 +138,16 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     k = self.Wk(k)  # (batch_size, seq_len, (n_rechits,) d_model)
     v = self.Wv(v)  # (batch_size, seq_len, (n_rechits,) d_model)
 
-    q = self.split_heads(q, batch_size, obj_size)  # (batch_size, num_heads, seq_len_q, depth)
-    k = self.split_heads(k, batch_size, obj_size)  # (batch_size, num_heads, seq_len_k, depth)
-    v = self.split_heads(v, batch_size, obj_size)  # (batch_size, num_heads, seq_len_v, depth)
+    q = self.split_heads(q, batch_size)  # (batch_size, num_heads, seq_len_q, depth)
+    k = self.split_heads(k, batch_size)  # (batch_size, num_heads, seq_len_k, depth)
+    v = self.split_heads(v, batch_size)  # (batch_size, num_heads, seq_len_v, depth)
 
     # scaled_attention.shape == (batch_size, num_heads, seq_len_q, depth)
     # attention_weights.shape == (batch_size, num_heads, seq_len_q, seq_len_k)
     scaled_attention, attention_weights = scaled_dot_product_attention(
         q, k, v, mask_att)
 
-    if obj_size==-1:
+    if not self.add_axis:
         scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])  # (batch_size, seq_len_q, num_heads, depth)
         concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))  # (batch_size, seq_len_q, d_model)
     else:
@@ -162,13 +164,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 #######################################################################################
 
 class MultiSelfAttentionBlock(tf.keras.layers.Layer):
-  def __init__(self, output_dim, num_heads, ff_dim,reduce=None, **kwargs):
+  def __init__(self, output_dim, num_heads, ff_dim, reduce=None, add_axis=False, **kwargs):
     name = kwargs.pop("name", None)
     super(MultiSelfAttentionBlock, self).__init__(name=name)
     self.output_dim = output_dim
     self.ff_dim = ff_dim
     self.num_heads = num_heads
     self.reduce = reduce # it can be None, sum, mean, max
+    self.add_axis = add_axis
     self.activation = kwargs.pop("activation", "relu")
     self.dropout = kwargs.get("dropout", 0.)
     self.l2_reg = kwargs.get("l2_reg", False)
@@ -176,7 +179,8 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
     self.inputW = tf.keras.layers.Conv1D(filters=self.output_dim, kernel_size=1, use_bias=False)
 
     # Change this 
-    self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_mha", )
+    self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_mha",
+                                  add_axis=self.add_axis)
     self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
                                     L2=self.l2_reg, dropout=self.dropout, name=self.name+"_ff")
       
@@ -193,14 +197,13 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
             "num_heads" : self.num_heads,
             "dropout" : self.dropout,
             "name": self.name,
-            "reduce": self.reduce
+            "reduce": self.reduce,
+            "add_axis": self.add_axis
         }
     
   def call(self, x, mask, training):
     # needed to understand if the layer is used on the clusters or on the rechits
-    obj_size = -1 if len(tf.shape(x))==3 else tf.shape(x)[1]
-
-    if obj_size == -1:
+    if not self.add_axis:
         mask_out = mask[:,:,tf.newaxis]
     else:
         mask_out = mask[:,:,:,tf.newaxis]
@@ -255,6 +258,7 @@ class RechitsTransformer(tf.keras.layers.Layer):
                                     num_heads=self.num_transf_heads,
                                     ff_dim=self.transf_ff_dim,
                                     reduce=None,
+                                    add_axis=True,
                                     name=f"rechits_transf_{i}")
             for i in range(self.num_transf_layers)
         ]
@@ -312,7 +316,7 @@ class FeaturesBuilding(tf.keras.layers.Layer):
         self.l2_reg = kwargs.get("l2_reg", False)
         name = kwargs.get("name", None)
             
-        self.rechitsTransformer = RechitsTransformer(name="rechit_transformer",
+        self.rechits_transf = RechitsTransformer(name="rechit_transformer",
                                      output_dim=self.output_dim_rechits,
                                      input_dim=4,
                                      num_transf_layers=self.rechit_num_transf_layers,
@@ -351,7 +355,7 @@ class FeaturesBuilding(tf.keras.layers.Layer):
 
     def call(self, cl_features, rechits_features, mask_rechits, mask_cls, training):
         # Cal the rechitGCN and get out 1 vector for each cluster 
-        output_rechits = self.rechitsTransformer(rechits_features, mask_rechits, training=training)
+        output_rechits = self.rechits_transf(rechits_features, mask_rechits, training=training)
         
         # Layer normalization on the two pieces
         # output_rechits_norm = self.rechit_layer_normalization(output_rechits)
@@ -371,7 +375,7 @@ class FeaturesBuilding(tf.keras.layers.Layer):
 #############################################
 # Putting all the pieces together
 
-class DeepClusterTransformer(tf.keras.Model):
+class DeepClusterGN(tf.keras.Model):
     '''
     Model parameters:
     - activation
@@ -418,7 +422,7 @@ class DeepClusterTransformer(tf.keras.Model):
         self.l2_reg = kwargs.get("l2_reg", False)
         self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1., "softF1_beta":1})
         
-        super(DeepClusterTransformer, self).__init__()
+        super(DeepClusterGN, self).__init__()
         
         self.features_building = FeaturesBuilding(name="features_builder", **kwargs)
 
@@ -520,7 +524,7 @@ class DeepClusterTransformer(tf.keras.Model):
 
         # Windows classification block
         # Concatenate with window level features
-        in_windcl = self.concat_wind_feats([in_clclass,  tf.repeat(wind_X[:, tf.newaxis, :], 17, axis=1), clclass_out])
+        in_windcl = self.concat_wind_feats([in_clclass,  tf.repeat(wind_X[:, tf.newaxis, :], tf.shape(in_clclass)[1], axis=1), clclass_out])
         # Norm before dense for wind classification because the sum is performed in the SA layer
         in_windcl = self.windclass_layernorm(in_windcl)
         # Now apply the accumulator dense before accumulating
