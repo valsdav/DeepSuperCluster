@@ -303,8 +303,8 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
     for i in range(nworkers):
         input_q.put(None)
     
-    #output_q = mp.Queue(maxsize=output_queue_size)
-    output_q = mp.SimpleQueue()
+    output_q = mp.Queue(maxsize=output_queue_size)
+    #output_q = mp.SimpleQueue()
     # Here we need 2 groups of worker :
     # * One that do the main processing. It will be `pool`.
     # * One that read the results and yield it back, to keep it as a generator. The main thread will do it.

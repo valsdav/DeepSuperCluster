@@ -29,9 +29,9 @@
             "nhits_padding": -1,
             "chunk_size": 5120,
             "batch_size": 1024,
-            "maxevents": 1500000,
+            "maxevents": 2400000,
             "nworkers": 3,
-            "max_batches_in_memory":300,
+            "max_batches_in_memory":50,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
@@ -64,7 +64,7 @@
             "batch_size": 1024,
             "maxevents": 400000,
             "nworkers": 3,
-            "max_batches_in_memory":300,
+            "max_batches_in_memory":100,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
@@ -103,17 +103,17 @@
            }
     },
     
-    "nepochs": 200,
+    "nepochs": 300,
     "lr": 0.001,
     "opt": "adamW",
     "activation": "selu",
     "lr_reduce": {
-        "factor": 0.5,
-        "patience": 3,
-        "min_delta": 0.001
+        "factor": 0.8,
+        "patience": 4,
+        "min_delta": 0.002
     },
     "early_stop": {
-        "patience": 15,
+        "patience": 30,
         "min_delta": 0.001
     },
     "loss_plot": true, 
@@ -121,38 +121,33 @@
     "output_dim_nodes": 128,
     "features_builder_layers_input": [
         256,
-        128,
-        128,
         128
     ],
     "layers_clclass": [
         256,
-        256,
-	256
+        256
     ],
     "layers_windclass": [
-        1282,
+        128,
         128
     ],
     "layers_enregr": [
-        256,
         128,
-        128,
-        64
+        128
     ],
     "rechit_num_transf_layers": 2,
     "rechit_num_transf_heads": 1,
     "rechit_transf_ff_dim": 64,
 
-    "global_tranf_layers": 6,
-    "global_tranf_heads": 4,
-    "global_tranf_ff_dim": 2048,
+    "global_tranf_layers": 5,
+    "global_tranf_heads": 8,
+    "global_tranf_ff_dim": 1024,
 
-    "accumulator_windclass": [128,128],
-    "accumulator_enregr": [64,64],
+    "accumulator_windclass": [128],
+    "accumulator_enregr": [128],
     
     "n_windclasses": 3,
-    "dropout": 0.08,
+    "dropout": 0.03,
     "l2_reg": false,
     "loss_weights": {
         "clusters": 100,

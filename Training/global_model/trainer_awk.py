@@ -28,6 +28,7 @@ print('version={}, CUDA={}, GPU={}'.format(
     len(tf.config.list_physical_devices('GPU')) > 0))
       
 gpus =  tf.config.list_physical_devices('GPU')
+print("gpus: ", gpus)
 
 num_threads = 5
 os.environ["OMP_NUM_THREADS"] = str(num_threads)
@@ -46,7 +47,7 @@ if len(gpus) >=1 :
     # tf.config.experimental.set_memory_growth(gpus[0], enable=True)
     print("Using 1 GPU: ", os.environ['CUDA_VISIBLE_DEVICES'])
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    strategy = tf.distribute.OneDeviceStrategy(f"gpu:{os.environ['CUDA_VISIBLE_DEVICES']}")
+    strategy = tf.distribute.OneDeviceStrategy(f"GPU:0")
 # elif len(gpus):
 #     print("Using {} GPUs".format(len(gpus)))
 #     for gpu in gpus:
@@ -63,7 +64,7 @@ def get_unique_run():
     if len(previous_runs) == 0:
         run_number = 1
     else:
-        run_number = max([int(s.split('_')[1]) for s in previous_runs]) + 1
+        run_number = max([int(s.split('_')[1]) for s in previous_runs if s.startswith("run")]) + 1
     return run_number
 
 
@@ -124,7 +125,9 @@ with strategy.scope():
     #optimizer
     if config['opt'] == "adam":
         opt = tf.keras.optimizers.Adam(learning_rate=config['lr'])
-
+    elif config['opt'] == "adamW":
+        opt = tf.keras.optimizers.AdamW(learning_rate=config['lr'])
+        
     #compile the model
     model.compile(optimizer=opt, run_eagerly=args.debug)
     model.set_metrics()
