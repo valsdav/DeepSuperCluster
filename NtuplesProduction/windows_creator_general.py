@@ -95,7 +95,7 @@ class WindowCreator():
         minscore = self.simfraction_thresholds.evaluate(seed_et, abs(seed_eta))
         return cluster_calo_score >= minscore
 
-    def dynamic_window(self,eta, version=2):
+    def dynamic_window(self,eta, version=3):
         aeta = abs(eta)
 
         if version == 1:
@@ -134,6 +134,17 @@ class WindowCreator():
                 deta_up = (0.1/1.5)*(aeta-1.5) + 0.2
                 deta_down = (-0.1/1.5)*(aeta-1.5) -0.1
             dphi = 0.7 + (-0.1/3)*aeta
+            return deta_up, deta_down, dphi
+
+
+        elif version == 3:
+            if aeta <= 1.5:
+               deta_up = (0.1/1.5)*aeta + 0.1
+               deta_down = -0.1
+            else:
+                deta_up = (0.1/1.5)*(aeta-1.5) + 0.2
+                deta_down = -0.1 + (-0.2/1.5)*(aeta-1.5)
+            dphi =  0.7 + (-0.1/3)*aeta
             return deta_up, deta_down, dphi
 
 
@@ -362,10 +373,10 @@ class WindowCreator():
                     "en_seed_calib": pfCluster_energy[icl],
                     "et_seed_calib": pfCluster_energy[icl] / cosh(cl_eta),
 
-                    "en_seed_log": log(pfCluster_rawEnergy[icl]),
-                    "et_seed_log": log(pfCluster_rawEnergy[icl] / cosh(cl_eta)),
-                    "en_seed_calib_log": log(pfCluster_energy[icl]),
-                    "et_seed_calib_log": log(pfCluster_energy[icl] / cosh(cl_eta)),
+                    "en_seed_log": log(1 + pfCluster_rawEnergy[icl]),
+                    "et_seed_log": log(1 + pfCluster_rawEnergy[icl] / cosh(cl_eta)),
+                    "en_seed_calib_log": log(1 + pfCluster_energy[icl]),
+                    "et_seed_calib_log": log(1 + pfCluster_energy[icl] / cosh(cl_eta)),
 
                     # Sim energy and Gen Enerugy of the caloparticle
                     "en_true_sim": calo_simenergy[calomatched] if calomatched!=-1 else 0, 
@@ -522,10 +533,10 @@ class WindowCreator():
                         "en_cluster_calib": pfCluster_energy[icl],
                         "et_cluster_calib": pfCluster_energy[icl] /cosh(cl_eta),
 
-                        "en_cluster_log": log(pfCluster_rawEnergy[icl]),
-                        "et_cluster_log": log(pfCluster_rawEnergy[icl] / cosh(cl_eta)),
-                        "en_cluster_calib_log": log(pfCluster_energy[icl]),
-                        "et_cluster_calib_log": log(pfCluster_energy[icl] /cosh(cl_eta)),
+                        "en_cluster_log": log(1 + pfCluster_rawEnergy[icl]),
+                        "et_cluster_log": log(1 + pfCluster_rawEnergy[icl] / cosh(cl_eta)),
+                        "en_cluster_calib_log": log(1 + pfCluster_energy[icl]),
+                        "et_cluster_calib_log": log(1 + pfCluster_energy[icl] /cosh(cl_eta)),
                         
                         "noise_en" : pfCluster_noise[icl] if self.do_pu_sim else 0.,
                         "noise_en_uncal": pfCluster_noise_uncalib[icl] if self.do_pu_sim else 0.,
@@ -557,6 +568,8 @@ class WindowCreator():
                     # Delta energy with the seed
                     cevent["cluster_den_seed"] = window["en_seed"] - cevent["en_cluster"]
                     cevent["cluster_det_seed"] = window["et_seed"] - cevent["et_cluster"]
+                    cevent["cluster_den_seed_log"] = np.log(cevent["cluster_den_seed"] + 1)
+                    cevent["cluster_det_seed_log"] = np.log(cevent["cluster_det_seed"] + 1)
                     
                     # Save the cluster in the window
                     window["clusters"].append(cevent)
