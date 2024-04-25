@@ -293,7 +293,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 break
             # We give the file to the generator and then yield from it
             for out in internal_generator(file):
-                output_q.put(out)
+                output_q.put(out, block=True)
     
     input_q = mp.Queue()
     # Load all the files in the input file
@@ -314,7 +314,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         finished_workers = 0
         tot_events = 0
         while True:
-            it = output_q.get()
+            it = output_q.get(block=True)
             if it is None:
                 finished_workers += 1
                 if finished_workers == nworkers:
