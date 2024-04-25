@@ -60,11 +60,10 @@ else:
 ##################
 # Prepare the output folder
 def get_unique_run():
-    previous_runs = os.listdir(config["models_path"])
-    if len(previous_runs) == 0:
-        run_number = 1
-    else:
-        run_number = max([int(s.split('_')[1]) for s in previous_runs if s.startswith("run")]) + 1
+    previous_runs = list(filter( lambda k: k.startswith("run"), os.listdir(config["models_path"])))
+    run_number = 1
+    if len(previous_runs) > 0:
+        run_number = max([int(s.split('_')[1]) for s in previous_runs if s.startswith("run")] + 1 
     return run_number
 
 
