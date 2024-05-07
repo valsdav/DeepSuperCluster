@@ -216,7 +216,7 @@ class WindowCreator():
             if dR:
                 sortedDR = list(sorted(dR, key=itemgetter(0)))
                 best_match = sortedDR[0]
-                # print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
+                #print(f"igen: {igen} eta: {genpart_eta[igen]:.2f} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen]):.2f}", sortedDR)    
                             
                 genParticle_patElectron_matching[igen] = (best_match[1], best_match[0])
                 patElectron_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
@@ -234,7 +234,7 @@ class WindowCreator():
             if dR:
                 sortedDR = list(sorted(dR, key=itemgetter(0)))
                 best_match = sortedDR[0]
-                # print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
+                #print(f"igen: {igen} pt: {genpart_energy[igen]/np.cosh(genpart_eta[igen])}", sortedDR)    
                             
                 genParticle_patPhoton_matching[igen] = (best_match[1], best_match[0])
                 patPhoton_genParticle_matching[best_match[1]] = (igen, best_match[0]) # saving the dR
@@ -786,12 +786,13 @@ class WindowCreator():
                         "ele_isEcalDriven" : int(event.patElectron_isEcalDriven[iEle]) if ele_matched else 0,
                         "ele_isTrackerDriven" : int(event.patElectron_isTrackerDriven[iEle]) if ele_matched else 0,
 
-                        "ele_clsAdded_eta": [i for i in event.patElectron_clsAdded_eta[iEle]] if ele_matched else [],
-                        "ele_clsAdded_phi": [i for i in event.patElectron_clsAdded_phi[iEle]] if ele_matched else [],
-                        "ele_clsAdded_energy": [i for i in event.patElectron_clsAdded_energy[iEle]] if ele_matched else [],
-                        "ele_clsRemoved_eta": [i for i in event.patElectron_clsRemoved_eta[iEle]] if ele_matched else [],
-                        "ele_clsRemoved_phi": [i for i in event.patElectron_clsRemoved_phi[iEle]] if ele_matched else [],
-                        "ele_clsRemoved_energy": [i for i in event.patElectron_clsRemoved_energy[iEle]] if ele_matched else [],
+                        
+                        # "ele_clsAdded_eta": [i for i in event.patElectron_clsAdded_eta[iEle]] if ele_matched else [],
+                        # "ele_clsAdded_phi": [i for i in event.patElectron_clsAdded_phi[iEle]] if ele_matched else [],
+                        # "ele_clsAdded_energy": [i for i in event.patElectron_clsAdded_energy[iEle]] if ele_matched else [],
+                        # "ele_clsRemoved_eta": [i for i in event.patElectron_clsRemoved_eta[iEle]] if ele_matched else [],
+                        # "ele_clsRemoved_phi": [i for i in event.patElectron_clsRemoved_phi[iEle]] if ele_matched else [],
+                        # "ele_clsRemoved_energy": [i for i in event.patElectron_clsRemoved_energy[iEle]] if ele_matched else [],
                                              
                         "ncls_sel": sc_nCls[iSC] if sc_matched else -999,
                         "ncls_sel_true": len(correct_cls),
@@ -823,11 +824,11 @@ class WindowCreator():
                         "ele_dzError": event.patElectron_dzError[iEle]  if ele_matched else -999,
                         "ele_dxyError": event.patElectron_dxyError[iEle]  if ele_matched else -999,
 
-                        "ele_isEBEEGap": event.patElectron_isEBEEGap[iEle] if ele_matched else -999,
-                        "ele_isEBEtaGap": event.patElectron_isEBEtaGap[iEle] if ele_matched else -999,
-                        "ele_isEBPhiGap": event.patElectron_isEBPhiGap[iEle] if ele_matched else -999,
-                        "ele_isEEDeeGap": event.patElectron_isEEDeeGap[iEle] if ele_matched else -999,
-                        "ele_isEERingGap": event.patElectron_isEERingGap[iEle] if ele_matched else -999,
+                        "ele_isEBEEGap": int(event.patElectron_isEBEEGap[iEle]) if ele_matched else -999,
+                        "ele_isEBEtaGap": int(event.patElectron_isEBEtaGap[iEle]) if ele_matched else -999,
+                        "ele_isEBPhiGap": int(event.patElectron_isEBPhiGap[iEle]) if ele_matched else -999,
+                        "ele_isEEDeeGap": int(event.patElectron_isEEDeeGap[iEle]) if ele_matched else -999,
+                        "ele_isEERingGap": int(event.patElectron_isEERingGap[iEle]) if ele_matched else -999,
 
                            
                         "pho_eta" : event.patPhoton_eta[iPho] if pho_matched else -999,
