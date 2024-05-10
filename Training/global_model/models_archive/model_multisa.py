@@ -4,7 +4,7 @@ import numpy as np
 
 #########################3
 # Masking utils
-
+@tf.function
 def create_padding_masks(rechits):
     mask_rechits = tf.cast(tf.reduce_sum(rechits,-1) != 0, tf.float32)
     mask_cls = tf.cast(tf.reduce_sum(rechits,[-1,-2]) != 0, tf.float32)

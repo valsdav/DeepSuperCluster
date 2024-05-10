@@ -21,6 +21,7 @@ default_features_dict = {
                       "cluster_ieta","cluster_iphi","cluster_iz",
                       "cluster_deta", "cluster_dphi",
                       "cluster_den_seed","cluster_det_seed",
+                      "cluster_den_seed_log","cluster_det_seed_log",
                       "en_cluster_calib", "et_cluster_calib",
                       "en_cluster_calib_log", "et_cluster_calib_log",
                       "cl_f5_r9", "cl_f5_sigmaIetaIeta", "cl_f5_sigmaIetaIphi",
@@ -292,7 +293,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 break
             # We give the file to the generator and then yield from it
             for out in internal_generator(file):
-                output_q.put(out)
+                output_q.put(out, block=True)
     
     input_q = mp.Queue()
     # Load all the files in the input file
@@ -302,8 +303,8 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
     for i in range(nworkers):
         input_q.put(None)
     
-    #output_q = mp.Queue(maxsize=output_queue_size)
-    output_q = mp.SimpleQueue()
+    output_q = mp.Queue(maxsize=output_queue_size)
+    #output_q = mp.SimpleQueue()
     # Here we need 2 groups of worker :
     # * One that do the main processing. It will be `pool`.
     # * One that read the results and yield it back, to keep it as a generator. The main thread will do it.
@@ -313,7 +314,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         finished_workers = 0
         tot_events = 0
         while True:
-            it = output_q.get()
+            it = output_q.get(block=True)
             if it is None:
                 finished_workers += 1
                 if finished_workers == nworkers:
