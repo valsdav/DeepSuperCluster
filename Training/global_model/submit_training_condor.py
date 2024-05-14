@@ -13,6 +13,7 @@ parser.add_argument("--name", type=str, help="Model version name", required=Fals
 parser.add_argument("--config", type=str, help="config file (relative to base dir)", required=True)
 parser.add_argument("--model", type=str, help="Model.py (relative to basedir)", required=True)
 parser.add_argument("--test", action="store_true", help="Do no run condor job but interactively")
+parser.add_argument("--venv", type=str, help="Virtual environment", required=False, default="None")
 args = parser.parse_args()
 
 # Checking the input files exists
@@ -30,7 +31,7 @@ if args.test:
 
 sub = htcondor.Submit()
 sub['Executable'] = "run_training_condor.sh"
-sub["arguments"] = f"{args.basedir}/{args.config}  {args.basedir}/{args.model} {args.name}"
+sub["arguments"] = f"{args.basedir}/{args.config}  {args.basedir}/{args.model} {args.name} {args.venv}"
 sub['Error'] = args.basedir+"/condor_logs/error/training-$(ClusterId).$(ProcId).err"
 sub['Output'] = args.basedir+"/condor_logs/output/training-$(ClusterId).$(ProcId).out"
 sub['Log'] = args.basedir+"/condor_logs/log/training-$(ClusterId).log"

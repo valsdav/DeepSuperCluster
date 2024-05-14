@@ -7,6 +7,7 @@ import importlib.util
 from time import time
 import numpy as np
 import plot_loss
+import comet_ml
 
 parser = argparse.ArgumentParser()
 
@@ -179,6 +180,20 @@ with strategy.scope():
                                                  profile_batch=(50, 10100),
                                                  update_freq='batch')
         callbacks.append(tb_callback)
+
+
+
+    if "comet" in config:
+        experiment = comet_ml.Experiment(
+                api_key=config["comet"]["api_key"],
+                project_name=config["comet"]["project_name"],
+                workspace=config["comet"]["workspace_name"]
+        )
+        experiment.set_name(name)
+        comet_callback = experiment.get_callback("keras")
+        callbacks.append(comet_callback)
+
+
 
     if args.verbose:
         verbosity = 1
