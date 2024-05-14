@@ -30,7 +30,7 @@ print('version={}, CUDA={}, GPU={}'.format(
 gpus =  tf.config.list_physical_devices('GPU')
 print("gpus: ", gpus)
 
-num_threads = 5
+num_threads = 5 # Why 5?
 os.environ["OMP_NUM_THREADS"] = str(num_threads)
 os.environ["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
 os.environ["TF_NUM_INTEROP_THREADS"] = str(num_threads)

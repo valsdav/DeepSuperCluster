@@ -11,6 +11,7 @@ from glob import glob
 from itertools import zip_longest, islice
 from collections import deque
 import multiprocessing as mp
+import queue
 
 
 
@@ -237,17 +238,17 @@ def shuffle_fn(size, df):
     
     
 def shuffle_dataset(gen, n_batches=None):
-    if n_batches==None: 
-        # permute the single batch
-        for i, (size, df) in enumerate(gen):
-            yield shuffle_fn(size, df)
-    else:
-        for dflist in cache_generator(gen, n_batches):
-            size = dflist[0][0] 
-            perm_i = np.random.permutation(size*len(dflist))
-            totdf = ak.concatenate([df[1] for df in dflist])[perm_i]
-            for i in range(n_batches):
-                yield size, totdf[i*size: (i+1)*size]
+    #if n_batches==None: 
+    # permute the single batch
+    for i, (size, df) in enumerate(gen):
+        yield shuffle_fn(size, df)
+    # else:
+    #     for dflist in cache_generator(gen, n_batches):
+    #         size = dflist[0][0] 
+    #         perm_i = np.random.permutation(size*len(dflist))
+    #         totdf = ak.concatenate([df[1] for df in dflist])[perm_i]
+    #         for i in range(n_batches):
+    #             yield size, totdf[i*size: (i+1)*size]
                 
 def zip_datasets(*iterables):
     yield from zip_longest(*iterables, fillvalue=(0, ak.Array([])))
@@ -284,11 +285,14 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
     The output is put in an output Queue which is consumed by the main thread.
     Doing so the processing is in parallel. 
     '''
-    def process(input_q, output_q):
+    def process(input_q, output_q, mess_q):
         # Change the random seed for each processor
+        output_q.cancel_join_thread()
         pid = mp.current_process().pid
         np.random.seed()
-        while True:
+        working = True
+        while working:
+            # Getting a file
             file = input_q.get()
             #print(f"--> worker {pid}) Processing file: ", file)
             if file is None:
@@ -296,12 +300,28 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 break
             # We give the file to the generator and then yield from it
             for out in internal_generator(file):
+                if not mess_q.empty():
+                    #print(f"--> worker {pid}) Received message: ", mess_q.get())
+                    working = False
+                    break
+                
                 #print(f"--> worker {pid}) wants to yield > events: ", out[0])
-                output_q.put(out, block=True)
-                #print(f"--> worker {pid}) Yielded > events: ", out[0])
+                try:
+                    output_q.put(out,  block=True, timeout=10)
+                    #print(f"--> worker {pid}) Yielded > events: ", out[0])
+                except queue.Full:
+                    pass
+                    #print(f"--> worker {pid}) Queue is full")
+
+            if not mess_q.empty():
+                #print(f"--> worker {pid}) Received message: ", mess_q.get())
+                break
+
+            #print("I'm exited from the internal_generator loop")
+        #print(f"--> worker {pid}) Closing worker")
 
     
-    input_q = mp.Queue()
+    input_q = mp.SimpleQueue()
     # Load all the files in the input file
     for file in files: 
         input_q.put(file)
@@ -310,11 +330,13 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         input_q.put(None)
     
     output_q = mp.Queue(maxsize=output_queue_size)
+    output_q.cancel_join_thread()
+    mess_q = mp.SimpleQueue()
     #output_q = mp.SimpleQueue()
     # Here we need 2 groups of worker :
     # * One that do the main processing. It will be `pool`.
     # * One that read the results and yield it back, to keep it as a generator. The main thread will do it.
-    pool = mp.Pool(nworkers, initializer=process, initargs=(input_q, output_q))
+    pool = mp.Pool(nworkers, initializer=process, initargs=(input_q, output_q, mess_q))
     
     try : 
         finished_workers = 0
@@ -329,17 +351,26 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 size, df = it
                 tot_events += size
                 if maxevents and tot_events > maxevents:
-                    #print("Max events reached")
+                    print("Max events reached")
                     break
                 else:
                     #pid = mp.current_process().pid
                     #print(f"{pid}) Yielding > tot events: ", tot_events)
                     yield it
-    finally: 
+    finally:
         # This is called at GeneratorExit
+        print("Multiprocessing generator closing...")
         pool.close()
-        pool.terminate()
-        #print("Multiprocessing generator closed")
+        # We need to grafeully close the pool
+        for i in range(nworkers):
+            mess_q.put("terminate")
+        print("Closing the queues...")
+        input_q.close()
+        output_q.close()
+        mess_q.close()
+        print("Waiting for the pool worker to join...")
+        pool.join()
+        print("Multiprocessing generator closed")
             
 
 ###############################################################
@@ -384,8 +415,20 @@ def load_batches_from_files_generator(config, preprocessing_fn, shuffle=True, re
                 else:
                     yield processed
         # Split in batches
-        yield from split_batches(preproc(df), config.batch_size)
-    
+        try:
+            yield from split_batches(preproc(df), config.batch_size)
+        except GeneratorExit:
+            #print("Internal generator closed")
+            for d in dfs_raw:
+                del d
+            for d in initial_dfs:
+                del d
+            del df
+        
+        finally:
+            #print("THE END of the internal generator")
+            return
+            
     return _fn
 
 
@@ -596,17 +639,21 @@ def tf_generator(config):
     out_index = get_output_indices(config.output_tensors)
     # Generator function
     def _gen():
+        #print("!!! STARTING NEW GENERATOR")
         file_loader_generator = load_batches_from_files_generator(config, preprocessing)
         multidataset = multiprocessor_generator_from_files(config.input_files, 
                                                            file_loader_generator, 
                                                            output_queue_size=config.max_batches_in_memory, 
                                                            nworkers=config.nworkers, 
                                                            maxevents=config.maxevents)
-
-        for size, df in multidataset:
-            df_tf = convert_to_tf(df)
-            # Now the output is formatted with the order requested in the config
-            yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
+        try:
+            for size, df in multidataset:
+                df_tf = convert_to_tf(df)
+                # Now the output is formatted with the order requested in the config
+                yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
+        except GeneratorExit:
+            pass
+            #print("The TF generator has been closed")
     return _gen
 
 
