@@ -1,3 +1,4 @@
+
 {
     "models_path": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/Run3_126X_2023/tests_transformer/",
 
@@ -27,11 +28,11 @@
             "padding" : true,  
             "ncls_padding" : -1, 
             "nhits_padding": -1,
-            "chunk_size": 5120,
+            "chunk_size": 4096,
             "batch_size": 1024,
-            "maxevents": 2400000,
-            "nworkers": 3,
-            "max_batches_in_memory":50,
+            "maxevents":  2400000,
+            "nworkers": 1,
+            "max_batches_in_memory": 24,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
@@ -60,11 +61,11 @@
             "padding" : true, 
             "ncls_padding" : -1, 
             "nhits_padding": -1,
-            "chunk_size": 5120,
+            "chunk_size": 4096,
             "batch_size": 1024,
             "maxevents": 400000,
-            "nworkers": 3,
-            "max_batches_in_memory":100,
+            "nworkers": 1,
+            "max_batches_in_memory":24,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
@@ -104,7 +105,7 @@
     },
     
     "nepochs": 300,
-    "lr": 0.001,
+    "lr": 0.0001,
     "opt": "adamW",
     "activation": "selu",
     "lr_reduce": {
@@ -147,7 +148,7 @@
     "accumulator_enregr": [128],
     
     "n_windclasses": 3,
-    "dropout": 0.03,
+    "dropout": 0.02,
     "l2_reg": false,
     "loss_weights": {
         "clusters": 100,

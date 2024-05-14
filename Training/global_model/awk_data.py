@@ -189,6 +189,8 @@ def load_dataset_chunks(df, config, chunk_size, offset=0, maxevents=None):
         nchunks = ak.num(filtered_df.cl_features, axis=0)//chunk_size 
     for i in range(nchunks):
         # Then materialize it
+        #pid = mp.current_process().pid
+        #print(f"--> worker {pid}) Loading chunk {i} from {offset} with size {chunk_size}")
         yield chunk_size, ak.materialized(filtered_df[offset + i*chunk_size: offset + (i+1)*chunk_size])
         #yield batch_size, df[i*batch_size: (i+1)*batch_size]
 
@@ -288,12 +290,16 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         np.random.seed()
         while True:
             file = input_q.get()
+            #print(f"--> worker {pid}) Processing file: ", file)
             if file is None:
                 output_q.put(None)
                 break
             # We give the file to the generator and then yield from it
             for out in internal_generator(file):
+                #print(f"--> worker {pid}) wants to yield > events: ", out[0])
                 output_q.put(out, block=True)
+                #print(f"--> worker {pid}) Yielded > events: ", out[0])
+
     
     input_q = mp.Queue()
     # Load all the files in the input file
@@ -323,8 +329,11 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 size, df = it
                 tot_events += size
                 if maxevents and tot_events > maxevents:
+                    #print("Max events reached")
                     break
                 else:
+                    #pid = mp.current_process().pid
+                    #print(f"{pid}) Yielding > tot events: ", tot_events)
                     yield it
     finally: 
         # This is called at GeneratorExit

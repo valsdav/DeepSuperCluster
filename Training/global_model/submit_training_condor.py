@@ -38,7 +38,7 @@ sub['MY.SendCredential'] = True
 sub['+JobFlavour'] = '"testmatch"'
 sub["transfer_input_files"] = "trainer_awk.py, awk_data.py, plot_loss.py"
 sub["when_to_transfer_output"] = "ON_EXIT"
-sub['request_cpus'] = '4'
+sub['request_cpus'] = '4'  # to request 8GB of memory
 sub['request_gpus'] = '1'
 
 schedd = htcondor.Schedd()

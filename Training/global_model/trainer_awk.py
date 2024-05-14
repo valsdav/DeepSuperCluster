@@ -63,7 +63,7 @@ def get_unique_run():
     previous_runs = list(filter( lambda k: k.startswith("run"), os.listdir(config["models_path"])))
     run_number = 1
     if len(previous_runs) > 0:
-        run_number = max([int(s.split('_')[1]) for s in previous_runs if s.startswith("run")] + 1 
+        run_number = max([int(s.split('_')[1]) for s in previous_runs if s.startswith("run")]) + 1 
     return run_number
 
 
@@ -101,8 +101,10 @@ print(">>> Loading datasets")
 train_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["training"]))
 test_ds = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["validation"]))
 # Create training and validation
-ds_train = train_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
-ds_test  = test_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
+# ds_train = train_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
+# ds_test  = test_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
+ds_train = train_ds.repeat(config['nepochs'])
+ds_test  = test_ds.repeat(config['nepochs'])
 
 
 ############### 
