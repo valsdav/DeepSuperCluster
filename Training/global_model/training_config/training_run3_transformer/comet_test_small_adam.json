@@ -1,0 +1,165 @@
+{
+    "models_path": "/eos/user/j/jabrunne/www/ECAL/Clustering/DeepCluster/models_archive/Run3_126X_2023/tests_transformer/",
+
+    "dataset_conf" : {
+        "training": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/training",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/training"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+		    "en_cluster_log", "et_cluster_log", 
+                    "cluster_ieta", "cluster_iphi", "cluster_iz",
+		    "cluster_deta", "cluster_dphi", "cluster_den_seed", "cluster_det_seed",
+		    "cluster_den_seed_log", "cluster_det_seed_log",
+		    "cl_etaWidth",  "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/normalization_factors/normalization_factors_run3_126X_2023.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/reweightings/total_reweighting_run3_126X_2023.json",
+            "norm_type" : "stdscale",
+            "padding" : true,  
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 1024,
+            "maxevents": 2400000,
+            "nworkers": 3,
+            "max_batches_in_memory":50,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+           },
+        "validation": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/validation",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/validation"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+		    "en_cluster_log", "et_cluster_log", 
+                    "cluster_ieta", "cluster_iphi", "cluster_iz",
+		    "cluster_deta", "cluster_dphi", "cluster_den_seed", "cluster_det_seed",
+		    "cluster_den_seed_log", "cluster_det_seed_log",
+		    "cl_etaWidth",  "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/normalization_factors/normalization_factors_run3_126X_2023.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/reweightings/total_reweighting_run3_126X_2023.json",
+            "norm_type" : "stdscale",
+            "padding" : true, 
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 5120,
+            "batch_size": 1024,
+            "maxevents": 400000,
+            "nworkers": 3,
+            "max_batches_in_memory":100,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+        },
+        "test": {
+            "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/test",
+                              "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/test"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "columns": {
+                "cl_features": [
+                    "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
+		    "en_cluster_log", "et_cluster_log", 
+                    "cluster_ieta", "cluster_iphi", "cluster_iz",
+		    "cluster_deta", "cluster_dphi", "cluster_den_seed", "cluster_det_seed",
+		    "cluster_den_seed_log", "cluster_det_seed_log",
+		    "cl_etaWidth",  "cl_phiWidth", "cl_swissCross", "cl_nxtals"
+                ],
+                "cl_labels" : ["in_scluster", "is_seed"],
+                "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim"],
+                "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
+                                      "max_dphi_cluster","max_den_cluster","max_det_cluster"]
+            },
+            "norm_factors_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/normalization_factors/normalization_factors_run3_126X_2023.json",
+            "reweighting_file": "/eos/user/d/dvalsecc/www/ECAL/Clustering/DeepCluster/models_archive/gcn_models/metadata/run3_126X_2023/reweightings/total_reweighting_run3_126X_2023.json",
+            "norm_type" : "stdscale",
+            "padding" : true, 
+            "ncls_padding" : -1, 
+            "nhits_padding": -1,
+            "chunk_size": 3072,
+            "batch_size": 256,
+            "maxevents": 200000,
+            "nworkers": 3,
+            "max_batches_in_memory":10,
+            "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
+           }
+    },
+    
+    "nepochs": 2,
+    "lr": 0.001,
+    "opt": "adam",
+    "activation": "selu",
+    "lr_reduce": {
+        "factor": 0.8,
+        "patience": 4,
+        "min_delta": 0.002
+    },
+    "early_stop": {
+        "patience": 30,
+        "min_delta": 0.001
+    },
+    "loss_plot": true, 
+    "output_dim_rechits": 8,
+    "output_dim_nodes": 64,
+    "features_builder_layers_input": [
+        64,
+        64
+    ],
+    "layers_clclass": [
+        64,
+        64
+    ],
+    "layers_windclass": [
+        64,
+        64
+    ],
+    "layers_enregr": [
+        64
+    ],
+    "rechit_num_transf_layers": 1,
+    "rechit_num_transf_heads": 1,
+    "rechit_transf_ff_dim": 16,
+
+    "global_tranf_layers": 2,
+    "global_tranf_heads": 8,
+    "global_tranf_ff_dim": 128,
+
+    "accumulator_windclass": [64],
+    "accumulator_enregr": [64],
+    
+    "n_windclasses": 3,
+    "dropout": 0.01,
+    "l2_reg": false,
+    "loss_weights": {
+        "clusters": 100,
+        "window": 0.8,
+        "softF1": 1,
+        "en_resol": 0,
+        "en_softF1": 100,
+        "en_regr": 0.00,
+        "softF1_beta": 1.50
+    },
+    "comet": {
+    "api_key": "DAZXuHTA1M8xg2fb4mPBsxves",
+    "project_name": "Comet-Test",
+    "workspace_name": "deepsupercluster" 
+    }
+}
