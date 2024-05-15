@@ -306,13 +306,13 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                     output_q.put(None, block=True)#, timeout=5)
                     break
                 
-                #print(f"--> worker {pid}) wants to yield > events: ", out[0])
+                print(f"--> worker {pid}) wants to yield > events: ", out[0])
                 try:
                     output_q.put(out, block=True) #,  block=True, timeout=5)
-                    #print(f"--> worker {pid}) Yielded > events: ", out[0])
+                    print(f"--> worker {pid}) Yielded > events: ", out[0])
                 except queue.Full:
                     pass
-                    #print(f"--> worker {pid}) Queue is full")
+                    print(f"--> worker {pid}) Queue is full")
 
             if not mess_q.empty() and working:
                 output_q.put(None, block=True)#, timeout=5)
@@ -321,16 +321,16 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
 
             #print("I'm exited from the internal_generator loop")
         output_q.close()
-        #print(f"--> worker {pid}) Closing worker")
+        print(f"--> worker {pid}) Closing worker")
 
     
     input_q = mp.SimpleQueue()
     # Load all the files in the input file
     for file in files: 
         input_q.put(file)
-    #Once generator is consumed, send end-signal
-    for i in range(nworkers):
-        input_q.put(None)
+    # Once generator is consumed, send end-signal
+    # for i in range(nworkers):
+    #     input_q.put(None)
     
     output_q = mp.Queue(maxsize=output_queue_size)
     #output_q.cancel_join_thread()
@@ -354,30 +354,30 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 size, df = it
                 tot_events += size
                 if maxevents and tot_events > maxevents:
-                    #print("Max events reached")
+                    print("Max events reached")
                     # refilling the input files
-                    # for file in files: 
-                    #     input_q.put(file)
-                    break
+                    for file in files: 
+                        input_q.put(file)
+                    tot_events = 0
 
-                else:
-                    #pid = mp.current_process().pid
-                    #print(f"external generator yielding > tot events: ", tot_events)
-                    yield it
-                    # explicit delete of the data
-                    for d in df:
-                        del d
-                    del df
-                    del it
+                #else
+                #pid = mp.current_process().pid
+                print(f"external generator tielding > tot events: ", tot_events)
+                yield it
+                # explicit delete of the data
+                for d in df:
+                    del d
+                del df
+                del it
 
-    # except GeneratorExit:
-    #     # Put None in input file in the case that workers are still waiting for inptu
-    #     for i in range(nworkers):
-    #         input_q.put(None)
+    except GeneratorExit:
+        # Put None in input file in the case that workers are still waiting for inptu
+        for i in range(nworkers):
+            input_q.put(None)
     
     finally:
         # This is called at GeneratorExit
-        #print("Multiprocessing generator closing...")
+        print("Multiprocessing generator closing...")
         pool.close()
         # We need to grafeully close the pool
         for i in range(nworkers):
@@ -388,7 +388,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
 
         n_pool_close = 0
         while n_pool_close < nworkers:
-            #print("Flushing the data queue...")
+            print("Flushing the data queue...")
             out = output_q.get(block=True)
             if out is None:
                 print("Worker closed")
@@ -398,15 +398,15 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
                 for d in df:
                     del d
                 del df            
-        #print("Data queue flushed")
+        print("Data queue flushed")
 
-        #print("Closing the queues...")
+        print("Closing the queues...")
         output_q.close()
         output_q.join_thread()
         input_q.close()
         mess_q.close()
         
-        #print("Waiting for the pool worker to join...")
+        print("Waiting for the pool worker to join...")
         pool.join()
         pool.terminate()
         del input_q
@@ -692,11 +692,9 @@ def tf_generator(config):
                                                            maxevents=config.maxevents)
         try:
             for size, df in multidataset:
-                #df_tf = convert_to_tf(df)
+                df_tf = convert_to_tf(df)
                 # Now the output is formatted with the order requested in the config
-                #out = tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
-
-                out = tuple([ tuple([df[i] for i in o]) for o in out_index])
+                out = tuple([ tuple([df_tf[i] for i in o]) for o in out_index])
                 yield out
                 # deleting all the stuff
                 for d in out:
@@ -704,21 +702,21 @@ def tf_generator(config):
                         del j
                     del d
                 del out
-                # for d in df_tf:
-                #     del d
-                # del df_tf
+                for d in df_tf:
+                    del d
+                del df_tf
                 for d in df:
                     del d
                 del df
                 
+                
                    
         except GeneratorExit:
-            pass
-            #print("GeneratorExit of the TF generator")
+            print("GeneratorExit of the TF generator")
         finally:
-            #print("End of the TF generator")
+            print("End of the TF generator")
             gc.collect()
-            #print("GC of TF generator internal")
+            print("GC of TF generator internal")
     return _gen
 
 
