@@ -104,8 +104,8 @@ ds_test = awk_data.load_dataset(awk_data.LoaderConfig(**config["dataset_conf"]["
 # Create training and validation
 # ds_train = train_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
 # ds_test  = test_ds.prefetch(tf.data.AUTOTUNE).repeat(config['nepochs'])
-#ds_train = train_ds.repeat(config['nepochs'])
-#ds_test  = test_ds.repeat(config['nepochs'])
+#ds_train = ds_train.repeat(config['nepochs'])
+#ds_test  = ds_test.repeat(config['nepochs'])
 
 #ds_train = ds_train.map(lambda x,y,z: (x,y,z), num_parallel_calls=1)
 #ds_test = ds_test.map(lambda x,y,z: (x,y,z), num_parallel_calls=1)
@@ -139,13 +139,13 @@ with strategy.scope():
                   run_eagerly=args.debug,
                   weighted_metrics=[])
 
-    # for X, y ,w  in ds_train:
-    #     # Load the model
-    #     ypred = model(X, training=False)
-    #     #l = custom_loss(y, ypred)
-    #     break
-
-    #model.summary()
+    for X, y ,w  in ds_train:
+        # Load the model
+        ypred = model(X, training=False)
+        #l = custom_loss(y, ypred)
+        break
+    
+    model.summary()
     
     # Callback
     callbacks = []
@@ -161,7 +161,8 @@ with strategy.scope():
         callbacks.append(lr_reduce)
 
     cp_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=outdir + "/weights.{epoch:02d}-{val_loss:.6f}.hdf5",
+        #filepath=outdir + "/{epoch:02d}-{val_loss:.6f}.weights.h5",
+        filepath=outdir + "/weights.{epoch:02d}-{val_loss:.6f}.h5",
         save_weights_only=True,
         verbose=1
     )

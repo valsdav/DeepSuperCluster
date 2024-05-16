@@ -380,18 +380,22 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         #print("Multiprocessing generator closing...")
         pool.close()
         # We need to grafeully close the pool
+        # by sending a message to the queue to terminate and stop
+        # pushing data
         for i in range(nworkers):
             mess_q.put("terminate")
         # There may be stuff left in the queue
         # We need a better way
         # Cleaning the queue
+        # doing that, also if the workers are blocked waiting to push data
+        # they are released and they read the terminate message and exit gracefully
 
         n_pool_close = 0
         while n_pool_close < nworkers:
             #print("Flushing the data queue...")
             out = output_q.get(block=True)
             if out is None:
-                print("Worker closed")
+                #print("Worker closed")
                 n_pool_close += 1
             else:
                 size, df = out
@@ -414,7 +418,7 @@ def multiprocessor_generator_from_files(files, internal_generator, output_queue_
         del output_q
         del pool
         gc.collect()
-        print("Multiprocessing generator closed") 
+        #print("Multiprocessing generator closed") 
             
 
 ###############################################################
@@ -683,7 +687,7 @@ def tf_generator(config):
     out_index = get_output_indices(config.output_tensors)
     # Generator function
     def _gen():
-        print("!!! STARTING NEW GENERATOR")
+        #print("!!! STARTING NEW GENERATOR")
         file_loader_generator = load_batches_from_files_generator(config, preprocessing)
         multidataset = multiprocessor_generator_from_files(config.input_files, 
                                                            file_loader_generator, 
