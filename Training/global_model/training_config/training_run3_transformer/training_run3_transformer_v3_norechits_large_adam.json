@@ -5,7 +5,7 @@
         "training": {
             "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/training",
                               "/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/gammas/run3_126X_2023/awkward_126X_mcRun3_2023_forPU65_v4/training"],
-            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata", "cl_h"],
+            "file_input_columns":  ["cl_features", "cl_labels", "window_features", "window_metadata"],
             "columns": {
                 "cl_features": [
                     "en_cluster", "et_cluster","cluster_eta", "cluster_phi",
@@ -117,14 +117,14 @@
         "min_delta": 0.001
     },
     "loss_plot": true, 
-    "output_dim_rechits": 8,
+    "output_dim_rechits": 16,
     "output_dim_nodes": 64,
     "features_builder_layers_input": [
-        64,
-        64
+        128,
+        128
     ],
     "layers_clclass": [
-        64,
+       128,
         64
     ],
     "layers_windclass": [
@@ -134,13 +134,13 @@
     "layers_enregr": [
         64
     ],
-    "rechit_num_transf_layers": 1,
-    "rechit_num_transf_heads": 1,
-    "rechit_transf_ff_dim": 16,
+    "rechit_num_transf_layers": 2,
+    "rechit_num_transf_heads": 4,
+    "rechit_transf_ff_dim": 64,
 
-    "global_tranf_layers": 2,
+    "global_tranf_layers": 4,
     "global_tranf_heads": 8,
-    "global_tranf_ff_dim": 128,
+    "global_tranf_ff_dim": 512,
 
     "accumulator_windclass": [64],
     "accumulator_enregr": [64],
@@ -157,9 +157,9 @@
         "en_regr": 0.00,
         "softF1_beta": 1.50
     },
-    "comet": {
+    "....add comet later by writing comet": {
         "api_key": "DAZXuHTA1M8xg2fb4mPBsxves",
-        "project_name": "small_transformer_adamW",
+        "project_name": "large_transformer_adam",
         "workspace_name": "deepsupercluster" 
         }
     
