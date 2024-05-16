@@ -44,6 +44,21 @@ def get_conv1d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"
     layers.append(tf.keras.layers.Conv1D(filters=spec[-1], kernel_size=1, activation=last_act, name=name+"_{}".format(i+1)))
     return tf.keras.Sequential(layers, name=name)
 
+def get_conv2d(spec, act, last_act, dropout=0., L2=False, L1=False, name="dense"):
+    layers = [] 
+    for i, d in enumerate(spec[:-1]):
+        if not L1 and not L2:
+            layers.append(tf.keras.layers.Conv2D(filters=d,kernel_size=(1,1), activation=act, name=name+"_{}".format(i)))
+        if not L1 and L2:
+            layers.append(tf.keras.layers.Conv2D(filters=d,kernel_size=(1,1), activation=act, kernel_regularizer=tf.keras.regularizers.L2(0.001), name=name+"_{}".format(i)))
+        if not L2 and L1:
+            layers.append(tf.keras.layers.Conv2D(filters=d,kernel_size=(1,1), activation=act, kernel_regularizer=tf.keras.regularizers.L1(0.001),name=name+"_{}".format(i)))
+        if L1 and L2:
+            layers.append(tf.keras.layers.Conv2D(filters=d,kernel_size=(1,1), activation=act, kernel_regularizer=tf.keras.regularizers.L1L2(0.001,0.001),name=name+"_{}".format(i)))
+        if dropout > 0.:
+            layers.append(tf.keras.layers.Dropout(dropout))
+    layers.append(tf.keras.layers.Conv2D(filters=spec[-1], kernel_size=(1,1), activation=last_act, name=name+"_{}".format(i+1)))
+    return tf.keras.Sequential(layers, name=name)
 
 
 ############################
@@ -100,10 +115,18 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
     self.depth = d_model // self.num_heads
 
-    self.Wq = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
-    self.Wk = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
-    self.Wv = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
-    self.dense = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+
+    if not self.add_axis:
+        self.Wq = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+        self.Wk = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+        self.Wv = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+        self.dense = tf.keras.layers.Conv1D(filters=self.d_model,kernel_size=1, use_bias=False)
+    else:
+        self.Wq = tf.keras.layers.Conv2D(filters=self.d_model,kernel_size=(1,1), use_bias=False)
+        self.Wk = tf.keras.layers.Conv2D(filters=self.d_model,kernel_size=(1,1), use_bias=False)
+        self.Wv = tf.keras.layers.Conv2D(filters=self.d_model,kernel_size=(1,1), use_bias=False)
+        self.dense = tf.keras.layers.Conv2D(filters=self.d_model,kernel_size=(1,1), use_bias=False)
+     
 
   def get_config():
         return {
@@ -176,12 +199,19 @@ class MultiSelfAttentionBlock(tf.keras.layers.Layer):
     self.dropout = kwargs.get("dropout", 0.)
     self.l2_reg = kwargs.get("l2_reg", False)
 
-    self.inputW = tf.keras.layers.Conv1D(filters=self.output_dim, kernel_size=1, use_bias=False)
+    if not self.add_axis:
+        self.inputW = tf.keras.layers.Conv1D(filters=self.output_dim, kernel_size=1, use_bias=False)
+    else:
+        self.inputW = tf.keras.layers.Conv2D(filters=self.output_dim, kernel_size=(1,1), use_bias=False)
 
     # Change this 
     self.mha = MultiHeadAttention(self.output_dim, self.num_heads,name=self.name+"_mha",
                                   add_axis=self.add_axis)
-    self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
+    if not self.add_axis:
+        self.ffn = get_conv1d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
+                                    L2=self.l2_reg, dropout=self.dropout, name=self.name+"_ff")
+    else:
+        self.ffn = get_conv2d([self.ff_dim, self.output_dim], self.activation, last_act="linear",
                                     L2=self.l2_reg, dropout=self.dropout, name=self.name+"_ff")
       
 
@@ -264,7 +294,7 @@ class RechitsTransformer(tf.keras.layers.Layer):
         ]
 
         # Feed-forward output (1 hidden layer) for accumulation
-        self.dense_out = get_conv1d([self.output_dim, self.output_dim],
+        self.dense_out = get_conv2d([self.output_dim, self.output_dim],
                                     self.activation, last_act=self.activation,
                                     L2=self.l2_reg, dropout=self.dropout,
                                     name="dense_rechits")
@@ -286,7 +316,7 @@ class RechitsTransformer(tf.keras.layers.Layer):
         # coord = x[:,:,:,0:2] #ieta and iphi as coordinated
         out = x
         for layer in self.transformer:
-            out, att_weights = layer(out, mask, training)
+            out, att_weights = layer(out, mask, training=training)
         # The last layer is already 
         # Mask for the attention output
         mask_for_output = mask[:,:,:,tf.newaxis]
@@ -504,14 +534,14 @@ class DeepClusterGN(tf.keras.Model):
         # Concatenate the seed label on clusters features
         cl_X_initial = tf.concat([tf.cast(is_seed[:,:,tf.newaxis], tf.float32), cl_X_initial], axis=-1)
         #cl_X now is the latent cluster+rechits representation
-        cl_X, output_rechits = self.features_building(cl_X_initial, cl_hits, mask_rechits, mask_cls, training)
+        cl_X, output_rechits = self.features_building(cl_X_initial, cl_hits, mask_rechits, mask_cls, training=training)
         mask_cls_to_apply = mask_cls[:,:,tf.newaxis]
 
         # The output of the features building step has shape [Nbatch, Nclusters, output_dim_features]
         # Call the global transformer
         out_ = cl_X
         for layer in self.transf_global:
-            out_, _ = layer(out_, mask_cls, training)
+            out_, _ = layer(out_, mask_cls, training=training)
             
         # Dropout + normalization
         #out_ = self.global_dropout(cl_X, training=training)
@@ -565,7 +595,7 @@ class DeepClusterGN(tf.keras.Model):
     # Based on https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit/
     @tf.function
     def train_step(self, data):
-        x, y, w = data 
+        x, y, w = data
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute our own loss
@@ -697,7 +727,12 @@ def energy_weighted_classification_loss(y_true, y_pred, weight):
 def window_classification_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
-    w_flavour = tf.one_hot( tf.cast(y_windclass / 11, tf.int32) , depth=3)
+    y_windclass = tf.reshape(y_windclass, [-1])  # Reshape to ensure it's a 1D tensor
+    # Cast and divide, then ensure the resulting tensor has a known shape
+    y_windclass_divided = tf.cast(y_windclass / 11, tf.int32)
+    y_windclass_divided = tf.reshape(y_windclass_divided, [-1])  # Ensure this is a 1D tensor
+    
+    w_flavour = tf.one_hot(y_windclass_divided, depth=3)
 
     # Only window multi-class classification
     windclass_loss = tf.keras.losses.categorical_crossentropy(w_flavour, dense_windclass, from_logits=True)
