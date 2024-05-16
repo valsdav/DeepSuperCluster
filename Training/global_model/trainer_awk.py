@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, help="Config", required=True)
 parser.add_argument("--model", type=str, help="Model .py", required=True)
 parser.add_argument("--name", type=str, help="Model version name", required=False)
+parser.add_argument("--apikey", type=str, help="comet API key", required=False)
 parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 parser.add_argument("--profile", action="store_true", help="Profile model training")
@@ -198,11 +199,12 @@ with strategy.scope():
         # do not import if not needed
         import comet_ml
         experiment = comet_ml.Experiment(
-                api_key=config["comet"]["api_key"],
+                api_key=apikey,
                 project_name=config["comet"]["project_name"],
                 workspace=config["comet"]["workspace_name"]
         )
         experiment.set_name(name)
+        experiment.log_parameters(config)
         comet_callback = experiment.get_callback("keras")
         callbacks.append(comet_callback)
 

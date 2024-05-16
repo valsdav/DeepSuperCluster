@@ -158,7 +158,6 @@
         "softF1_beta": 1.50
     },
     "comet": {
-    "api_key": "DAZXuHTA1M8xg2fb4mPBsxves",
     "project_name": "Comet-Test",
     "workspace_name": "deepsupercluster" 
     }

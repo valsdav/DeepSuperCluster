@@ -8,4 +8,4 @@ if [ "$4" !=  "None" ]; then
 fi
 
 echo "Training"
-python trainer_awk.py --config $1 --model $2 --name $3
+python trainer_awk.py --config $1 --model $2 --name $3 --apikey $4

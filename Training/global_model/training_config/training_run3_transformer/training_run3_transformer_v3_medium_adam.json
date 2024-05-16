@@ -29,9 +29,9 @@
             "nhits_padding": -1,
             "chunk_size": 4096,
             "batch_size": 1024,
-            "maxevents": 400000,
-            "nworkers": 1,
-            "max_batches_in_memory":10,
+            "maxevents": 2000000,
+            "nworkers": 2,
+            "max_batches_in_memory":12,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
@@ -64,7 +64,7 @@
             "batch_size": 1024,
             "maxevents": 400000,
             "nworkers": 1,
-            "max_batches_in_memory":10,
+            "max_batches_in_memory":8,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
@@ -158,9 +158,8 @@
         "softF1_beta": 1.50
     },
     "comet": {
-        "api_key": "DAZXuHTA1M8xg2fb4mPBsxves",
-        "project_name": "medium_transformer_adam",
-        "workspace_name": "deepsupercluster" 
+        "project_name": "deepsc",
+        "workspace_name": "valsdav" 
         }
     
 }
