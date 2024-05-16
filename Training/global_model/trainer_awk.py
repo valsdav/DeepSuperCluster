@@ -135,7 +135,7 @@ with strategy.scope():
     model.set_metrics()
 
     for X, y ,w  in ds_train:
-        # Load the model
+        # Load the model 
         ypred = model(X, training=False)
         #l = custom_loss(y, ypred)
         break

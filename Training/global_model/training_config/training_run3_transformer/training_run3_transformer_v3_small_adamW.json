@@ -27,11 +27,11 @@
             "padding" : true,  
             "ncls_padding" : -1, 
             "nhits_padding": -1,
-            "chunk_size": 5120,
+            "chunk_size": 4096,
             "batch_size": 1024,
-            "maxevents": 2400000,
-            "nworkers": 3,
-            "max_batches_in_memory":50,
+            "maxevents": 400000,
+            "nworkers": 1,
+            "max_batches_in_memory":10,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
            },
@@ -60,11 +60,11 @@
             "padding" : true, 
             "ncls_padding" : -1, 
             "nhits_padding": -1,
-            "chunk_size": 5120,
+            "chunk_size": 4096,
             "batch_size": 1024,
             "maxevents": 400000,
-            "nworkers": 3,
-            "max_batches_in_memory":100,
+            "nworkers": 1,
+            "max_batches_in_memory":10,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
         },
@@ -93,10 +93,10 @@
             "padding" : true, 
             "ncls_padding" : -1, 
             "nhits_padding": -1,
-            "chunk_size": 3072,
-            "batch_size": 256,
-            "maxevents": 200000,
-            "nworkers": 3,
+            "chunk_size": 4096,
+            "batch_size": 1024,
+            "maxevents": 400000,
+            "nworkers": 1,
             "max_batches_in_memory":10,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
                                ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"]]
@@ -156,6 +156,11 @@
         "en_softF1": 100,
         "en_regr": 0.00,
         "softF1_beta": 1.50
-    }
+    },
+    "comet": {
+        "api_key": "DAZXuHTA1M8xg2fb4mPBsxves",
+        "project_name": "small_transformer_adamW",
+        "workspace_name": "deepsupercluster" 
+        }
     
 }
