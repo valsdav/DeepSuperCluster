@@ -117,7 +117,7 @@ class LoaderConfig():
     The available tensors are defined by the preprocessing function. 
     '''
     output_tensors : List[List[str]] = field(default_factory=lambda : [
-        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta"], ["weight"] ])
+        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "seed_is_caloseed"], ["weight"] ])
 
 
 def get_tensors_spec(config):
@@ -131,6 +131,7 @@ def get_tensors_spec(config):
         "cl_hits" : tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float32), #hits  (batch, ncls, nhits, 4)
         "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.float32),  # is seed (batch, ncls,)
         "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # in_supercluster (batch, ncls,)
+        "seed_is_caloseed": tf.TensorSpec(shape=(None), dtype=tf.float32), #seed_is_caloseed (batch, #wind_x)
         "cl_Y": tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
         "flavour" : tf.TensorSpec(shape=(None), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "weight": tf.TensorSpec(shape=(None), dtype=tf.float32), # weights
@@ -150,6 +151,7 @@ def get_tensors_spec(config):
             "is_seed": tf.float32,
             "in_scluster": tf.int64,
             "cl_y": tf.bool,
+            "seed_is_caloseed": tf.float32,
             "flavour": tf.float32,
             "weight": tf.float32,
             "cls_mask": tf.float32,
@@ -168,7 +170,7 @@ def get_output_indices(output_tensors):
     indices = [ "cl_X", "cl_X_norm", "cl_Y",
                 "is_seed",  "in_scluster", "cl_hits",
                 "wind_X","wind_X_norm", "wind_meta",
-                "flavour", "hits_mask", "cls_mask", "weight"]
+                "flavour", "hits_mask", "cls_mask", "seed_is_caloseed", "weight"]    
     return tuple([ tuple([indices.index(label) for label in cfg  ]) for cfg in output_tensors])
         
 ########################################################
