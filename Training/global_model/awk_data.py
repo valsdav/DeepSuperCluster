@@ -117,7 +117,7 @@ class LoaderConfig():
     The available tensors are defined by the preprocessing function. 
     '''
     output_tensors : List[List[str]] = field(default_factory=lambda : [
-        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "seed_is_caloseed"], ["weight"] ])
+        ["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "is_seed_calo_seed"], ["weight"] ])
 
 
 def get_tensors_spec(config):
@@ -131,7 +131,7 @@ def get_tensors_spec(config):
         "cl_hits" : tf.TensorSpec(shape=(None,None, None, 4), dtype=tf.float32), #hits  (batch, ncls, nhits, 4)
         "is_seed": tf.TensorSpec(shape=(None,None), dtype=tf.float32),  # is seed (batch, ncls,)
         "in_scluster": tf.TensorSpec(shape=(None,None), dtype=tf.int64),  # in_supercluster (batch, ncls,)
-        "seed_is_caloseed": tf.TensorSpec(shape=(None), dtype=tf.float32), #seed_is_caloseed (batch, #wind_x)
+        "is_seed_calo_seed": tf.TensorSpec(shape=(None), dtype=tf.float32), #seed_is_caloseed (batch, #wind_x)
         "cl_Y": tf.TensorSpec(shape=(None,None, len(config.columns["cl_labels"])), dtype=tf.bool),  #cl_y (batch, ncls, #cl_labels)
         "flavour" : tf.TensorSpec(shape=(None), dtype=tf.float32),  #windox_X (batch, #wind_x)
         "weight": tf.TensorSpec(shape=(None), dtype=tf.float32), # weights
@@ -151,7 +151,7 @@ def get_tensors_spec(config):
             "is_seed": tf.float32,
             "in_scluster": tf.int64,
             "cl_y": tf.bool,
-            "seed_is_caloseed": tf.float32,
+            "is_seed_calo_seed": tf.float32,
             "flavour": tf.float32,
             "weight": tf.float32,
             "cls_mask": tf.float32,
@@ -165,12 +165,12 @@ def get_output_indices(output_tensors):
     This function translates a list of labels for the tensors outputs to a list of
     indices. In fact the generator internally returns all the tensors in a tuple, for performance
     optiomization. The output formatting is then handled by the main thread.
-    The order of the output between this list and the preprocessing function MUST match
+    The order of the output between this list and the preprocessing function MUST match!
     '''
     indices = [ "cl_X", "cl_X_norm", "cl_Y",
                 "is_seed",  "in_scluster", "cl_hits",
                 "wind_X","wind_X_norm", "wind_meta",
-                "flavour", "hits_mask", "cls_mask", "seed_is_caloseed", "weight"]    
+                "flavour", "hits_mask", "cls_mask", "is_seed_calo_seed", "weight"]    
     return tuple([ tuple([indices.index(label) for label in cfg  ]) for cfg in output_tensors])
         
 ########################################################
@@ -497,6 +497,8 @@ def preprocessing(config):
      - flavour (ele/gamma/jets) (batchsize,)
      - Rechits padding mask  (batchsize, Ncluster, Nrechits)
      - Clusters padding mask (batchsize, Ncluster)
+     - is_seed_calo_seed mask (batchsize, Ncluster)
+     - Reweighting weight
 
     The config for the function contains all the info and have the format
      The zero-padding can be fixed side (specified in the config dizionary),
@@ -597,10 +599,11 @@ def preprocessing(config):
                 cls_X_pad_norm = cls_X_pad_np
                 windo_X_norm = wind_X_norm
 
+            is_seed_calo_seed = df.window_metadata["is_seed_calo_seed"]
 
             return size, (cls_X_pad_np, cls_X_pad_norm, cls_Y_pad_np, is_seed_pad_np,
                           in_scluster_pad_np, cl_hits_pad_np, wind_X_np, wind_X_norm,
-                          wind_meta_np, flavour, hits_mask, cls_mask, weight)
+                          wind_meta_np, flavour, hits_mask, cls_mask, is_seed_calo_seed, weight)
         else:
             # No padding --> never used
             raise Exception("Not implemented!")
