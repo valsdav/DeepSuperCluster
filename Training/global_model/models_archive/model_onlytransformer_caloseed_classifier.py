@@ -702,8 +702,8 @@ class DeepClusterGN(tf.keras.Model):
 ## Loss functions
 @tf.function
 def clusters_classification_loss(y_true, y_pred, weight):
-    (dense_clclass, dense_windclass, en_regr_factor),  mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true        
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed),  mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true        
     class_loss = tf.keras.losses.binary_crossentropy(y_clclass[:,:,tf.newaxis], dense_clclass, from_logits=True) * mask_cls
     # This should be replaced by the mean over the not masked elements
     # reduced_loss = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1) * weight) / tf.reduce_sum(weight)
@@ -715,8 +715,8 @@ def clusters_classification_loss(y_true, y_pred, weight):
 ## Loss functions
 @tf.function
 def energy_weighted_classification_loss(y_true, y_pred, weight):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     cl_ets = cl_X[:,:,1]
     # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
     # compute the weighting mean of the loss based on the energy of each seed in the window
@@ -729,8 +729,8 @@ def energy_weighted_classification_loss(y_true, y_pred, weight):
 
 @tf.function
 def window_classification_loss(y_true, y_pred, weight):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     w_flavour = tf.one_hot( tf.cast(y_windclass / 11, tf.int32) , depth=3)
 
     # Only window multi-class classification
@@ -740,8 +740,8 @@ def window_classification_loss(y_true, y_pred, weight):
 
 @tf.function
 def energy_loss(y_true, y_pred, weight, beta=1):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     cl_en = Et = cl_X[:,:,0:1]
     En_sim_good = y_metadata[:,-1]
@@ -760,8 +760,8 @@ def energy_loss(y_true, y_pred, weight, beta=1):
 
 @tf.function
 def soft_f1_score(y_true, y_pred, weight, beta=1):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     # matched_window = tf.cast(y_metadata[:,-1]!=0, tf.float32)
 
@@ -789,8 +789,8 @@ def quantile_loss(y_true, y_pred, weight):
 
 @tf.function
 def energy_regression_loss(y_true, y_pred, weight):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     cl_ens = cl_X[:,:,0]
     pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
     calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
@@ -801,12 +801,14 @@ def energy_regression_loss(y_true, y_pred, weight):
 
 @tf.function
 def is_calo_seed_loss(y_true, y_pred, weight):
-    (dense_clclass, dense_windclass, en_regr_factor), mask_cls  = y_pred
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
-    cl_ens = cl_X[:,:,0]
-    pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
-    calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
-    true_en_gen = y_metadata[:,-2]  # en_true_gen
+    (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
+    y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
+    #cl_ens = cl_X[:,:,0]
+    #pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
+    #calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
+    #true_en_gen = y_metadata[:,-2]  # en_true_gen
 
-    loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
-    return loss
+    #loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
+    caloclass_loss = tf.keras.losses.binary_crossentropy(y_is_seed_calo_seed, is_seed_calo_seed, from_logits=True)
+    reduced_loss =   tf.reduce_sum(caloclass_loss * weight) / tf.reduce_sum(weight)
+    return reduced_loss
