@@ -803,12 +803,7 @@ def energy_regression_loss(y_true, y_pred, weight):
 def is_calo_seed_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
-    #cl_ens = cl_X[:,:,0]
-    #pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
-    #calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
-    #true_en_gen = y_metadata[:,-2]  # en_true_gen
 
-    #loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
     caloclass_loss = tf.keras.losses.binary_crossentropy(y_is_seed_calo_seed, is_seed_calo_seed, from_logits=True)
     reduced_loss =   tf.reduce_sum(caloclass_loss * weight) / tf.reduce_sum(weight)
     return reduced_loss
