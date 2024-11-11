@@ -18,6 +18,7 @@ parser.add_argument("--apikey", type=str, help="comet API key", required=False)
 parser.add_argument("--output", type=str,help="Override output folder", required=False)
 parser.add_argument("--debug", action="store_true", help="Debug and run TF eagerly")
 parser.add_argument("--profile", action="store_true", help="Profile model training")
+parser.add_argument("--comet", action="store_true", help="Use comet for logging")
 parser.add_argument("-v","--verbose", action="store_true", help="Verbose")
 args = parser.parse_args()
 
@@ -195,7 +196,7 @@ with strategy.scope():
 
     callbacks.append(ClearMemoryCallback())
             
-    if "comet" in config:
+    if "comet" in config and args.comet:
         # do not import if not needed
         import comet_ml
         experiment = comet_ml.Experiment(

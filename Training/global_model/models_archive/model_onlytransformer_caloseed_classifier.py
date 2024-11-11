@@ -612,7 +612,6 @@ class DeepClusterGN(tf.keras.Model):
                      self.loss_weights["is_calo_seed"] * loss_is_calo_seed + \
                      loss_reg
                      #self.loss_weights["en_resol"] * loss_en_resol+ \
-
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -794,7 +793,7 @@ def energy_regression_loss(y_true, y_pred, weight):
     cl_ens = cl_X[:,:,0]
     pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
     calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
-    true_en_gen = y_metadata[:,-2]  # en_true_gen
+    true_en_gen = y_metadata[:,-2]  # en_true_gen --> HARD CODED be careful in the config
 
     loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
     return loss
@@ -804,6 +803,6 @@ def is_calo_seed_loss(y_true, y_pred, weight):
     (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
 
-    caloclass_loss = tf.keras.losses.binary_crossentropy(y_is_seed_calo_seed, is_seed_calo_seed, from_logits=True)
+    caloclass_loss = tf.keras.losses.binary_crossentropy(y_is_seed_calo_seed, is_seed_calo_seed[:,0], from_logits=True)
     reduced_loss =   tf.reduce_sum(caloclass_loss * weight) / tf.reduce_sum(weight)
     return reduced_loss
