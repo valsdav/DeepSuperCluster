@@ -607,10 +607,10 @@ class DeepClusterGN(tf.keras.Model):
             loss =  self.loss_weights["clusters"] * loss_clusters +\
                      self.loss_weights["window"] * loss_windows + \
                      self.loss_weights["softF1"] * loss_softF1 + \
-                     self.loss_weights["en_softF1"] *  loss_en_softF1 + \
-                     self.loss_weights["en_regr"] * loss_en_regr + \
                      self.loss_weights["is_calo_seed"] * loss_is_calo_seed + \
                      loss_reg
+                     #self.loss_weights["en_softF1"] *  loss_en_softF1 + \
+                     #self.loss_weights["en_regr"] * loss_en_regr + \
                      #self.loss_weights["en_resol"] * loss_en_resol+ \
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -655,11 +655,11 @@ class DeepClusterGN(tf.keras.Model):
         loss =  self.loss_weights["clusters"] * loss_clusters +\
                 self.loss_weights["window"] * loss_windows + \
                 self.loss_weights["softF1"] * loss_softF1 + \
-                self.loss_weights["en_softF1"] *  loss_en_softF1 + \
-                self.loss_weights["en_regr"] * loss_en_regr + \
                 self.loss_weights["is_calo_seed"] * loss_is_calo_seed + \
                 loss_reg
                 # self.loss_weights["en_resol"] * loss_en_resol + \
+                # self.loss_weights["en_softF1"] *  loss_en_softF1 + \
+                # self.loss_weights["en_regr"] * loss_en_regr + \
         
         # Compute our own metrics
         self.loss_tracker.update_state(loss)
@@ -743,7 +743,7 @@ def energy_loss(y_true, y_pred, weight, beta=1):
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     cl_en = Et = cl_X[:,:,0:1]
-    En_sim_good = y_metadata[:,-1]
+    En_sim_good = y_metadata[:,-2] # en_true_sim --> HARD CODED be careful in the config
     pred_prob = tf.nn.sigmoid(dense_clclass)
 
     sel_en = tf.squeeze(tf.reduce_sum(cl_en * pred_prob , axis=1))
@@ -793,7 +793,7 @@ def energy_regression_loss(y_true, y_pred, weight):
     cl_ens = cl_X[:,:,0]
     pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
     calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
-    true_en_gen = y_metadata[:,-2]  # en_true_gen --> HARD CODED be careful in the config
+    true_en_gen = y_metadata[:,-3]  # en_true_gen --> HARD CODED be careful in the config
 
     loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
     return loss
