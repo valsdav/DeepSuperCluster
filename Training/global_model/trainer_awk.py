@@ -200,7 +200,7 @@ with strategy.scope():
         # do not import if not needed
         import comet_ml
         experiment = comet_ml.Experiment(
-                api_key=apikey,
+                api_key=args.apikey,
                 project_name=config["comet"]["project_name"],
                 workspace=config["comet"]["workspace_name"]
         )
