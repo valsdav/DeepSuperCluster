@@ -15,6 +15,7 @@ parser.add_argument("--model-config", type=str, help="Model configuration", requ
 parser.add_argument("--model-weights", type=str, help="Model weights", required=True)
 parser.add_argument("--conf-overwrite", type=str, help="Validation config overwrite", required=False)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
+parser.add_argument("--diff-model", action="store_true", help="Model with different outputs than baseline model")
 args = parser.parse_args()
 
 
@@ -70,11 +71,26 @@ for ib, el in enumerate(dataset):
     y_out = model(X, training=False)
 
     if include_rechits:
-        cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
+        if args.diff_model:
+            # hard code model inputs for model different than baseline model
+            cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
+        else:
+            cl_X_initial, wind_X, cl_hits, is_seed, mask_cls, mask_rechits = X
     else:
-        cl_X_initial, wind_X,  is_seed, mask_cls = X 
-    (dense_clclass,dense_windclass, en_regr_factor),  mask_cls  = y_out
-    y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
+        if args.diff_model:
+            # hard code model inputs for model different than baseline model
+            cl_X_initial, wind_X,  is_seed, mask_cls = X 
+        else:
+            cl_X_initial, wind_X,  is_seed, mask_cls = X
+
+    if args.diff_model:
+        # hard code model outputs for model different than baseline model
+        (dense_clclass,dense_windclass, en_regr_factor, is_seed_calo_seed),  mask_cls  = y_out
+        y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
+    else:
+        # baseline model outputs
+        (dense_clclass,dense_windclass, en_regr_factor),  mask_cls  = y_out
+        y_clclass, y_windclass, cl_X, wind_X, y_metadata = y_true
     
     y_target = tf.cast(y_clclass, tf.float32)
 
@@ -90,7 +106,7 @@ for ib, el in enumerate(dataset):
     Et_tot_window = tf.squeeze(tf.reduce_sum(Et, axis=1))
     En_tot_window = tf.squeeze(tf.reduce_sum(En, axis=1))
     En_tot_window_calib = tf.squeeze(tf.reduce_sum(En_calib, axis=1))
-
+    from IPython import embed; embed()
     Et_true = tf.reduce_sum( Et * y_target,axis=1)
     Et_sel =  tf.reduce_sum( Et * y_pred,axis=1)
     Et_sel_true = tf.reduce_sum( Et * y_pred * y_target,axis=1)
