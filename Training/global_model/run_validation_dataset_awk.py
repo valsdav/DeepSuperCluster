@@ -106,7 +106,7 @@ for ib, el in enumerate(dataset):
     Et_tot_window = tf.squeeze(tf.reduce_sum(Et, axis=1))
     En_tot_window = tf.squeeze(tf.reduce_sum(En, axis=1))
     En_tot_window_calib = tf.squeeze(tf.reduce_sum(En_calib, axis=1))
-    from IPython import embed; embed()
+
     Et_true = tf.reduce_sum( Et * y_target,axis=1)
     Et_sel =  tf.reduce_sum( Et * y_pred,axis=1)
     Et_sel_true = tf.reduce_sum( Et * y_pred * y_target,axis=1)
