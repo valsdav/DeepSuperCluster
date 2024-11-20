@@ -35,7 +35,7 @@
             "nworkers": 2,
             "max_batches_in_memory":12,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
-                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "seed_is_caloseed"], ["weight"]]
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "is_seed_calo_seed"], ["weight"]]
            },
         "validation": {
             "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023_overlapTraining_single/awkward_126X_mcRun3_2023_forPU65_v4/validation",
@@ -70,7 +70,7 @@
             "nworkers": 1,
             "max_batches_in_memory":8,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
-                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "seed_is_caloseed"], ["weight"]]
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "is_seed_calo_seed"], ["weight"]]
         },
         "test": {
             "input_folders": ["/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/windows_data/electrons/run3_126X_2023_overlapTraining_single/awkward_126X_mcRun3_2023_forPU65_v4/test",
@@ -105,11 +105,11 @@
             "nworkers": 1,
             "max_batches_in_memory":10,
             "output_tensors": [["cl_X_norm", "wind_X_norm", "cl_hits", "is_seed", "cls_mask", "hits_mask"],
-                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "seed_is_caloseed"], ["weight"]]
+                               ["in_scluster", "flavour", "cl_X", "wind_X", "wind_meta", "is_seed_calo_seed"], ["weight"]]
            }
     },
     
-    "nepochs": 1,
+    "nepochs": 300,
     "lr": 0.001,
     "opt": "adamW",
     "activation": "selu",
