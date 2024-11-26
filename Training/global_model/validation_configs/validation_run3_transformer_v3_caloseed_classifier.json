@@ -11,7 +11,8 @@
            "cl_labels",
            "window_features",
            "window_metadata",
-           "cl_h"
+           "cl_h",
+	   "seed_features"
        ],
        "columns": {
            "cl_features": [
