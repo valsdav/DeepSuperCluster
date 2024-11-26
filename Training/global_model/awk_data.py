@@ -449,7 +449,7 @@ def load_batches_from_files_generator(config, preprocessing_fn, shuffle=True, re
         # Parquet files
         dfs_raw = [ ak.from_parquet(file, lazy=True, use_threads=True, columns=config.file_input_columns) for file in files if file!=None]
         # Loading chunks from the files
-        initial_dfs = [ load_dataset_chunks(df, config, chunk_size=config.chunk_size, offset=config.offset) for df in dfs_raw] 
+        initial_dfs = [ load_dataset_chunks(df, config, chunk_size=config.chunk_size, offset=config.offset) for df in dfs_raw]
         # Contatenate the chunks from the list of files
         df = concat_datasets(*initial_dfs)
         # Shuffle the axis=0
@@ -468,13 +468,19 @@ def load_batches_from_files_generator(config, preprocessing_fn, shuffle=True, re
         try:
             yield from split_batches(preproc(df), config.batch_size)
         except GeneratorExit:
-            #print("Internal generator closed")
+            print("Internal generator closed")
             for d in dfs_raw:
                 del d
             for d in initial_dfs:
                 del d
             del df
-        
+        except Exception as e:
+            print("Error in the internal generator: ", e)
+            for d in dfs_raw:
+                del d
+            for d in initial_dfs:
+                del d
+            del df
         finally:
             #print("THE END of the internal generator")
             return
@@ -832,7 +838,6 @@ def load_tfdataset_and_original(config:LoaderConfig):
             yield tuple([ tuple([df_tf[i] for i in o]) for o in out_index]), original
         
 
-        
 #Utils for debugging tf dataset
 
 def get(dataset):
