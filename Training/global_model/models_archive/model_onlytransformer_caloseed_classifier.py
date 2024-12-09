@@ -422,7 +422,7 @@ class DeepClusterGN(tf.keras.Model):
         self.n_windclasses = kwargs.pop("n_windclasses", 1)
         self.dropout = kwargs.get("dropout",0.)
         self.l2_reg = kwargs.get("l2_reg", False)
-        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1., "softF1_beta":1, "is_calo_seed":1})
+        self.loss_weights = kwargs.get("loss_weights", {"clusters":1., "window":1., "softF1":1., "et_miss":1., "et_spur":1., "en_regr":1., "softF1_beta":1, "is_calo_seed":1, "not_calomatched":1})
         
         super(DeepClusterGN, self).__init__()
         
@@ -600,7 +600,7 @@ class DeepClusterGN(tf.keras.Model):
             loss_windows = window_classification_loss(y, y_pred, w[0])
             loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w[0], self.loss_weights["softF1_beta"])
             loss_en_regr = energy_regression_loss(y, y_pred, w[0])
-            loss_is_calo_seed = is_calo_seed_loss(y, y_pred, w[0])
+            loss_is_calo_seed = is_calo_seed_loss(y, y_pred, w[0], self.loss_weights["not_calomatched"])
             loss_reg = tf.reduce_sum(self.losses)
             # tf.print(loss_clusters, loss_softF1, loss_windows, loss_en_resol, loss_en_regr, loss_en_softF1, sum(self.losses))
             # Total loss function
@@ -649,7 +649,7 @@ class DeepClusterGN(tf.keras.Model):
         loss_windows = window_classification_loss(y, y_pred, w[0])
         loss_en_resol, loss_en_softF1 = energy_loss(y, y_pred, w[0], self.loss_weights["softF1_beta"])
         loss_en_regr = energy_regression_loss(y, y_pred, w[0])
-        loss_is_calo_seed = is_calo_seed_loss(y, y_pred, w[0])
+        loss_is_calo_seed = is_calo_seed_loss(y, y_pred, w[0], self.loss_weights["not_calomatched"])
         loss_reg = tf.reduce_sum(self.losses)
         # Total loss function
         loss =  self.loss_weights["clusters"] * loss_clusters +\
@@ -743,7 +743,7 @@ def energy_loss(y_true, y_pred, weight, beta=1):
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
     y_target = tf.cast(y_clclass, tf.float32)[:,:,tf.newaxis]
     cl_en = Et = cl_X[:,:,0:1]
-    En_sim_good = y_metadata[:,-2] # en_true_sim --> HARD CODED be careful in the config
+    En_sim_good = y_metadata[:,-3] # en_true_sim --> HARD CODED be careful in the config
     pred_prob = tf.nn.sigmoid(dense_clclass)
 
     sel_en = tf.squeeze(tf.reduce_sum(cl_en * pred_prob , axis=1))
@@ -793,16 +793,25 @@ def energy_regression_loss(y_true, y_pred, weight):
     cl_ens = cl_X[:,:,0]
     pred_en =  tf.reduce_sum(cl_ens * tf.squeeze(tf.cast(tf.nn.sigmoid(dense_clclass) > 0.5 , tf.float32)), axis=-1)
     calib_pred_en =  pred_en * tf.squeeze(en_regr_factor)
-    true_en_gen = y_metadata[:,-3]  # en_true_gen --> HARD CODED be careful in the config
+    true_en_gen = y_metadata[:,-4]  # en_true_gen --> HARD CODED be careful in the config
 
     loss = huber_loss(true_en_gen, calib_pred_en, 5, weight) + quantile_loss(true_en_gen, calib_pred_en,weight )
     return loss
 
 @tf.function
-def is_calo_seed_loss(y_true, y_pred, weight):
+def is_calo_seed_loss(y_true, y_pred, weight, not_calomatched_weight):
     (dense_clclass, dense_windclass, en_regr_factor, is_seed_calo_seed), mask_cls  = y_pred
     y_clclass, y_windclass, cl_X, wind_X, y_metadata, y_is_seed_calo_seed = y_true
 
-    caloclass_loss = tf.keras.losses.binary_crossentropy(y_is_seed_calo_seed, is_seed_calo_seed[:,0], from_logits=True)
-    reduced_loss =   tf.reduce_sum(caloclass_loss * weight) / tf.reduce_sum(weight)
+    caloclass_loss = tf.keras.losses.binary_crossentropy(tf.reshape(y_is_seed_calo_seed,(-1,1)), is_seed_calo_seed, from_logits=True)
+
+    #calculate new weights manually. give less weight to windows that are not calomatched
+    #once reweighting studies have been newly done we can again just use the below line
+    #reduced_loss =   tf.reduce_sum(caloclass_loss * weight) / tf.reduce_sum(weight)
+
+    calomatched = y_metadata[:,-2] # --> HARD CODED be careful in the config
+    manual_weight = tf.where(calomatched == 0, not_calomatched_weight, 1.)
+    manual_weight = weight * manual_weight
+    reduced_loss = tf.reduce_sum(caloclass_loss * manual_weight) / tf.reduce_sum(manual_weight)
+
     return reduced_loss

@@ -19,7 +19,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_seed"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_matched", "is_seed_calo_seed"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -54,7 +54,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_seed"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_matched", "is_seed_calo_seed"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -89,7 +89,7 @@
                 ],
                 "cl_labels" : ["in_scluster", "is_seed"],
                 "window_metadata": ["flavour", "nVtx", "rho", "obsPU",
-                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_seed"],
+                                    "truePU", "ncls", "nclusters_insc", "en_true_gen", "en_true_sim", "is_seed_calo_matched", "is_seed_calo_seed"],
                 "window_features" : [ "max_en_cluster","max_et_cluster","max_deta_cluster",
                                       "max_dphi_cluster","max_den_cluster","max_det_cluster"]
             },
@@ -166,7 +166,8 @@
         "en_softF1": 100,
         "en_regr": 0.00,
         "is_calo_seed":1,
-        "softF1_beta": 1.50
+        "softF1_beta": 1.50,
+        "not_calomatched": 0.1
     },
     "comet": {
         "project_name": "deepsc",
