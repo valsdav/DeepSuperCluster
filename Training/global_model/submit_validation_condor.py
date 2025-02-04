@@ -15,6 +15,8 @@ parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=Tr
 parser.add_argument("--conf-overwrite", type=str, help="Validation config overwrite", required=False)
 parser.add_argument("--gpu", action="store_true", help="Request GPU")
 parser.add_argument("--dry", help="Try run, print commands", action="store_true")
+parser.add_argument("--diff-model", action="store_true", help="Model with different outputs than baseline model")
+parser.add_argument("--flavour", type=str, help='Choose dataset: ele1, gamma1, ele2, gamma2', required=False)
 args = parser.parse_args()
 
 # Checking the input files exists
@@ -27,7 +29,7 @@ if not os.path.exists(args.model_config):
 
 sub = htcondor.Submit()
 sub['Executable'] = "run_validation_condor.sh"
-sub["arguments"] = f"{args.model_config}  {args.model_weights} {args.outputdir}"
+sub["arguments"] = f"{args.model_config}  {args.model_weights} {args.outputdir} {args.conf_overwrite} {args.flavour} {str(args.diff_model)}"
 sub['Error'] = args.basedir+"/condor_logs/error/validation-$(ClusterId).$(ProcId).err"
 sub['Output'] = args.basedir+"/condor_logs/output/validation-$(ClusterId).$(ProcId).out"
 sub['Log'] = args.basedir+"/condor_logs/log/validation-$(ClusterId).log"
@@ -39,11 +41,11 @@ sub['request_cpus'] = '3'
 if args.gpu:
     sub['request_gpus'] = '1'
 
-if args.conf_overwrite:
-    sub["arguments"] += f' {args.basedir}/{args.conf_overwrite}'
-    sub["transfer_input_files"] += f", {args.basedir}/{args.conf_overwrite}"
-else:
-    sub["arguments"] += f' None'
+#if args.conf_overwrite:
+    #sub["arguments"] += f' {args.basedir}/{args.conf_overwrite}'
+    #sub["transfer_input_files"] += f", {args.basedir}/{args.conf_overwrite}"
+#else:
+    #sub["arguments"] += f' None'
 
 if args.dry:
     print("run_validation_condor.sh "+ sub["arguments"])

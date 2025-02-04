@@ -16,6 +16,7 @@ parser.add_argument("--model-weights", type=str, help="Model weights", required=
 parser.add_argument("--conf-overwrite", type=str, help="Validation config overwrite", required=False)
 parser.add_argument("-o", "--outputdir", type=str, help="Outputdir", required=True)
 parser.add_argument("--diff-model", action="store_true", help="Model with different outputs than baseline model")
+parser.add_argument("--flavour", type=str, help='Choose dataset: ele1, gamma1, ele2, gamma2', required=False)
 args = parser.parse_args()
 
 
@@ -245,9 +246,33 @@ for ib, el in enumerate(dataset):
     data["obsPU"].append(ak.to_numpy(df.window_metadata.obsPU))
     data["truePU"].append(ak.to_numpy(df.window_metadata.truePU))
 
+    if args.diff_model:
+        # Store additional quantities for different model
+        data["is_seed_calo_matched"].append(ak.to_numpy(df.window_metadata.is_seed_calo_matched))
+
+        is_seed_calo_seed_prob = tf.squeeze(tf.nn.sigmoid(is_seed_calo_seed))
+        data["is_seed_calo_seed"].append(is_seed_calo_seed_prob.numpy())
+        data["is_seed_calo_seed_true"].append(ak.to_numpy(df.window_metadata.is_seed_calo_seed))
+
+        #data["En_cl_max"] = 
+        #data["Et_cl_max"] = 
+        #data["En_cl_2"] = 
+        #data["Et_cl_2"] = 
+
+        if (args.flavour == "ele2") or (args.flavour == "gamma2"):
+
+            mask = (df.cl_labels.is_calo_seed == True)&(df.cl_labels.is_calo_matched_diffcalo == True)
+            other_calo_seed_in_window = ak.any(mask, axis=1)
+            data["other_calo_seed_in_window"].append(ak.to_numpy(other_calo_seed_in_window))
+
+            mask = ak.fill_none(ak.pad_none(mask, ncls_in_sample), False)
+            y_pred_mask = (ak.Array(y_pred.numpy()) == 1)
+            other_calo_seed_in_sc = ak.any((mask & y_pred_mask), axis=1)
+            data["other_calo_seed_in_sc"].append(ak.to_numpy(other_calo_seed_in_sc))
+
     # seed features
     for f in df.meta_seed_features.fields:
-        data[f].append( ak.to_numpy(df.meta_seed_features[f]) )
+        data[f].append( ak.to_numpy(df.meta_seed_features[f]))
 
     # Now mustache selection
     data["w_nomatch"].append(pred_prob_window[:,0].numpy())
@@ -266,15 +291,46 @@ for k,v in data.items():
 import pandas as pd
 df  = pd.DataFrame(data_final)
 
-df_ele = df[df.flavour == 11]
-df_gamma = df[df.flavour == 22]
-df_nomatch = df[df.flavour ==0]
 
 print("Saving on disk")
+if args.diff_model:
+    # hard code how validation data sets should be stored for different model --> might also need to adapt input files in config.json file
 
-os.makedirs(args.outputdir, exist_ok=True)
-df_ele.to_csv(args.outputdir +"/validation_dataset_ele.csv", sep=";",index=False)
-df_gamma.to_csv(args.outputdir +"/validation_dataset_gamma.csv", sep=";",index=False)
-# df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
+    if args.flavour == "ele1":
+        df_final = df[df.flavour == 11]
+        os.makedirs(args.outputdir, exist_ok=True)
+        df_final.to_csv(args.outputdir +"/validation_dataset_single_ele.csv", sep=";",index=False)
+    elif args.flavour == "ele2":
+        df_final = df[df.flavour == 11]
+        os.makedirs(args.outputdir, exist_ok=True)
+        df_final.to_csv(args.outputdir +"/validation_dataset_double_ele.csv", sep=";",index=False)
+    elif args.flavour == "gamma1":
+        df_final = df[df.flavour == 22]
+        os.makedirs(args.outputdir, exist_ok=True)
+        df_final.to_csv(args.outputdir +"/validation_dataset_single_gamma.csv", sep=";",index=False)
+    elif args.flavour == "gamma2":
+        df_final = df[df.flavour == 22]
+        os.makedirs(args.outputdir, exist_ok=True)
+        df_final.to_csv(args.outputdir +"/validation_dataset_double_gamma.csv", sep=";",index=False)
+
+    #df_final = df[df.flavour == 11]
+    #df_final = df[df.flavour == 22]
+    #os.makedirs(args.outputdir, exist_ok=True)
+    #df_final.to_csv(args.outputdir +"/validation_dataset_single_ele.csv", sep=";",index=False)
+    #df_final.to_csv(args.outputdir +"/validation_dataset_double_ele.csv", sep=";",index=False)
+    #df_final.to_csv(args.outputdir +"/validation_dataset_single_gamma.csv", sep=";",index=False)
+    #df_final.to_csv(args.outputdir +"/validation_dataset_double_gamma.csv", sep=";",index=False)
+
+else:
+    # baseline model storage
+
+    df_ele = df[df.flavour == 11]
+    df_gamma = df[df.flavour == 22]
+    df_nomatch = df[df.flavour ==0]
+    
+    os.makedirs(args.outputdir, exist_ok=True)
+    df_ele.to_csv(args.outputdir +"/validation_dataset_ele.csv", sep=";",index=False)
+    df_gamma.to_csv(args.outputdir +"/validation_dataset_gamma.csv", sep=";",index=False)
+    # df_nomatch.to_csv(args.outputdir +"/validation_dataset_{}_nomatch.csv".format(args.dataset_version), sep=";",index=False)
 
 print("DONE!")
