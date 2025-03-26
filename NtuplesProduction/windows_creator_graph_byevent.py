@@ -77,16 +77,50 @@ def get_cluster_hits(pfclhit_ieta,pfclhit_iphi,pfclhit_iz,pfclhit_energy, pfclhi
 class WindowCreator():
 
     def __init__(self, simfraction_thresholds,  seed_min_fraction=1e-2, cl_min_fraction=1e-4, simenergy_pu_limit = 1.5,
-                 min_et_seed=1., assoc_strategy="sim_fraction",  nocalomatchedNmax=0,  do_pu_sim=False):
+                 min_et_seed=1.,  max_et_seed=1e10, max_et_isolated_cl=1e10, assoc_strategy="sim_fraction",  nocalomatchedNmax=0,  do_pu_sim=False):
         self.seed_min_fraction = seed_min_fraction
         self.cluster_min_fraction = cl_min_fraction
         self.simfraction_thresholds = correctionlib.CorrectionSet.from_file(simfraction_thresholds)["simfraction_thres"]
         self.simenergy_pu_limit = simenergy_pu_limit
         self.min_et_seed=min_et_seed
+        self.max_et_seed=max_et_seed
+        self.max_et_isolated_cl = max_et_isolated_cl
         self.assoc_strategy = assoc_strategy
         self.do_pu_sim = do_pu_sim
         self.nocalomatchedNmax = nocalomatchedNmax
 
+
+        
+    def remove_clusters(self, idxs_to_remove, nodes_features,
+                            nodes_sim_features, edges_idx, edges_labels):
+            # Remove nodes without connections
+            for icl in idxs_to_remove:
+                for key in nodes_features.keys():
+                    nodes_features[key][icl] = None
+                    for key in nodes_sim_features.keys():
+                        nodes_sim_features[key][icl] = None
+
+            # Create a mapping from old indices to new indices
+            old_to_new_index = {}
+            new_index = 0
+            for old_index in range(len(nodes_features["cl_en"])):
+                if nodes_features["cl_en"][old_index] is not None:
+                    old_to_new_index[old_index] = new_index
+                    new_index += 1
+
+            # Update the edges indices
+            edges_idx = [(old_to_new_index[edge[0]], old_to_new_index[edge[1]]) for edge in edges_idx]
+            # I don't need to fix the edges labels because I'm removing only clusters without connections
+            # for key in edges_labels.keys():
+            #     edges_labels[key] = [edges_labels[key][i] for i in range(len(edges_labels[key])) if nodes_features["cl_en"][edges_idx[i][0]] is not None and nodes_features["cl_en"][edges_idx[i][1]] is not None]
+
+            # Remove None values from nodes_features and nodes_sim_features
+            for key in nodes_features.keys():
+                nodes_features[key] = [value for value in nodes_features[key] if value is not None]
+            for key in nodes_sim_features.keys():
+                nodes_sim_features[key] = [value for value in nodes_sim_features[key] if value is not None]
+            return nodes_features, nodes_sim_features, edges_idx, edges_labels
+        
     def pass_simfraction_threshold(self, seed_eta, seed_et, cluster_calo_score ):
         '''
         This functions associates a cluster as true matched if it passes a threshold in simfraction
@@ -308,6 +342,8 @@ class WindowCreator():
 
             # No seeds with Et< min_et_seed GeV
             if clenergy_T < self.min_et_seed: continue
+            # No seed with Et> max_et_seed GeV
+            if clenergy_T > self.max_et_seed: continue
 
             cl_eta = pfCluster_eta[icl]
             cl_phi = pfCluster_phi[icl]
@@ -517,34 +553,24 @@ class WindowCreator():
             noncalomatched_clusters_toremove = noncalomatched_no_connections[min(self.nocalomatchedNmax,len(noncalomatched_no_connections)):]
         else:
             noncalomatched_clusters_toremove = []
-            
-        # Remove noncalomatched nodes without connections
-        for icl in noncalomatched_clusters_toremove:
-            for key in nodes_features.keys():
-                nodes_features[key][icl] = None
-                for key in nodes_sim_features.keys():
-                    nodes_sim_features[key][icl] = None
 
-        # Create a mapping from old indices to new indices
-        old_to_new_index = {}
-        new_index = 0
-        for old_index in range(len(nodes_features["cl_en"])):
-            if nodes_features["cl_en"][old_index] is not None:
-                old_to_new_index[old_index] = new_index
-                new_index += 1
+        (nodes_features, nodes_sim_features,
+         edges_idx, edges_labels) =  self.remove_clusters(noncalomatched_clusters_toremove, nodes_features,
+                        nodes_sim_features, edges_idx, edges_labels)
 
-        # Update the edges indices
-        edges_idx = [(old_to_new_index[edge[0]], old_to_new_index[edge[1]]) for edge in edges_idx]
-        # I don't need to fix the edges labels because I'm removing only clusters without connections
-        # for key in edges_labels.keys():
-        #     edges_labels[key] = [edges_labels[key][i] for i in range(len(edges_labels[key])) if nodes_features["cl_en"][edges_idx[i][0]] is not None and nodes_features["cl_en"][edges_idx[i][1]] is not None]
-        
-        # Remove None values from nodes_features and nodes_sim_features
-        for key in nodes_features.keys():
-            nodes_features[key] = [value for value in nodes_features[key] if value is not None]
-        for key in nodes_sim_features.keys():
-            nodes_sim_features[key] = [value for value in nodes_sim_features[key] if value is not None]
+        # Now I also want to identify cluster above the energy thresholds with no connections
+        clusters_to_remove = []
+        for icl in range(len(nodes_features["cl_et"])):
+            if nodes_features["cl_et"][icl] is not None:
+                if nodes_features["cl_et"][icl] > self.max_et_isolated_cl:
+                    has_connection = any(edge[0] == icl or edge[1] == icl for edge in edges_idx)
+                    if not has_connection:
+                        clusters_to_remove.append(icl)
 
+        #print("Clusters to remove: ", clusters_to_remove)
+        (nodes_features, nodes_sim_features,
+         edges_idx, edges_labels) =  self.remove_clusters(clusters_to_remove, nodes_features,
+                        nodes_sim_features, edges_idx, edges_labels)
 
         ############
         # print(seed_clusters)
