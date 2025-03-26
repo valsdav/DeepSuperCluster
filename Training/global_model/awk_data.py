@@ -55,7 +55,7 @@ default_features_dict = {
                          "min_en_cluster","min_et_cluster","min_deta_cluster","min_dphi_cluster","min_den_cluster","min_det_cluster",
                          "mean_en_cluster","mean_et_cluster","mean_deta_cluster","mean_dphi_cluster","mean_den_cluster","mean_det_cluster" ],
 
-    "window_metadata": ["ncls", "nclusters_insc",
+    "window_metadata": [ "window_index","ncls", "nclusters_insc",
                         "nVtx", "rho", "obsPU", "truePU",
                         "sim_true_eta", "sim_true_phi",  
                         "gen_true_eta","gen_true_phi",
